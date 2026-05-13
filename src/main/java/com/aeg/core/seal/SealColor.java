@@ -4,10 +4,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum SealColor {
-    ROJO("rojo"),
     AZUL("azul"),
+    MORADO("morado"),
     VERDE("verde"),
-    AMARILLO("amarillo");
+    VERDE_NEON("verde_neon");
 
     private final String value;
 

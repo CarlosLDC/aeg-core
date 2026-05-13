@@ -16,18 +16,19 @@ public class PrinterServiceImpl implements PrinterService {
     private final PrinterRepository repository;
     private final com.aeg.core.printermodel.PrinterModelRepository modelRepository;
     private final com.aeg.core.software.SoftwareRepository softwareRepository;
-    private final com.aeg.core.branch.BranchRepository branchRepository;
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
+    private final com.aeg.core.client.ClientRepository clientRepository;
+
     public PrinterServiceImpl(PrinterRepository repository,
                               com.aeg.core.printermodel.PrinterModelRepository modelRepository,
                               com.aeg.core.software.SoftwareRepository softwareRepository,
-                              com.aeg.core.branch.BranchRepository branchRepository,
-                              com.aeg.core.distributor.DistributorRepository distributorRepository) {
+                              com.aeg.core.distributor.DistributorRepository distributorRepository,
+                              com.aeg.core.client.ClientRepository clientRepository) {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
-        this.branchRepository = branchRepository;
         this.distributorRepository = distributorRepository;
+        this.clientRepository = clientRepository;
     }
 
     @Override
@@ -50,8 +51,12 @@ public class PrinterServiceImpl implements PrinterService {
         Printer p = new Printer();
         if (request.modelId() != null) p.setModel(modelRepository.getReferenceById(request.modelId()));
         if (request.softwareId() != null) p.setSoftware(softwareRepository.getReferenceById(request.softwareId()));
-        if (request.branchId() != null) p.setBranch(branchRepository.getReferenceById(request.branchId()));
         if (request.distributorId() != null) p.setDistributor(distributorRepository.getReferenceById(request.distributorId()));
+        if (request.clientId() != null) {
+            p.setClient(clientRepository.getReferenceById(request.clientId()));
+        } else {
+            p.setClient(null);
+        }
         p.setFiscalSerial(request.fiscalSerial());
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
@@ -71,8 +76,12 @@ public class PrinterServiceImpl implements PrinterService {
         }
         if (request.modelId() != null) p.setModel(modelRepository.getReferenceById(request.modelId()));
         if (request.softwareId() != null) p.setSoftware(softwareRepository.getReferenceById(request.softwareId()));
-        if (request.branchId() != null) p.setBranch(branchRepository.getReferenceById(request.branchId()));
         if (request.distributorId() != null) p.setDistributor(distributorRepository.getReferenceById(request.distributorId()));
+        if (request.clientId() != null) {
+            p.setClient(clientRepository.getReferenceById(request.clientId()));
+        } else {
+            p.setClient(null);
+        }
         p.setFiscalSerial(request.fiscalSerial());
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
@@ -99,7 +108,7 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getId(),
                 p.getModelId(),
                 p.getSoftwareId(),
-                p.getBranchId(),
+                p.getClientId(),
                 p.getFiscalSerial(),
                 p.getFinalSalePrice(),
                 p.getCreatedAt(),

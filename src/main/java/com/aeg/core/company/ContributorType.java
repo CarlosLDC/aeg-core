@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum ContributorType {
-    ORDINARIO("Ordinario"),
-    ESPECIAL("Especial"),
-    FORMAL("Formal");
+    ORDINARIO("ordinario"),
+    ESPECIAL("especial"),
+    FORMAL("formal");
 
     private final String value;
 

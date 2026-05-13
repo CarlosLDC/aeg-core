@@ -14,7 +14,7 @@ import com.aeg.core.printer.PrinterStatus;
 public record PrinterRequest(
         @NotNull Long modelId,
         Long softwareId,
-        Long branchId,
+        Long clientId,
         Long distributorId,
         @NotBlank @Pattern(regexp = "^[A-Z]{3}[0-9]{7}$", flags = Pattern.Flag.CASE_INSENSITIVE) String fiscalSerial,
         @DecimalMin(value = "0") BigDecimal finalSalePrice,

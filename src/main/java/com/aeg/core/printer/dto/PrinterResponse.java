@@ -10,7 +10,7 @@ public record PrinterResponse(
         Long id,
         Long modelId,
         Long softwareId,
-        Long branchId,
+        Long clientId,
         String fiscalSerial,
         BigDecimal finalSalePrice,
         OffsetDateTime createdAt,

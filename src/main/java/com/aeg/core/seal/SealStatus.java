@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum SealStatus {
-    INSTALADO("instalado"),
-    RETIRADO("retirado"),
-    DISPONIBLE("disponible");
+    DISPONIBLE("disponible"),
+    EN_IMPRESORA("en_impresora"),
+    SUSTITUIDO("sustituido");
 
     private final String value;
 

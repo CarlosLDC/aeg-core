@@ -31,11 +31,9 @@ public class Printer {
     @JoinColumn(name = "id_software")
     private com.aeg.core.software.Software software;
 
-    // id_compra (purchase) intentionally omitted per request
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_sucursal")
-    private com.aeg.core.branch.Branch branch;
+    @JoinColumn(name = "id_cliente")
+    private com.aeg.core.client.Client client;
 
     @Column(name = "serial_fiscal", nullable = false, unique = true)
     private String fiscalSerial;
@@ -49,8 +47,6 @@ public class Printer {
     @Convert(converter = PrinterStatusConverter.class)
     @Column(name = "estatus", nullable = false)
     private PrinterStatus status;
-
-    // id_firmware intentionally ignored per request
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_distribuidora")
@@ -84,11 +80,9 @@ public class Printer {
     public void setSoftware(com.aeg.core.software.Software software) { this.software = software; }
     public Long getSoftwareId() { return software == null ? null : software.getId(); }
 
-    // purchaseId intentionally omitted
-
-    public com.aeg.core.branch.Branch getBranch() { return branch; }
-    public void setBranch(com.aeg.core.branch.Branch branch) { this.branch = branch; }
-    public Long getBranchId() { return branch == null ? null : branch.getId(); }
+    public com.aeg.core.client.Client getClient() { return client; }
+    public void setClient(com.aeg.core.client.Client client) { this.client = client; }
+    public Long getClientId() { return client == null ? null : client.getId(); }
 
     public String getFiscalSerial() { return fiscalSerial; }
     public void setFiscalSerial(String fiscalSerial) { this.fiscalSerial = fiscalSerial; }
