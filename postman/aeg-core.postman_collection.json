@@ -36,7 +36,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"businessName\": \"AEG Test Company {{$randomInt}}\",\n  \"rif\": \"J{{$timestamp}}\",\n  \"contributorType\": \"ordinario\"\n}",
+              "raw": "{\n  \"businessName\": \"{{tempCompanyName}}\",\n  \"rif\": \"{{tempRif}}\",\n  \"contributorType\": \"ordinario\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -57,7 +57,12 @@
                   "pm.environment.set('serviceCenterId', '');",
                   "pm.environment.set('employeeId', '');",
                   "pm.environment.set('printerId', '');",
-                  "pm.environment.set('sealId', '');"
+                  "pm.environment.set('sealId', '');",
+                  "",
+                  "// Generar RIF válido (Letra + 8 dígitos)",
+                  "const randomDigits = Math.floor(10000000 + Math.random() * 90000000);",
+                  "pm.environment.set('tempRif', 'J' + randomDigits);",
+                  "pm.environment.set('tempCompanyName', 'AEG Test ' + pm.variables.replaceIn('{{$randomInt}}'));"
                 ],
                 "type": "text/javascript"
               }
