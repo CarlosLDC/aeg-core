@@ -6,21 +6,52 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
-    "type": "basic",
-    "basic": [
+    "type": "bearer",
+    "bearer": [
       {
-        "key": "username",
-        "value": "{{adminUsername}}",
-        "type": "string"
-      },
-      {
-        "key": "password",
-        "value": "{{adminPassword}}",
+        "key": "token",
+        "value": "{{token}}",
         "type": "string"
       }
     ]
   },
   "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token exists', () => pm.expect(json.token).to.be.a('string'));",
+                  "pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "Company",
       "item": [
