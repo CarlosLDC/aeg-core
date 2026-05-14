@@ -5,6 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy;
+
 @SpringBootApplication
 public class CoreApplication {
 
@@ -19,6 +22,15 @@ public class CoreApplication {
 		logger.info("---------------------------------------------");
 		
 		SpringApplication.run(CoreApplication.class, args);
+	}
+
+	@Bean
+	public FlywayMigrationStrategy flywayMigrationStrategy() {
+		return flyway -> {
+			logger.info("Ejecutando Flyway Repair para sincronizar checksums...");
+			flyway.repair();
+			flyway.migrate();
+		};
 	}
 
 }
