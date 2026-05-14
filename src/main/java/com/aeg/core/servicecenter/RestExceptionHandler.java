@@ -35,6 +35,14 @@ public class RestExceptionHandler {
 		return ResponseEntity.badRequest().body(body);
 	}
 
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<Map<String, Object>> handleException(Exception exception) {
+		// Log and return the message to help debugging in Postman
+		exception.printStackTrace();
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+				.body(buildBody(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage() != null ? exception.getMessage() : exception.getClass().getName()));
+	}
+
 	private Map<String, Object> buildBody(HttpStatus status, String message) {
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("timestamp", OffsetDateTime.now());
