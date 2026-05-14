@@ -19,7 +19,7 @@ public enum SealStatus {
     public static SealStatus fromValue(String v) {
         if (v == null) return null;
         for (SealStatus s : values()) {
-            if (s.value.equalsIgnoreCase(v)) return s;
+            if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
         throw new IllegalArgumentException("Unknown SealStatus: " + v);
     }

@@ -20,7 +20,7 @@ public enum SealColor {
     public static SealColor fromValue(String v) {
         if (v == null) return null;
         for (SealColor c : values()) {
-            if (c.value.equalsIgnoreCase(v)) return c;
+            if (c.value.equalsIgnoreCase(v) || c.name().equalsIgnoreCase(v)) return c;
         }
         throw new IllegalArgumentException("Unknown SealColor: " + v);
     }

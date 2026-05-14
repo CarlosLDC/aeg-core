@@ -22,7 +22,7 @@ public enum DeviceType {
     public static DeviceType fromValue(String v) {
         if (v == null) return null;
         for (DeviceType d : values()) {
-            if (d.value.equalsIgnoreCase(v)) return d;
+            if (d.value.equalsIgnoreCase(v) || d.name().equalsIgnoreCase(v)) return d;
         }
         throw new IllegalArgumentException("Unknown DeviceType: " + v);
     }

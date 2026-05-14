@@ -23,7 +23,7 @@ public enum PrinterStatus {
     public static PrinterStatus fromValue(String v) {
         if (v == null) return null;
         for (PrinterStatus s : values()) {
-            if (s.value.equalsIgnoreCase(v)) return s;
+            if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
         throw new IllegalArgumentException("Unknown PrinterStatus: " + v);
     }
