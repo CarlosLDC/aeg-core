@@ -14,8 +14,10 @@ services:
     instance_size_slug: apps-s-1vcpu-1gb
     envs:
       - key: SPRING_DATASOURCE_URL
-        value: ${DB_URL}
+        value: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSL_MODE}
       - key: SPRING_DATASOURCE_USERNAME
         value: ${DB_USERNAME}
       - key: SPRING_DATASOURCE_PASSWORD
         value: ${DB_PASSWORD}
+      - key: MQTT_URL
+        value: tcp://${MQTT_BROKER_HOST}:${MQTT_BROKER_PORT}
