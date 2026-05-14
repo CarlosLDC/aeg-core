@@ -101,26 +101,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete company",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/companies/{{companyId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -200,26 +180,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete branch",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/branches/{{branchId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -307,26 +267,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete client",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/clients/{{clientId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -405,26 +345,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('distributorId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete distributor",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/distributors/{{distributorId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -511,26 +431,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete service center",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/service-centers/{{serviceCenterId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -609,26 +509,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('employeeId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete employee",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -715,26 +595,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete distributor person",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/distributor-persons/{{distributorPersonId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -813,26 +673,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('technicianId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete technician",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/technicians/{{technicianId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -919,26 +759,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete printer model",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/printer-models/{{printerModelId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -1017,26 +837,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('softwareId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete software",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/software/{{softwareId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -1123,26 +923,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete printer",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/printers/{{printerId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -1221,26 +1001,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('sealId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete seal",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/seals/{{sealId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -1327,26 +1087,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete distributor contract",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/distributor-contracts/{{distributorContractId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -1425,26 +1165,6 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('serviceCenterContractId')));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete service center contract",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/service-center-contracts/{{serviceCenterContractId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
                 ]
               }
             }
@@ -1531,26 +1251,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Delete annual inspection",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/annual-inspections/{{annualInspectionId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -1633,13 +1333,318 @@
               }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "Teardown",
+      "item": [
         {
           "name": "Delete technical service",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/api/technical-services/{{technicalServiceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete annual inspection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/annual-inspections/{{annualInspectionId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete service center contract",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-center-contracts/{{serviceCenterContractId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete distributor contract",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-contracts/{{distributorContractId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete seal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/seals/{{sealId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete printer",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/printers/{{printerId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete software",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/software/{{softwareId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete printer model",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/printer-models/{{printerModelId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete technician",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/technicians/{{technicianId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete distributor person",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-persons/{{distributorPersonId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete employee",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete service center",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-centers/{{serviceCenterId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete distributor",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributors/{{distributorId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete client",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/clients/{{clientId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete branch",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete company",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/companies/{{companyId}}"
           },
           "event": [
             {
