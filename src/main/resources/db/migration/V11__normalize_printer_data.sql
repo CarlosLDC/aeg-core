@@ -14,3 +14,7 @@ UPDATE public.impresoras SET estatus = 'activo' WHERE estatus IN ('active', 'ena
 UPDATE public.impresoras SET estatus = 'inactivo' WHERE estatus IN ('inactive', 'disabled');
 UPDATE public.impresoras SET tipo_dispositivo = 'interno' WHERE tipo_dispositivo = 'internal';
 UPDATE public.impresoras SET tipo_dispositivo = 'externo' WHERE tipo_dispositivo = 'external';
+
+UPDATE public.empresas SET contributor_type = LOWER(TRIM(contributor_type)) WHERE contributor_type IS NOT NULL;
+UPDATE public.precintos SET color = LOWER(TRIM(color)), estatus = LOWER(TRIM(estatus));
+
