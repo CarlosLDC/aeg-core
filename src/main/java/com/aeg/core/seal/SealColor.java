@@ -19,6 +19,7 @@ public enum SealColor {
     @JsonCreator
     public static SealColor fromValue(String v) {
         if (v == null) return null;
+        v = v.trim();
         for (SealColor c : values()) {
             if (c.value.equalsIgnoreCase(v) || c.name().equalsIgnoreCase(v)) return c;
         }

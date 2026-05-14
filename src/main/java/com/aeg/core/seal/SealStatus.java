@@ -18,6 +18,7 @@ public enum SealStatus {
     @JsonCreator
     public static SealStatus fromValue(String v) {
         if (v == null) return null;
+        v = v.trim();
         for (SealStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }

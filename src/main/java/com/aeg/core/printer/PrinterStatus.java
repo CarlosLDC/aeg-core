@@ -22,6 +22,7 @@ public enum PrinterStatus {
     @JsonCreator
     public static PrinterStatus fromValue(String v) {
         if (v == null) return null;
+        v = v.trim();
         for (PrinterStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
