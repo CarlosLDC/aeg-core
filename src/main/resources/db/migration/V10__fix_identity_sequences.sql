@@ -11,8 +11,8 @@ BEGIN
         SELECT table_schema, table_name, column_name 
         FROM information_schema.columns 
         WHERE table_schema = 'public' 
-          AND column_default LIKE 'nextval%' 
-           OR identity_generation IS NOT NULL
+          AND (column_default LIKE 'nextval%' 
+               OR identity_generation IS NOT NULL)
     LOOP
         -- Obtener el nombre de la secuencia asociada a la columna
         seq_name := pg_get_serial_sequence(r.table_schema || '.' || r.table_name, r.column_name);
