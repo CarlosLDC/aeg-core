@@ -26,6 +26,6 @@ public enum PrinterStatus {
         for (PrinterStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
-        throw new IllegalArgumentException("Unknown PrinterStatus: " + v);
+        return null;
     }
 }

@@ -25,6 +25,6 @@ public enum DeviceType {
         for (DeviceType d : values()) {
             if (d.value.equalsIgnoreCase(v) || d.name().equalsIgnoreCase(v)) return d;
         }
-        throw new IllegalArgumentException("Unknown DeviceType: " + v);
+        return null;
     }
 }

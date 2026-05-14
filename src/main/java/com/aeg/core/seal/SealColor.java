@@ -23,6 +23,6 @@ public enum SealColor {
         for (SealColor c : values()) {
             if (c.value.equalsIgnoreCase(v) || c.name().equalsIgnoreCase(v)) return c;
         }
-        throw new IllegalArgumentException("Unknown SealColor: " + v);
+        return null;
     }
 }

@@ -22,6 +22,6 @@ public enum SealStatus {
         for (SealStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
-        throw new IllegalArgumentException("Unknown SealStatus: " + v);
+        return null;
     }
 }

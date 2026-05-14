@@ -27,6 +27,6 @@ public enum ContributorType {
                 return t;
             }
         }
-        throw new IllegalArgumentException("Unknown contributorType: " + v);
+        return null;
     }
 }

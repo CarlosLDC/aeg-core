@@ -30,6 +30,6 @@ public enum EmployeeType {
 				return t;
 			}
 		}
-		throw new IllegalArgumentException("Unknown EmployeeType: " + v);
+		return null;
 	}
 }
