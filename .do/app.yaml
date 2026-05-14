@@ -14,13 +14,8 @@ services:
     instance_size_slug: apps-s-1vcpu-1gb
     envs:
       - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://${db.HOSTNAME}:${db.PORT}/${db.DATABASE}?sslmode=require
+        value: ${DB_URL}
       - key: SPRING_DATASOURCE_USERNAME
-        value: ${db.USERNAME}
+        value: ${DB_USERNAME}
       - key: SPRING_DATASOURCE_PASSWORD
-        value: ${db.PASSWORD}
-databases:
-  - name: db
-    engine: PG
-    version: "16"
-    size: db-s-dev-database
+        value: ${DB_PASSWORD}
