@@ -78,9 +78,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
-                  "pm.test('Business name starts with AEG', () => pm.expect(json.businessName).to.match(/^AEG/));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'businessName', 'rif', 'contributorType'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'businessName': { 'type': 'string' },",
+                  "    'rif': { 'type': 'string' },",
+                  "    'contributorType': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Response matches request data', () => {",
+                  "    pm.expect(json.businessName).to.eql(pm.environment.get('tempCompanyName'));",
+                  "    pm.expect(json.rif).to.eql(pm.environment.get('tempRif'));",
+                  "});",
+                  "",
                   "pm.environment.set('companyId', String(json.id));"
                 ]
               }
@@ -127,6 +144,78 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create company - Duplicate RIF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessName\": \"Duplicate Test\",\n  \"rif\": \"{{tempRif}}\",\n  \"contributorType\": \"ordinario\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/companies"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 409 or 400', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+                  "});",
+                  "pm.test('Error message mentions RIF', () => {",
+                  "    const text = pm.response.text().toLowerCase();",
+                  "    pm.expect(text).to.include('rif');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create company - Missing RIF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessName\": \"Missing RIF Test\",\n  \"contributorType\": \"ordinario\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/companies"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -161,9 +250,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
-                  "pm.test('City matches', () => pm.expect(json.city).to.eql('Caracas'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'companyId', 'city', 'state'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'companyId': { 'type': ['number', 'string'] },",
+                  "    'city': { 'type': 'string' },",
+                  "    'state': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
+                  "    pm.expect(json.city).to.eql('Caracas');",
+                  "});",
+                  "",
                   "pm.environment.set('branchId', String(json.id));"
                 ]
               }
@@ -491,8 +597,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'nationalId', 'name', 'type', 'branchId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'nationalId': { 'type': 'string' },",
+                  "    'name': { 'type': 'string' },",
+                  "    'type': { 'type': 'string' },",
+                  "    'branchId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Branch ID matches', () => {",
+                  "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
+                  "});",
+                  "",
                   "pm.environment.set('employeeId', String(json.id));"
                 ]
               }
