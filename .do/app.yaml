@@ -3,12 +3,13 @@ region: nyc
 services:
   - name: core-api
     github:
-      repo: segarivera/aeg-core # Ajustar si el nombre del repo es distinto
+      repo: CarlosLDC/aeg-core
       branch: main
       deploy_on_push: true
-    build_command: ./mvnw -DskipTests clean install
-    run_command: java -jar target/core-0.0.1-SNAPSHOT.jar
+    dockerfile_path: Dockerfile
     http_port: 8080
+    health_check:
+      http_path: /actuator/health
     instance_count: 1
     instance_size_slug: apps-s-1vcpu-1gb
     envs:
