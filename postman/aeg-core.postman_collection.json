@@ -350,9 +350,23 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
-                  "pm.test('Branch id matches', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'branchId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'branchId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Branch ID matches', () => {",
+                  "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
+                  "});",
+                  "",
                   "pm.environment.set('clientId', String(json.id));"
                 ]
               }
@@ -433,8 +447,23 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'branchId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'branchId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Branch ID matches', () => {",
+                  "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
+                  "});",
+                  "",
                   "pm.environment.set('distributorId', String(json.id));"
                 ]
               }
@@ -515,8 +544,23 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'branchId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'branchId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Branch ID matches', () => {",
+                  "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
+                  "});",
+                  "",
                   "pm.environment.set('serviceCenterId', String(json.id));"
                 ]
               }
@@ -697,8 +741,23 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'employeeId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'employeeId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Employee ID matches', () => {",
+                  "    pm.expect(String(json.employeeId)).to.eql(pm.environment.get('employeeId'));",
+                  "});",
+                  "",
                   "pm.environment.set('distributorPersonId', String(json.id));"
                 ]
               }
@@ -779,8 +838,23 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'employeeId'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'employeeId': { 'type': ['number', 'string'] }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Employee ID matches', () => {",
+                  "    pm.expect(String(json.employeeId)).to.eql(pm.environment.get('employeeId'));",
+                  "});",
+                  "",
                   "pm.environment.set('technicianId', String(json.id));"
                 ]
               }
@@ -861,8 +935,27 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'brand', 'modelCode', 'providencia'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'brand': { 'type': 'string' },",
+                  "    'modelCode': { 'type': 'string' },",
+                  "    'providencia': { 'type': 'string' },",
+                  "    'price': { 'type': 'number' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(json.brand).to.eql('Epson');",
+                  "    pm.expect(json.modelCode).to.eql('L3150');",
+                  "});",
+                  "",
                   "pm.environment.set('printerModelId', String(json.id));"
                 ]
               }
@@ -943,8 +1036,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'name', 'version'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'name': { 'type': 'string' },",
+                  "    'version': { 'type': 'string' },",
+                  "    'programmingLanguages': { 'type': 'array' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(json.name).to.eql('Core Print Suite');",
+                  "    pm.expect(json.version).to.eql('1.0.0');",
+                  "});",
+                  "",
                   "pm.environment.set('softwareId', String(json.id));"
                 ]
               }
@@ -1025,8 +1136,28 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'modelId', 'softwareId', 'clientId', 'distributorId', 'fiscalSerial'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'modelId': { 'type': ['number', 'string'] },",
+                  "    'softwareId': { 'type': ['number', 'string'] },",
+                  "    'clientId': { 'type': ['number', 'string'] },",
+                  "    'distributorId': { 'type': ['number', 'string'] },",
+                  "    'fiscalSerial': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(json.fiscalSerial).to.eql(pm.environment.get('tempSerial'));",
+                  "    pm.expect(String(json.modelId)).to.eql(pm.environment.get('printerModelId'));",
+                  "});",
+                  "",
                   "pm.environment.set('printerId', String(json.id));"
                 ]
               }
@@ -1073,6 +1204,41 @@
               }
             }
           ]
+        },
+        {
+          "name": "Create printer - Duplicate Fiscal Serial",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modelId\": \"{{printerModelId}}\",\n  \"softwareId\": \"{{softwareId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"fiscalSerial\": \"{{tempSerial}}\",\n  \"status\": \"activo\",\n  \"deviceType\": \"interno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/printers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 409 or 400', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 409]);",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -1107,8 +1273,27 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'printerId', 'serial', 'color', 'status'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'printerId': { 'type': ['number', 'string'] },",
+                  "    'serial': { 'type': 'string' },",
+                  "    'color': { 'type': 'string' },",
+                  "    'status': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.printerId)).to.eql(pm.environment.get('printerId'));",
+                  "    pm.expect(json.color).to.eql('verde');",
+                  "});",
+                  "",
                   "pm.environment.set('sealId', String(json.id));"
                 ]
               }
@@ -1189,8 +1374,25 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'distributorId', 'startDate', 'endDate'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'distributorId': { 'type': ['number', 'string'] },",
+                  "    'startDate': { 'type': 'string' },",
+                  "    'endDate': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId'));",
+                  "});",
+                  "",
                   "pm.environment.set('distributorContractId', String(json.id));"
                 ]
               }
@@ -1271,8 +1473,25 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'serviceCenterId', 'startDate', 'endDate'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'serviceCenterId': { 'type': ['number', 'string'] },",
+                  "    'startDate': { 'type': 'string' },",
+                  "    'endDate': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.serviceCenterId)).to.eql(pm.environment.get('serviceCenterId'));",
+                  "});",
+                  "",
                   "pm.environment.set('serviceCenterContractId', String(json.id));"
                 ]
               }
@@ -1353,8 +1572,26 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'printerId', 'employeeId', 'inspectionDate'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'printerId': { 'type': ['number', 'string'] },",
+                  "    'employeeId': { 'type': ['number', 'string'] },",
+                  "    'inspectionDate': { 'type': 'string' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.printerId)).to.eql(pm.environment.get('printerId'));",
+                  "    pm.expect(String(json.employeeId)).to.eql(pm.environment.get('employeeId'));",
+                  "});",
+                  "",
                   "pm.environment.set('annualInspectionId', String(json.id));"
                 ]
               }
@@ -1435,8 +1672,28 @@
                 "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
+                  "",
                   "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Response has id', () => pm.expect(json).to.have.property('id'));",
+                  "",
+                  "const schema = {",
+                  "  'type': 'object',",
+                  "  'required': ['id', 'printerId', 'technicianId', 'serviceCenterId', 'startAt'],",
+                  "  'properties': {",
+                  "    'id': { 'type': ['number', 'string'] },",
+                  "    'printerId': { 'type': ['number', 'string'] },",
+                  "    'technicianId': { 'type': ['number', 'string'] },",
+                  "    'serviceCenterId': { 'type': ['number', 'string'] },",
+                  "    'cost': { 'type': 'number' }",
+                  "  }",
+                  "};",
+                  "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
+                  "",
+                  "pm.test('Data integrity', () => {",
+                  "    pm.expect(String(json.printerId)).to.eql(pm.environment.get('printerId'));",
+                  "    pm.expect(String(json.technicianId)).to.eql(pm.environment.get('technicianId'));",
+                  "    pm.expect(String(json.serviceCenterId)).to.eql(pm.environment.get('serviceCenterId'));",
+                  "});",
+                  "",
                   "pm.environment.set('technicalServiceId', String(json.id));"
                 ]
               }
