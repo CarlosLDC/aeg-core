@@ -12,26 +12,29 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.beans.factory.annotation.Value("${app.security.admin.username}")
+    private String adminUsername;
+
+    @org.springframework.beans.factory.annotation.Value("${app.security.admin.password}")
+    private String adminPassword;
+
     @Override
     public void run(String... args) throws Exception {
-        String adminEmail = "segar12345@gmail.com";
-        
-        if (userRepository.findByUsername(adminEmail).isEmpty()) {
+        if (userRepository.findByUsername(adminUsername).isEmpty()) {
             User admin = User.builder()
-                    .username(adminEmail)
-                    .password(passwordEncoder.encode("aeg-r1"))
+                    .username(adminUsername)
+                    .password(passwordEncoder.encode(adminPassword))
                     .role(Role.ADMIN)
                     .enabled(true)
                     .build();
             userRepository.save(admin);
             System.out.println("✅ Administrador inicial creado con éxito.");
         } else {
-            // Opcional: Asegurar que la contraseña sea la correcta si ya existe
-            User admin = userRepository.findByUsername(adminEmail).get();
-            admin.setPassword(passwordEncoder.encode("aeg-r1"));
+            User admin = userRepository.findByUsername(adminUsername).get();
+            admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setRole(Role.ADMIN);
             userRepository.save(admin);
-            System.out.println("🔄 Credenciales de administrador sincronizadas.");
+            System.out.println("🔄 Credenciales de administrador sincronizadas desde configuración.");
         }
     }
 }
