@@ -152,7 +152,7 @@
                   "pm.test('Response confirms publish', () => {",
                   "  pm.expect(json.status).to.eql('sent');",
                   "  pm.expect(json.topic).to.be.a('string');",
-                  "  pm.expect(json.payload).to.be.a('string');",
+                  "  pm.expect(json.payload).to.be.an('object');",
                   "  pm.expect(json.broker).to.include('tcp://');",
                   "});"
                 ]

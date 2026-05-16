@@ -3,7 +3,6 @@ package com.aeg.core.mqtt;
 import com.aeg.core.mqtt.dto.MqttPublishRequest;
 import com.aeg.core.mqtt.dto.MqttPublishResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -42,16 +41,14 @@ public class MqttController {
 
     @PostMapping("/publish")
     public ResponseEntity<MqttPublishResponse> publish(@Valid @RequestBody MqttPublishRequest request) {
-        JsonNode payload = request.payload();
-
-        if (payload == null || payload.isNull() || payload.isMissingNode()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload must be a valid JSON value");
+        if (request.payload() == null || request.payload().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload must contain at least one JSON field");
         }
 
         final String serializedPayload;
 
         try {
-            serializedPayload = objectMapper.writeValueAsString(payload);
+            serializedPayload = objectMapper.writeValueAsString(request.payload());
         } catch (JsonProcessingException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload could not be serialized as JSON", ex);
         }
