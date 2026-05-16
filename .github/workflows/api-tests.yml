@@ -1,10 +1,8 @@
 name: API Integration Tests
 
 on:
-  push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master, develop ]
+  push:    # run on pushes to any branch
+  pull_request: # run on pull requests targeting any branch
 
 jobs:
   test:
