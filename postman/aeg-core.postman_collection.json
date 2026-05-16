@@ -56,6 +56,72 @@
       ]
     },
     {
+      "name": "MQTT",
+      "item": [
+        {
+          "name": "Check broker connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}{{mqttProbePath}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200 or 503', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                  "});",
+                  "",
+                  "pm.test('Response has probe fields', () => {",
+                  "  pm.expect(json).to.have.property('success');",
+                  "  pm.expect(json).to.have.property('connected');",
+                  "  pm.expect(json).to.have.property('broker');",
+                  "  pm.expect(json).to.have.property('durationMs');",
+                  "  pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "pm.test('Broker matches current configuration', () => {",
+                  "  pm.expect(json.broker).to.include('tcp://');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send test message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}{{mqttTestPath}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has sent status', () => {",
+                  "  pm.expect(json.status).to.eql('sent');",
+                  "  pm.expect(json.message).to.be.a('string');",
+                  "  pm.expect(json.broker).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Company",
       "item": [
         {

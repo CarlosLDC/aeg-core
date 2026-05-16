@@ -29,15 +29,34 @@ public class MqttConfig {
     @Value("${app.mqtt.default-topic}")
     private String defaultTopic;
 
+    @Value("${app.mqtt.username:}")
+    private String username;
+
+    @Value("${app.mqtt.password:}")
+    private String password;
+
     @Bean
-    public MqttPahoClientFactory mqttClientFactory() {
-        DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
+    public MqttConnectOptions mqttConnectOptions() {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[] { brokerUrl });
         options.setCleanSession(true);
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(30);
-        factory.setConnectionOptions(options);
+
+        if (username != null && !username.isBlank()) {
+            options.setUserName(username);
+        }
+        if (password != null && !password.isBlank()) {
+            options.setPassword(password.toCharArray());
+        }
+
+        return options;
+    }
+
+    @Bean
+    public MqttPahoClientFactory mqttClientFactory() {
+        DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
+        factory.setConnectionOptions(mqttConnectOptions());
         return factory;
     }
 
