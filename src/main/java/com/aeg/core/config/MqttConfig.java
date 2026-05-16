@@ -14,6 +14,7 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.Header;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Configuration
 @org.springframework.integration.annotation.IntegrationComponentScan
@@ -58,6 +59,11 @@ public class MqttConfig {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         factory.setConnectionOptions(mqttConnectOptions());
         return factory;
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 
     @Bean
