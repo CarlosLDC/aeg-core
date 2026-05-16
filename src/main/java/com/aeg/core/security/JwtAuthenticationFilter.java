@@ -22,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Override
     protected void doFilterInternal(
@@ -32,30 +33,50 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        jwt = authHeader.substring(7);
         try {
-            userEmail = jwtService.extractUsername(jwt);
-            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
-                if (jwtService.isTokenValid(jwt, userDetails)) {
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (authHeader != null) {
+                if (authHeader.startsWith("Bearer ")) {
+                    jwt = authHeader.substring(7);
+                    userEmail = jwtService.extractUsername(jwt);
+                    if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                        UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                        if (jwtService.isTokenValid(jwt, userDetails)) {
+                            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                            authToken.setDetails(
+                                    new WebAuthenticationDetailsSource().buildDetails(request)
+                            );
+                            SecurityContextHolder.getContext().setAuthentication(authToken);
+                        }
+                    }
+                } else if (authHeader.startsWith("Basic ")) {
+                    // Support Basic auth for integration tests: decode and authenticate
+                    String base64Credentials = authHeader.substring(6);
+                    String credentials = new String(java.util.Base64.getDecoder().decode(base64Credentials));
+                    int idx = credentials.indexOf(':');
+                    if (idx > 0) {
+                        String username = credentials.substring(0, idx);
+                        String password = credentials.substring(idx + 1);
+                        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                            if (userDetails != null && passwordEncoder.matches(password, userDetails.getPassword())) {
+                                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()
+                                );
+                                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                                SecurityContextHolder.getContext().setAuthentication(authToken);
+                            }
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
-            // Log error or just continue without authentication
-            logger.warn("JWT validation failed: " + e.getMessage());
+            logger.warn("Authentication processing failed: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

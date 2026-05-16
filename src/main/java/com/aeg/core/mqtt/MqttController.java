@@ -26,7 +26,7 @@ public class MqttController {
     private final MqttConnectionProbeService mqttConnectionProbeService;
     private final ObjectMapper objectMapper;
 
-    @Value("${app.mqtt.broker-url}")
+    @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
     private String brokerUrl;
 
     @PostMapping("/test")
@@ -56,10 +56,10 @@ public class MqttController {
         mqttService.publish(request.topic(), serializedPayload);
 
         MqttPublishResponse response = new MqttPublishResponse(
-                "sent",
-                request.topic(),
-                serializedPayload,
-                brokerUrl
+            "sent",
+            request.topic(),
+            request.payload(),
+            brokerUrl
         );
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

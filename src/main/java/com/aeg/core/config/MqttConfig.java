@@ -21,13 +21,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @lombok.extern.slf4j.Slf4j
 public class MqttConfig {
 
-    @Value("${app.mqtt.broker-url}")
+    @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
     private String brokerUrl;
 
-    @Value("${app.mqtt.client-id}")
+    @Value("${app.mqtt.client-id:aeg-core-server}")
     private String clientId;
 
-    @Value("${app.mqtt.default-topic}")
+    @Value("${app.mqtt.default-topic:aeg/commands}")
     private String defaultTopic;
 
     @Value("${app.mqtt.username:}")

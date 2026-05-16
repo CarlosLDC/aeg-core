@@ -17,10 +17,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MqttConnectionProbeService {
 
-    @Value("${app.mqtt.broker-url}")
+    @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
     private String brokerUrl;
 
-    @Value("${app.mqtt.client-id}")
+    @Value("${app.mqtt.client-id:aeg-core-server}")
     private String clientId;
 
     @Value("${app.mqtt.username:}")

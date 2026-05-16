@@ -59,7 +59,10 @@ public class MqttControllerIT {
         assertThat(response.statusCode()).isEqualTo(202);
         assertThat(response.body()).contains("\"status\":\"sent\"");
         assertThat(response.body()).contains("\"topic\":\"aeg/test/manual\"");
-        assertThat(response.body()).contains("\"payload\":\"{\\\"message\\\":\\\"hola desde test\\\",\\\"priority\\\":1,\\\"tags\\\":[\\\"mqtt\\\",\\\"postman\\\"]}\"");
+        assertThat(response.body()).contains("\"payload\":{");
+        assertThat(response.body()).contains("\"message\":\"hola desde test\"");
+        assertThat(response.body()).contains("\"priority\":1");
+        assertThat(response.body()).contains("\"tags\":[\"mqtt\",\"postman\"]");
 
         verify(mqttService, times(1)).publish(
                 eq("aeg/test/manual"),

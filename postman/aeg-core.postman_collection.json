@@ -153,6 +153,7 @@
                   "  pm.expect(json.status).to.eql('sent');",
                   "  pm.expect(json.topic).to.be.a('string');",
                   "  pm.expect(json.payload).to.be.an('object');",
+                  "  pm.expect(json.payload.message).to.be.a('string');",
                   "  pm.expect(json.broker).to.include('tcp://');",
                   "});"
                 ]
