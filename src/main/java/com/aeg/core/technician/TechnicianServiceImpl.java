@@ -37,14 +37,16 @@ public class TechnicianServiceImpl implements TechnicianService {
 	@Override
 	public TechnicianResponse create(TechnicianRequest request) {
 		Technician e = new Technician();
-		e.setEmployee(employeeRepository.getReferenceById(request.employeeId()));
+		e.setEmployee(employeeRepository.findById(request.employeeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId())));
 		return toResponse(repository.save(e));
 	}
 
 	@Override
 	public TechnicianResponse update(Long id, TechnicianRequest request) {
 		Technician e = findEntity(id);
-		e.setEmployee(employeeRepository.getReferenceById(request.employeeId()));
+		e.setEmployee(employeeRepository.findById(request.employeeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId())));
 		return toResponse(repository.save(e));
 	}
 

@@ -49,11 +49,21 @@ public class PrinterServiceImpl implements PrinterService {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
         }
         Printer p = new Printer();
-        if (request.modelId() != null) p.setModel(modelRepository.getReferenceById(request.modelId()));
-        if (request.softwareId() != null) p.setSoftware(softwareRepository.getReferenceById(request.softwareId()));
-        if (request.distributorId() != null) p.setDistributor(distributorRepository.getReferenceById(request.distributorId()));
+        if (request.modelId() != null) {
+            p.setModel(modelRepository.findById(request.modelId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer model not found with id: " + request.modelId())));
+        }
+        if (request.softwareId() != null) {
+            p.setSoftware(softwareRepository.findById(request.softwareId())
+                .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
+        }
+        if (request.distributorId() != null) {
+            p.setDistributor(distributorRepository.findById(request.distributorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
+        }
         if (request.clientId() != null) {
-            p.setClient(clientRepository.getReferenceById(request.clientId()));
+            p.setClient(clientRepository.findById(request.clientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId())));
         } else {
             p.setClient(null);
         }
@@ -74,11 +84,21 @@ public class PrinterServiceImpl implements PrinterService {
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
         }
-        if (request.modelId() != null) p.setModel(modelRepository.getReferenceById(request.modelId()));
-        if (request.softwareId() != null) p.setSoftware(softwareRepository.getReferenceById(request.softwareId()));
-        if (request.distributorId() != null) p.setDistributor(distributorRepository.getReferenceById(request.distributorId()));
+        if (request.modelId() != null) {
+            p.setModel(modelRepository.findById(request.modelId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer model not found with id: " + request.modelId())));
+        }
+        if (request.softwareId() != null) {
+            p.setSoftware(softwareRepository.findById(request.softwareId())
+                .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
+        }
+        if (request.distributorId() != null) {
+            p.setDistributor(distributorRepository.findById(request.distributorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
+        }
         if (request.clientId() != null) {
-            p.setClient(clientRepository.getReferenceById(request.clientId()));
+            p.setClient(clientRepository.findById(request.clientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId())));
         } else {
             p.setClient(null);
         }

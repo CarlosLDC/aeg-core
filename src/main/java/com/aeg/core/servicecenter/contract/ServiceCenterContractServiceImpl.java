@@ -62,7 +62,8 @@ public class ServiceCenterContractServiceImpl implements ServiceCenterContractSe
 	}
 
 	private void applyRequest(ServiceCenterContract e, ServiceCenterContractRequest request) {
-		e.setServiceCenter(serviceCenterRepository.getReferenceById(request.serviceCenterId()));
+		e.setServiceCenter(serviceCenterRepository.findById(request.serviceCenterId())
+				.orElseThrow(() -> new ResourceNotFoundException("Service center not found with id: " + request.serviceCenterId())));
 		e.setStartDate(request.startDate());
 		e.setEndDate(request.endDate());
 		e.setPhotoUrls(request.photoUrls().toArray(String[]::new));

@@ -66,8 +66,10 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	}
 
 	private void applyRequest(AnnualInspection e, AnnualInspectionRequest request) {
-		e.setPrinter(printerRepository.getReferenceById(request.printerId()));
-		e.setEmployee(employeeRepository.getReferenceById(request.employeeId()));
+		e.setPrinter(printerRepository.findById(request.printerId())
+				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId())));
+		e.setEmployee(employeeRepository.findById(request.employeeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId())));
 		e.setSealTampered(request.sealTampered());
 		e.setNotes(request.notes());
 		e.setPhotoUrls(request.photoUrls().toArray(String[]::new));

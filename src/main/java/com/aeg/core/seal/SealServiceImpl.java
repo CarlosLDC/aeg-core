@@ -39,7 +39,10 @@ public class SealServiceImpl implements SealService {
             throw new IllegalArgumentException("serial already exists: " + request.serial());
         }
         Seal s = new Seal();
-        if (request.printerId() != null) s.setPrinter(printerRepository.getReferenceById(request.printerId()));
+        if (request.printerId() != null) {
+            s.setPrinter(printerRepository.findById(request.printerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId())));
+        }
         s.setSerial(request.serial());
         s.setInstallationDate(request.installationDate());
         s.setRemovalDate(request.removalDate());
@@ -54,7 +57,10 @@ public class SealServiceImpl implements SealService {
         if (!s.getSerial().equalsIgnoreCase(request.serial()) && repository.existsBySerialIgnoreCase(request.serial())) {
             throw new IllegalArgumentException("serial already exists: " + request.serial());
         }
-        if (request.printerId() != null) s.setPrinter(printerRepository.getReferenceById(request.printerId()));
+        if (request.printerId() != null) {
+            s.setPrinter(printerRepository.findById(request.printerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId())));
+        }
         s.setSerial(request.serial());
         s.setInstallationDate(request.installationDate());
         s.setRemovalDate(request.removalDate());

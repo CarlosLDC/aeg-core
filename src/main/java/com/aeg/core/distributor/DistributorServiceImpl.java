@@ -38,14 +38,16 @@ public class DistributorServiceImpl implements DistributorService {
 	@Override
 	public DistributorResponse create(DistributorRequest request) {
 		Distributor distributor = new Distributor();
-		distributor.setBranch(branchRepository.getReferenceById(request.branchId()));
+		distributor.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(distributor));
 	}
 
 	@Override
 	public DistributorResponse update(Long id, DistributorRequest request) {
 		Distributor distributor = findEntityById(id);
-		distributor.setBranch(branchRepository.getReferenceById(request.branchId()));
+		distributor.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(distributor));
 	}
 

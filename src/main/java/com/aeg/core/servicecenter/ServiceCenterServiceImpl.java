@@ -37,14 +37,16 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
 	@Override
 	public ServiceCenterResponse create(ServiceCenterRequest request) {
 		ServiceCenter serviceCenter = new ServiceCenter();
-		serviceCenter.setBranch(branchRepository.getReferenceById(request.branchId()));
+		serviceCenter.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(serviceCenter));
 	}
 
 	@Override
 	public ServiceCenterResponse update(Long id, ServiceCenterRequest request) {
 		ServiceCenter serviceCenter = findEntityById(id);
-		serviceCenter.setBranch(branchRepository.getReferenceById(request.branchId()));
+		serviceCenter.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(serviceCenter));
 	}
 

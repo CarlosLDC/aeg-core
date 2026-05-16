@@ -36,7 +36,8 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public BranchResponse create(BranchRequest request) {
         Branch b = new Branch();
-        b.setCompany(companyRepository.getReferenceById(request.companyId()));
+        b.setCompany(companyRepository.findById(request.companyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.companyId())));
         b.setCity(request.city());
         b.setState(request.state());
         b.setAddress(request.address());
@@ -51,7 +52,8 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
-        b.setCompany(companyRepository.getReferenceById(request.companyId()));
+        b.setCompany(companyRepository.findById(request.companyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.companyId())));
         b.setCity(request.city());
         b.setState(request.state());
         b.setAddress(request.address());

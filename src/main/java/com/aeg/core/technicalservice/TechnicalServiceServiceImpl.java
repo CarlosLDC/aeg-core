@@ -78,28 +78,38 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	}
 
 	private void applyRequest(TechnicalServiceVisit e, TechnicalServiceRequest r) {
-		e.setPrinter(printerRepository.getReferenceById(r.printerId()));
-		e.setTechnician(technicianRepository.getReferenceById(r.technicianId()));
+		e.setPrinter(printerRepository.findById(r.printerId())
+				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + r.printerId())));
+		e.setTechnician(technicianRepository.findById(r.technicianId())
+				.orElseThrow(() -> new ResourceNotFoundException("Technician not found with id: " + r.technicianId())));
+		
 		if (r.serviceCenterId() != null) {
-			e.setServiceCenter(serviceCenterRepository.getReferenceById(r.serviceCenterId()));
+			e.setServiceCenter(serviceCenterRepository.findById(r.serviceCenterId())
+					.orElseThrow(() -> new ResourceNotFoundException("Service center not found with id: " + r.serviceCenterId())));
 		} else {
 			e.setServiceCenter(null);
 		}
+		
 		e.setSealTampered(r.sealTampered());
 		e.setNotes(r.notes());
 		e.setStartAt(r.startAt());
 		e.setEndAt(r.endAt());
 		e.setPhotoUrls(r.photoUrls().toArray(String[]::new));
+		
 		if (r.installedSealId() != null) {
-			e.setInstalledSeal(sealRepository.getReferenceById(r.installedSealId()));
+			e.setInstalledSeal(sealRepository.findById(r.installedSealId())
+					.orElseThrow(() -> new ResourceNotFoundException("Installed seal not found with id: " + r.installedSealId())));
 		} else {
 			e.setInstalledSeal(null);
 		}
+		
 		if (r.removedSealId() != null) {
-			e.setRemovedSeal(sealRepository.getReferenceById(r.removedSealId()));
+			e.setRemovedSeal(sealRepository.findById(r.removedSealId())
+					.orElseThrow(() -> new ResourceNotFoundException("Removed seal not found with id: " + r.removedSealId())));
 		} else {
 			e.setRemovedSeal(null);
 		}
+		
 		e.setInitialZReport(r.initialZReport());
 		e.setFinalZReport(r.finalZReport());
 		e.setCost(r.cost());
@@ -107,8 +117,10 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		e.setRequestDate(r.requestDate());
 		e.setInitialZDate(r.initialZDate());
 		e.setFinalZDate(r.finalZDate());
+		
 		if (r.distributorId() != null) {
-			e.setDistributor(distributorRepository.getReferenceById(r.distributorId()));
+			e.setDistributor(distributorRepository.findById(r.distributorId())
+					.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + r.distributorId())));
 		} else {
 			e.setDistributor(null);
 		}

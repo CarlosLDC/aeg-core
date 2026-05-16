@@ -39,14 +39,16 @@ public class DistributorPersonServiceImpl implements DistributorPersonService {
 	@Override
 	public DistributorPersonResponse create(DistributorPersonRequest request) {
 		DistributorPerson e = new DistributorPerson();
-		e.setEmployee(employeeRepository.getReferenceById(request.employeeId()));
+		e.setEmployee(employeeRepository.findById(request.employeeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId())));
 		return toResponse(repository.save(e));
 	}
 
 	@Override
 	public DistributorPersonResponse update(Long id, DistributorPersonRequest request) {
 		DistributorPerson e = findEntity(id);
-		e.setEmployee(employeeRepository.getReferenceById(request.employeeId()));
+		e.setEmployee(employeeRepository.findById(request.employeeId())
+				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId())));
 		return toResponse(repository.save(e));
 	}
 

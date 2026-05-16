@@ -62,7 +62,8 @@ public class DistributorContractServiceImpl implements DistributorContractServic
 	}
 
 	private void applyRequest(DistributorContract e, DistributorContractRequest request) {
-		e.setDistributor(distributorRepository.getReferenceById(request.distributorId()));
+		e.setDistributor(distributorRepository.findById(request.distributorId())
+				.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
 		e.setStartDate(request.startDate());
 		e.setEndDate(request.endDate());
 		e.setPhotoUrls(request.photoUrls().toArray(String[]::new));

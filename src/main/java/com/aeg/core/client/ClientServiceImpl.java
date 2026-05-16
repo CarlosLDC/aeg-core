@@ -38,14 +38,16 @@ public class ClientServiceImpl implements ClientService {
 	@Override
 	public ClientResponse create(ClientRequest request) {
 		Client client = new Client();
-		client.setBranch(branchRepository.getReferenceById(request.branchId()));
+		client.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(client));
 	}
 
 	@Override
 	public ClientResponse update(Long id, ClientRequest request) {
 		Client client = findEntityById(id);
-		client.setBranch(branchRepository.getReferenceById(request.branchId()));
+		client.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 		return toResponse(repository.save(client));
 	}
 

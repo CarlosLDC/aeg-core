@@ -71,7 +71,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 		e.setPhone(request.phone());
 		e.setEmail(request.email());
 		e.setType(request.type());
-		e.setBranch(branchRepository.getReferenceById(request.branchId()));
+		e.setBranch(branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
 	}
 
 	private EmployeeResponse toResponse(Employee e) {
