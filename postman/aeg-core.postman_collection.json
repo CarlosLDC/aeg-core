@@ -131,7 +131,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"topic\": \"aeg/test/manual\",\n  \"payload\": \"mensaje enviado desde Postman\"\n}",
+              "raw": "{\n  \"topic\": \"aeg/test/manual\",\n  \"payload\": {\n    \"message\": \"mensaje enviado desde Postman\",\n    \"priority\": 1,\n    \"tags\": [\"mqtt\", \"postman\"]\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"

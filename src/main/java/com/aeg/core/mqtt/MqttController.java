@@ -2,6 +2,9 @@ package com.aeg.core.mqtt;
 
 import com.aeg.core.mqtt.dto.MqttPublishRequest;
 import com.aeg.core.mqtt.dto.MqttPublishResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
 
@@ -21,6 +25,7 @@ public class MqttController {
 
     private final MqttService mqttService;
     private final MqttConnectionProbeService mqttConnectionProbeService;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.mqtt.broker-url}")
     private String brokerUrl;
@@ -37,12 +42,26 @@ public class MqttController {
 
     @PostMapping("/publish")
     public ResponseEntity<MqttPublishResponse> publish(@Valid @RequestBody MqttPublishRequest request) {
-        mqttService.publish(request.topic(), request.payload());
+        JsonNode payload = request.payload();
+
+        if (payload == null || payload.isNull() || payload.isMissingNode()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload must be a valid JSON value");
+        }
+
+        final String serializedPayload;
+
+        try {
+            serializedPayload = objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload could not be serialized as JSON", ex);
+        }
+
+        mqttService.publish(request.topic(), serializedPayload);
 
         MqttPublishResponse response = new MqttPublishResponse(
                 "sent",
                 request.topic(),
-                request.payload(),
+                serializedPayload,
                 brokerUrl
         );
 
