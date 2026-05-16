@@ -118,6 +118,47 @@
               }
             }
           ]
+        },
+        {
+          "name": "Publish custom message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"aeg/test/manual\",\n  \"payload\": \"mensaje enviado desde Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}{{mqttPublishPath}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 202', () => pm.response.to.have.status(202));",
+                  "pm.test('Response confirms publish', () => {",
+                  "  pm.expect(json.status).to.eql('sent');",
+                  "  pm.expect(json.topic).to.be.a('string');",
+                  "  pm.expect(json.payload).to.be.a('string');",
+                  "  pm.expect(json.broker).to.include('tcp://');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
