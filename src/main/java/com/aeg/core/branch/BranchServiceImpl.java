@@ -2,14 +2,13 @@ package com.aeg.core.branch;
 
 import java.util.List;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.dto.BranchRequest;
 import com.aeg.core.branch.dto.BranchResponse;
-import com.aeg.core.security.Role;
-import com.aeg.core.security.User;
+import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -18,30 +17,34 @@ public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository repository;
     private final com.aeg.core.company.CompanyRepository companyRepository;
+    private final SecurityScopeService securityScope;
 
-    public BranchServiceImpl(BranchRepository repository, com.aeg.core.company.CompanyRepository companyRepository) {
+    public BranchServiceImpl(
+            BranchRepository repository,
+            com.aeg.core.company.CompanyRepository companyRepository,
+            SecurityScopeService securityScope) {
         this.repository = repository;
         this.companyRepository = companyRepository;
+        this.securityScope = securityScope;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<BranchResponse> findAll() {
-        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        
-        if (currentUser.getRole() == Role.ADMIN) {
-            return repository.findAll().stream().map(this::toResponse).toList();
-        } else if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
-            return repository.findBranchesByDistributorId(currentUser.getDistributorId()).stream().map(this::toResponse).toList();
-        }
-        
-        return List.of();
+        BranchScope scope = securityScope.resolveBranchScope();
+        return switch (scope.visibility()) {
+            case ALL -> repository.findAll().stream().map(this::toResponse).toList();
+            case NONE -> List.of();
+            case SCOPED -> repository.findByIdIn(scope.branchIds()).stream().map(this::toResponse).toList();
+        };
     }
 
     @Override
     @Transactional(readOnly = true)
     public BranchResponse findById(Long id) {
-        return toResponse(findEntityById(id));
+        Branch branch = findEntityById(id);
+        securityScope.assertBranchInScope(branch.getId());
+        return toResponse(branch);
     }
 
     @Override

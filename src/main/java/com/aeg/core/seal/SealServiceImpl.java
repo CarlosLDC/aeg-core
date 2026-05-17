@@ -5,8 +5,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.printer.Printer;
 import com.aeg.core.seal.dto.SealRequest;
 import com.aeg.core.seal.dto.SealResponse;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -15,22 +17,29 @@ public class SealServiceImpl implements SealService {
 
     private final SealRepository repository;
     private final com.aeg.core.printer.PrinterRepository printerRepository;
+    private final SecurityScopeService securityScope;
 
-    public SealServiceImpl(SealRepository repository, com.aeg.core.printer.PrinterRepository printerRepository) {
+    public SealServiceImpl(
+            SealRepository repository,
+            com.aeg.core.printer.PrinterRepository printerRepository,
+            SecurityScopeService securityScope) {
         this.repository = repository;
         this.printerRepository = printerRepository;
+        this.securityScope = securityScope;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<SealResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+        return securityScope.findVisibleSeals().stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public SealResponse findById(Long id) {
-        return toResponse(findEntityById(id));
+        Seal seal = findEntityById(id);
+        securityScope.assertSealInScope(seal);
+        return toResponse(seal);
     }
 
     @Override
@@ -40,8 +49,10 @@ public class SealServiceImpl implements SealService {
         }
         Seal s = new Seal();
         if (request.printerId() != null) {
-            s.setPrinter(printerRepository.findById(request.printerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId())));
+            Printer printer = printerRepository.findById(request.printerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId()));
+            securityScope.assertPrinterInScope(printer);
+            s.setPrinter(printer);
         }
         s.setSerial(request.serial());
         s.setInstallationDate(request.installationDate());
@@ -54,12 +65,15 @@ public class SealServiceImpl implements SealService {
     @Override
     public SealResponse update(Long id, SealRequest request) {
         Seal s = findEntityById(id);
+        securityScope.assertSealInScope(s);
         if (!s.getSerial().equalsIgnoreCase(request.serial()) && repository.existsBySerialIgnoreCase(request.serial())) {
             throw new IllegalArgumentException("serial already exists: " + request.serial());
         }
         if (request.printerId() != null) {
-            s.setPrinter(printerRepository.findById(request.printerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId())));
+            Printer printer = printerRepository.findById(request.printerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId()));
+            securityScope.assertPrinterInScope(printer);
+            s.setPrinter(printer);
         }
         s.setSerial(request.serial());
         s.setInstallationDate(request.installationDate());
@@ -72,6 +86,7 @@ public class SealServiceImpl implements SealService {
     @Override
     public void delete(Long id) {
         Seal s = findEntityById(id);
+        securityScope.assertSealInScope(s);
         repository.delete(s);
     }
 

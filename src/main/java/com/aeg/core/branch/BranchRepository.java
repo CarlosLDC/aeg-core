@@ -7,7 +7,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BranchRepository extends JpaRepository<Branch, Long> {
-	
+
 	@Query("SELECT DISTINCT c.branch FROM Client c WHERE c.distributor.id = :distributorId")
 	List<Branch> findBranchesByDistributorId(@Param("distributorId") Long distributorId);
+
+	List<Branch> findByCompany_Id(Long companyId);
+
+	List<Branch> findByIdIn(Iterable<Long> ids);
 }

@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.employee.dto.EmployeeRequest;
 import com.aeg.core.employee.dto.EmployeeResponse;
+import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -16,22 +18,37 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	private final EmployeeRepository repository;
 	private final BranchRepository branchRepository;
+	private final SecurityScopeService securityScope;
 
-	public EmployeeServiceImpl(EmployeeRepository repository, BranchRepository branchRepository) {
+	public EmployeeServiceImpl(
+			EmployeeRepository repository,
+			BranchRepository branchRepository,
+			SecurityScopeService securityScope) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
+		this.securityScope = securityScope;
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<EmployeeResponse> findAll() {
-		return repository.findAll().stream().map(this::toResponse).toList();
+		if (securityScope.isAdmin()) {
+			return repository.findAll().stream().map(this::toResponse).toList();
+		}
+		BranchScope scope = securityScope.resolveBranchScope();
+		return switch (scope.visibility()) {
+			case ALL -> repository.findAll().stream().map(this::toResponse).toList();
+			case NONE -> List.of();
+			case SCOPED -> repository.findByBranch_IdIn(scope.branchIds()).stream().map(this::toResponse).toList();
+		};
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public EmployeeResponse findById(Long id) {
-		return toResponse(findEntity(id));
+		Employee employee = findEntity(id);
+		securityScope.assertBranchInScope(employee.getBranchId());
+		return toResponse(employee);
 	}
 
 	@Override
@@ -47,6 +64,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeResponse update(Long id, EmployeeRequest request) {
 		Employee e = findEntity(id);
+		securityScope.assertBranchInScope(e.getBranchId());
 		if (!e.getNationalId().equalsIgnoreCase(request.nationalId())
 				&& repository.existsByNationalIdIgnoreCase(request.nationalId())) {
 			throw new IllegalArgumentException("nationalId already exists: " + request.nationalId());
@@ -57,7 +75,9 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	@Override
 	public void delete(Long id) {
-		repository.delete(findEntity(id));
+		Employee e = findEntity(id);
+		securityScope.assertBranchInScope(e.getBranchId());
+		repository.delete(e);
 	}
 
 	private Employee findEntity(Long id) {
@@ -66,13 +86,15 @@ public class EmployeeServiceImpl implements EmployeeService {
 	}
 
 	private void applyRequest(Employee e, EmployeeRequest request) {
+		var branch = branchRepository.findById(request.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
+		securityScope.assertBranchInScope(branch.getId());
 		e.setNationalId(request.nationalId());
 		e.setName(request.name());
 		e.setPhone(request.phone());
 		e.setEmail(request.email());
 		e.setType(request.type());
-		e.setBranch(branchRepository.findById(request.branchId())
-				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
+		e.setBranch(branch);
 	}
 
 	private EmployeeResponse toResponse(Employee e) {

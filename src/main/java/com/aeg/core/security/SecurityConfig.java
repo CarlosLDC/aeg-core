@@ -1,5 +1,9 @@
 package com.aeg.core.security;
 
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -8,6 +12,10 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -16,6 +24,9 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthFilter;
+
+	@Value("${app.cors.allowed-origins}")
+	private String allowedOrigins;
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -52,18 +63,21 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
-		org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-		configuration.setAllowedOrigins(java.util.Arrays.asList(
-			"http://localhost:3000", 
-			"http://localhost:5173", 
-			"http://localhost:4200"
-		));
-		configuration.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-		configuration.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+	CorsConfigurationSource corsConfigurationSource() {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(parseAllowedOrigins());
+		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
 		configuration.setAllowCredentials(true);
-		org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 		source.registerCorsConfiguration("/**", configuration);
 		return source;
+	}
+
+	private List<String> parseAllowedOrigins() {
+		return Arrays.stream(allowedOrigins.split(","))
+				.map(String::trim)
+				.filter(origin -> !origin.isEmpty())
+				.toList();
 	}
 }
