@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -15,14 +17,16 @@ import static org.mockito.Mockito.*;
 class UserControllerUnitTest {
 
     private UserRepository userRepository;
+    private BranchRepository branchRepository;
     private PasswordEncoder passwordEncoder;
     private UserController controller;
 
     @BeforeEach
     void setup() {
         userRepository = mock(UserRepository.class);
+        branchRepository = mock(BranchRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        controller = new UserController(userRepository, passwordEncoder);
+        controller = new UserController(userRepository, branchRepository, passwordEncoder);
     }
 
     @Test
@@ -37,6 +41,28 @@ class UserControllerUnitTest {
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         verify(userRepository, never()).save(ArgumentMatchers.any());
+    }
+
+    @Test
+    void createUser_withBranchId_setsBranchOnResponse() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setUsername("new@aeg.local");
+        req.setPassword("p");
+        req.setRole("ADMIN");
+        req.setBranchId(10L);
+
+        Branch branch = new Branch();
+        branch.setId(10L);
+
+        when(userRepository.findByUsername("new@aeg.local")).thenReturn(Optional.empty());
+        when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getBranchId()).isEqualTo(10L);
     }
 
     @Test

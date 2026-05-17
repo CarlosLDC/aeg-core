@@ -70,8 +70,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": \"{{branchId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": "{{baseUrl}}/api/admin/users"
           },
@@ -83,6 +87,7 @@
                 "exec": [
                   "pm.test('Status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
                   "const json = pm.response.json();",
+                  "pm.test('Branch ID matches request', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
                   "pm.environment.set('createdUserId', String(json.id));"
                 ]
               }
@@ -101,7 +106,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\"\n}"
+              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": \"{{branchId}}\"\n}"
             },
             "url": "{{baseUrl}}/api/admin/users"
           },
@@ -151,7 +156,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('ID matches', () => pm.expect(String(pm.response.json().id)).to.eql(pm.environment.get('createdUserId')));"
+                  "pm.test('ID matches', () => pm.expect(String(pm.response.json().id)).to.eql(pm.environment.get('createdUserId')));",
+                  "pm.test('Branch ID matches', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));"
                 ]
               }
             }
@@ -166,7 +172,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"password\": \"newpass\",\n  \"role\": \"ADMIN\",\n  \"enabled\": true\n}"
+              "raw": "{\n  \"password\": \"newpass\",\n  \"role\": \"ADMIN\",\n  \"branchId\": \"{{branchId}}\",\n  \"enabled\": true\n}"
             },
             "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
           },
@@ -177,7 +183,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Role updated', () => pm.expect(pm.response.json().role).to.eql('ADMIN'));"
+                  "pm.test('Role updated', () => pm.expect(pm.response.json().role).to.eql('ADMIN'));",
+                  "pm.test('Branch ID retained', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));"
                 ]
               }
             }

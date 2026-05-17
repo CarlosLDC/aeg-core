@@ -6,7 +6,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchRepository;
 
 import java.util.List;
 import java.net.URI;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final BranchRepository branchRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping
@@ -31,15 +33,25 @@ public class UserController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
         }
 
+        Branch branch = null;
+        if (request.getBranchId() != null) {
+            branch = branchRepository.findById(request.getBranchId())
+                .orElse(null);
+            if (branch == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+            }
+        }
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.valueOf(request.getRole().toUpperCase()))
+            .branch(branch)
                 .enabled(true)
                 .build();
 
         User saved = userRepository.save(user);
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(saved.getId()).toUri();
+        URI location = URI.create("/api/admin/users/" + saved.getId());
         return ResponseEntity.created(location).body(toResponse(saved));
     }
 
@@ -79,8 +91,16 @@ public class UserController {
             try {
                 existing.setRole(Role.valueOf(request.getRole().toUpperCase()));
             } catch (IllegalArgumentException e) {
-                return ResponseEntity.<UserResponse>badRequest().build();
+                return ResponseEntity.badRequest().build();
             }
+        }
+        if (request.getBranchId() != null) {
+            Branch branch = branchRepository.findById(request.getBranchId())
+                    .orElse(null);
+            if (branch == null) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+            }
+            existing.setBranch(branch);
         }
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
@@ -103,6 +123,7 @@ public class UserController {
         private String username;
         private String password;
         private String role;
+        private Long branchId;
     }
 
     @Data
@@ -110,6 +131,7 @@ public class UserController {
         private String username;
         private String password;
         private String role;
+        private Long branchId;
         private Boolean enabled;
     }
 
@@ -118,17 +140,19 @@ public class UserController {
         private Long id;
         private String username;
         private Role role;
+        private Long branchId;
         private Boolean enabled;
 
-        public UserResponse(Long id, String username, Role role, Boolean enabled) {
+        public UserResponse(Long id, String username, Role role, Long branchId, Boolean enabled) {
             this.id = id;
             this.username = username;
             this.role = role;
+            this.branchId = branchId;
             this.enabled = enabled;
         }
     }
 
     private UserResponse toResponse(User u) {
-        return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.isEnabled());
+        return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.getBranchId(), u.isEnabled());
     }
 }

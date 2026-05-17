@@ -9,6 +9,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.aeg.core.branch.Branch;
+
 import java.util.Collection;
 import java.util.List;
 
@@ -33,6 +35,10 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id", nullable = true)
+    private Branch branch;
 
     @Builder.Default
     private boolean enabled = true;
@@ -60,5 +66,9 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public Long getBranchId() {
+        return branch == null ? null : branch.getId();
     }
 }
