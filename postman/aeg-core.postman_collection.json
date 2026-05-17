@@ -52,6 +52,34 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has user profile', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('username');",
+                  "  pm.expect(json).to.have.property('role');",
+                  "  pm.expect(json).to.have.property('branchId');",
+                  "  pm.expect(json).to.have.property('distributorId');",
+                  "  pm.expect(json).to.have.property('enabled');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
