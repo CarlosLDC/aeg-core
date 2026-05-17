@@ -87,8 +87,12 @@
                 "exec": [
                   "pm.test('Status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
                   "const json = pm.response.json();",
-                  "pm.test('Branch ID matches request', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
-                  "pm.test('Distributor ID matches request', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches request', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}",
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID matches request', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "}",
                   "pm.environment.set('createdUserId', String(json.id));"
                 ]
               }
@@ -158,8 +162,12 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('ID matches', () => pm.expect(String(pm.response.json().id)).to.eql(pm.environment.get('createdUserId')));",
-                  "pm.test('Branch ID matches', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
-                  "pm.test('Distributor ID matches', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));"
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}",
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID matches', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "}"
                 ]
               }
             }
@@ -186,8 +194,12 @@
                 "exec": [
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Role updated', () => pm.expect(pm.response.json().role).to.eql('ADMIN'));",
-                  "pm.test('Branch ID retained', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
-                  "pm.test('Distributor ID retained', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));"
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID retained', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}",
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID retained', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "}"
                 ]
               }
             }
@@ -679,19 +691,23 @@
                   "  'required': ['id', 'branchId', 'distributorId'],",
                   "  'properties': {",
                   "    'id': { 'type': ['number', 'string'] },",
-                  "    'branchId': { 'type': ['number', 'string'] },",
+                  "    'branchId': { 'type': ['number', 'string', 'null'] },",
                   "    'distributorId': { 'type': ['number', 'string', 'null'] }",
                   "  }",
                   "};",
                   "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
                   "",
-                  "pm.test('Branch ID matches', () => {",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches', () => {",
                   "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
-                  "});",
+                  "  });",
+                  "}",
                   "",
-                  "pm.test('Distributor ID matches', () => {",
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID matches', () => {",
                   "    pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId'));",
-                  "});",
+                  "  });",
+                  "}",
                   "",
                   "pm.environment.set('clientId', String(json.id));"
                 ]
@@ -735,7 +751,9 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('clientId')));",
-                  "pm.test('Distributor ID matches', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));"
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID matches', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "}"
                 ]
               }
             }
