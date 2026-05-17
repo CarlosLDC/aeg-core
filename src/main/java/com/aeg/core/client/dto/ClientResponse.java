@@ -6,6 +6,7 @@ public record ClientResponse(
 
 	Long id,
 	Long branchId,
+	Long distributorId,
 	LocalDateTime createdAt
 ) {
 }

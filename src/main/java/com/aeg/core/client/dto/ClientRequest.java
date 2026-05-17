@@ -7,6 +7,9 @@ public record ClientRequest(
 
 	@NotNull(message = "branchId is required")
 	@Positive(message = "branchId must be a positive number")
-	Long branchId
+	Long branchId,
+
+	@Positive(message = "distributorId must be a positive number")
+	Long distributorId
 ) {
 }

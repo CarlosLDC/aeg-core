@@ -15,10 +15,15 @@ public class ClientServiceImpl implements ClientService {
 
 	private final ClientRepository repository;
 	private final com.aeg.core.branch.BranchRepository branchRepository;
+	private final com.aeg.core.distributor.DistributorRepository distributorRepository;
 
-	public ClientServiceImpl(ClientRepository repository, com.aeg.core.branch.BranchRepository branchRepository) {
+	public ClientServiceImpl(
+			ClientRepository repository,
+			com.aeg.core.branch.BranchRepository branchRepository,
+			com.aeg.core.distributor.DistributorRepository distributorRepository) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
+		this.distributorRepository = distributorRepository;
 	}
 
 	@Override
@@ -40,6 +45,10 @@ public class ClientServiceImpl implements ClientService {
 		Client client = new Client();
 		client.setBranch(branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
+		if (request.distributorId() != null) {
+			client.setDistributor(distributorRepository.findById(request.distributorId())
+					.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
+		}
 		return toResponse(repository.save(client));
 	}
 
@@ -48,6 +57,12 @@ public class ClientServiceImpl implements ClientService {
 		Client client = findEntityById(id);
 		client.setBranch(branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId())));
+		if (request.distributorId() != null) {
+			client.setDistributor(distributorRepository.findById(request.distributorId())
+					.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
+		} else {
+			client.setDistributor(null);
+		}
 		return toResponse(repository.save(client));
 	}
 
@@ -66,6 +81,7 @@ public class ClientServiceImpl implements ClientService {
 		return new ClientResponse(
 			client.getId(),
 			client.getBranchId(),
+			client.getDistributorId(),
 			client.getCreatedAt()
 		);
 	}
