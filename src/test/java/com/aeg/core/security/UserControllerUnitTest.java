@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.distributor.DistributorRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -18,6 +19,7 @@ class UserControllerUnitTest {
 
     private UserRepository userRepository;
     private BranchRepository branchRepository;
+    private DistributorRepository distributorRepository;
     private PasswordEncoder passwordEncoder;
     private UserController controller;
 
@@ -25,8 +27,9 @@ class UserControllerUnitTest {
     void setup() {
         userRepository = mock(UserRepository.class);
         branchRepository = mock(BranchRepository.class);
+        distributorRepository = mock(DistributorRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
-        controller = new UserController(userRepository, branchRepository, passwordEncoder);
+        controller = new UserController(userRepository, branchRepository, distributorRepository, passwordEncoder);
     }
 
     @Test

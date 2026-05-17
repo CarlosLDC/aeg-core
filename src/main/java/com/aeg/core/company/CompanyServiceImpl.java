@@ -2,11 +2,14 @@ package com.aeg.core.company;
 
 import java.util.List;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.company.dto.CompanyRequest;
 import com.aeg.core.company.dto.CompanyResponse;
+import com.aeg.core.security.Role;
+import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -22,7 +25,15 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional(readOnly = true)
     public List<CompanyResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        
+        if (currentUser.getRole() == Role.ADMIN) {
+            return repository.findAll().stream().map(this::toResponse).toList();
+        } else if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
+            return repository.findCompaniesByDistributorId(currentUser.getDistributorId()).stream().map(this::toResponse).toList();
+        }
+        
+        return List.of();
     }
 
     @Override

@@ -40,6 +40,10 @@ public class User implements UserDetails {
     @JoinColumn(name = "branch_id", nullable = true)
     private Branch branch;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "distributor_id", nullable = true)
+    private com.aeg.core.distributor.Distributor distributor;
+
     @Builder.Default
     private boolean enabled = true;
 
@@ -70,5 +74,17 @@ public class User implements UserDetails {
 
     public Long getBranchId() {
         return branch == null ? null : branch.getId();
+    }
+
+    public com.aeg.core.distributor.Distributor getDistributor() {
+        return distributor;
+    }
+
+    public void setDistributor(com.aeg.core.distributor.Distributor distributor) {
+        this.distributor = distributor;
+    }
+
+    public Long getDistributorId() {
+        return distributor == null ? null : distributor.getId();
     }
 }

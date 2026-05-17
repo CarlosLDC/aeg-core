@@ -21,6 +21,7 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final com.aeg.core.distributor.DistributorRepository distributorRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping
@@ -42,11 +43,21 @@ public class UserController {
             }
         }
 
+        com.aeg.core.distributor.Distributor distributor = null;
+        if (request.getDistributorId() != null) {
+            distributor = distributorRepository.findById(request.getDistributorId())
+                .orElse(null);
+            if (distributor == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+            }
+        }
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.valueOf(request.getRole().toUpperCase()))
             .branch(branch)
+                .distributor(distributor)
                 .enabled(true)
                 .build();
 
@@ -102,6 +113,14 @@ public class UserController {
             }
             existing.setBranch(branch);
         }
+        if (request.getDistributorId() != null) {
+            com.aeg.core.distributor.Distributor distributor = distributorRepository.findById(request.getDistributorId())
+                    .orElse(null);
+            if (distributor == null) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+            }
+            existing.setDistributor(distributor);
+        }
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
         }
@@ -124,6 +143,7 @@ public class UserController {
         private String password;
         private String role;
         private Long branchId;
+        private Long distributorId;
     }
 
     @Data
@@ -132,6 +152,7 @@ public class UserController {
         private String password;
         private String role;
         private Long branchId;
+        private Long distributorId;
         private Boolean enabled;
     }
 
@@ -141,18 +162,20 @@ public class UserController {
         private String username;
         private Role role;
         private Long branchId;
+        private Long distributorId;
         private Boolean enabled;
 
-        public UserResponse(Long id, String username, Role role, Long branchId, Boolean enabled) {
+        public UserResponse(Long id, String username, Role role, Long branchId, Long distributorId, Boolean enabled) {
             this.id = id;
             this.username = username;
             this.role = role;
             this.branchId = branchId;
+            this.distributorId = distributorId;
             this.enabled = enabled;
         }
     }
 
     private UserResponse toResponse(User u) {
-        return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.getBranchId(), u.isEnabled());
+        return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.getBranchId(), u.getDistributorId(), u.isEnabled());
     }
 }
