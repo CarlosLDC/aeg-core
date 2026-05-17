@@ -39,7 +39,7 @@ public class ClientServiceImpl implements ClientService {
 				.map(this::toResponse)
 				.toList();
 		} else if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
-			return repository.findByDistributorId(currentUser.getDistributorId()).stream()
+			return repository.findByDistributor_Id(currentUser.getDistributorId()).stream()
 				.map(this::toResponse)
 				.toList();
 		}
