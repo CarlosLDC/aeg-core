@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
 
@@ -41,14 +42,17 @@ public class MqttController {
 
     @PostMapping("/publish")
     public ResponseEntity<MqttPublishResponse> publish(@Valid @RequestBody MqttPublishRequest request) {
-        if (request.payload() == null || request.payload().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload must contain at least one JSON field");
+        JsonNode payloadNode = request.payload();
+        if (payloadNode == null || payloadNode.isNull() || isEmptyPayload(payloadNode)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "payload must be a non-empty JSON object or a non-empty JSON array");
         }
 
         final String serializedPayload;
 
         try {
-            serializedPayload = objectMapper.writeValueAsString(request.payload());
+            serializedPayload = objectMapper.writeValueAsString(payloadNode);
         } catch (JsonProcessingException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload could not be serialized as JSON", ex);
         }
@@ -71,5 +75,12 @@ public class MqttController {
         return result.success()
                 ? ResponseEntity.ok(result)
                 : ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(result);
+    }
+
+    private static boolean isEmptyPayload(JsonNode payload) {
+        if (payload.isObject() || payload.isArray()) {
+            return payload.isEmpty();
+        }
+        return true;
     }
 }

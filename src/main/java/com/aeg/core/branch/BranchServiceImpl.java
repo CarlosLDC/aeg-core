@@ -77,6 +77,7 @@ public class BranchServiceImpl implements BranchService {
         b.setAddress(request.address());
         b.setPhone(request.phone());
         b.setEmail(request.email());
+        b.setContactPersonName(request.contactPersonName());
         b.setIsClient(request.isClient());
         b.setIsDistributor(request.isDistributor());
         b.setIsServiceCenter(request.isServiceCenter());
@@ -93,6 +94,7 @@ public class BranchServiceImpl implements BranchService {
         b.setAddress(request.address());
         b.setPhone(request.phone());
         b.setEmail(request.email());
+        b.setContactPersonName(request.contactPersonName());
         b.setIsClient(request.isClient());
         b.setIsDistributor(request.isDistributor());
         b.setIsServiceCenter(request.isServiceCenter());

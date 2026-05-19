@@ -10,6 +10,7 @@ public record BranchResponse(
         String address,
         String phone,
         String email,
+        String contactPersonName,
         OffsetDateTime createdAt,
         Boolean isClient,
         Boolean isDistributor,

@@ -69,6 +69,36 @@ public class MqttControllerIT {
                 eq("{\"message\":\"hola desde test\",\"priority\":1,\"tags\":[\"mqtt\",\"postman\"]}"));
     }
 
+    @Test
+    void publishJsonArrayPayload() throws Exception {
+        String body = "{"
+                + "\"topic\":\"aeg/test/batch\","
+                + "\"payload\":["
+                + "{\"message\":\"uno\",\"priority\":1},"
+                + "{\"message\":\"dos\",\"priority\":2}"
+                + "]"
+                + "}";
+
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/mqtt/publish"))
+                .header("Authorization", bearerAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        var response = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(202);
+        assertThat(response.body()).contains("\"status\":\"sent\"");
+        assertThat(response.body()).contains("\"topic\":\"aeg/test/batch\"");
+        assertThat(response.body()).contains("\"payload\":[");
+
+        verify(mqttService, times(1)).publish(
+                eq("aeg/test/batch"),
+                eq("[{\"message\":\"uno\",\"priority\":1},{\"message\":\"dos\",\"priority\":2}]"));
+    }
+
             private String bearerAuthHeader() throws Exception {
             var client = java.net.http.HttpClient.newHttpClient();
             var loginBody = "{"

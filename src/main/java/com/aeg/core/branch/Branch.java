@@ -40,6 +40,9 @@ public class Branch {
     @Column(name = "correo")
     private String email;
 
+    @Column(name = "nombre_persona_contacto")
+    private String contactPersonName;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

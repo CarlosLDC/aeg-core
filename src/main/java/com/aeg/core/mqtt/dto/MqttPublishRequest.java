@@ -1,12 +1,12 @@
 package com.aeg.core.mqtt.dto;
 
-import java.util.Map;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record MqttPublishRequest(
         @NotBlank String topic,
-        @NotNull Map<String, Object> payload
+        @NotNull JsonNode payload
 ) {
 }
