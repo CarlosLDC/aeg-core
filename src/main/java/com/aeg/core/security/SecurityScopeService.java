@@ -1,5 +1,6 @@
 package com.aeg.core.security;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -14,6 +15,7 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
 import com.aeg.core.client.ClientRepository;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.seal.Seal;
@@ -26,16 +28,19 @@ public class SecurityScopeService {
 
 	private final BranchRepository branchRepository;
 	private final ClientRepository clientRepository;
+	private final DistributorRepository distributorRepository;
 	private final PrinterRepository printerRepository;
 	private final SealRepository sealRepository;
 
 	public SecurityScopeService(
 			BranchRepository branchRepository,
 			ClientRepository clientRepository,
+			DistributorRepository distributorRepository,
 			PrinterRepository printerRepository,
 			SealRepository sealRepository) {
 		this.branchRepository = branchRepository;
 		this.clientRepository = clientRepository;
+		this.distributorRepository = distributorRepository;
 		this.printerRepository = printerRepository;
 		this.sealRepository = sealRepository;
 	}
@@ -85,6 +90,50 @@ public class SecurityScopeService {
 		if (!scope.allowsBranch(branchId)) {
 			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
 		}
+	}
+
+	/** Sucursal de la propia distribuidora (personal interno), no sucursales de clientes. */
+	public Set<Long> resolveDistributorStaffBranchIds() {
+		User user = currentUser();
+		if (user.getRole() != Role.DISTRIBUTOR || user.getDistributorId() == null) {
+			return Collections.emptySet();
+		}
+		return distributorRepository.findById(user.getDistributorId())
+				.map(d -> Set.of(d.getBranchId()))
+				.orElse(Collections.emptySet());
+	}
+
+	public boolean isDistributorStaffBranch(Long branchId) {
+		return resolveDistributorStaffBranchIds().contains(branchId);
+	}
+
+	public void assertDistributorStaffBranch(Long branchId) {
+		User user = currentUser();
+		if (user.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (user.getRole() == Role.DISTRIBUTOR) {
+			if (isDistributorStaffBranch(branchId)) {
+				return;
+			}
+			throw new AccessDeniedException("Not allowed to manage employees on this branch");
+		}
+		assertBranchInScope(branchId);
+	}
+
+	/** Lectura de sucursal: clientes en alcance o sucursal propia de la distribuidora. */
+	public void assertBranchReadable(Long branchId) {
+		User user = currentUser();
+		if (user.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (user.getRole() == Role.DISTRIBUTOR) {
+			if (isDistributorStaffBranch(branchId) || resolveBranchScope().allowsBranch(branchId)) {
+				return;
+			}
+			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
+		}
+		assertBranchInScope(branchId);
 	}
 
 	/**
