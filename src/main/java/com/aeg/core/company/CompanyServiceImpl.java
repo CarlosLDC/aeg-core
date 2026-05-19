@@ -2,6 +2,7 @@ package com.aeg.core.company;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -64,6 +65,30 @@ public class CompanyServiceImpl implements CompanyService {
     @Transactional(readOnly = true)
     public CompanyResponse findById(Long id) {
         return toResponse(findEntityById(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CompanyResponse> resolveByRif(String rif) {
+        User currentUser = securityScope.currentUser();
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.DISTRIBUTOR) {
+            return Optional.empty();
+        }
+        String normalized = normalizeRif(rif);
+        if (normalized.isEmpty()) {
+            return Optional.empty();
+        }
+        return repository
+                .findByRif(normalized)
+                .or(() -> repository.findByNormalizedRif(normalized))
+                .map(this::toResponse);
+    }
+
+    private static String normalizeRif(String rif) {
+        if (rif == null) {
+            return "";
+        }
+        return rif.trim().toUpperCase().replaceAll("[^A-Z0-9]", "");
     }
 
     @Override
