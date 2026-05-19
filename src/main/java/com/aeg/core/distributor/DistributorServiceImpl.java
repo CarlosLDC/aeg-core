@@ -2,13 +2,16 @@ package com.aeg.core.distributor;
 
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.distributor.dto.DistributorRequest;
 import com.aeg.core.distributor.dto.DistributorResponse;
 import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
+import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -34,6 +37,16 @@ public class DistributorServiceImpl implements DistributorService {
 		if (securityScope.isAdmin()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
+		User user = securityScope.currentUser();
+		if (user.getRole() == Role.DISTRIBUTOR) {
+			if (user.getDistributorId() == null) {
+				return List.of();
+			}
+			return repository.findById(user.getDistributorId())
+					.stream()
+					.map(this::toResponse)
+					.toList();
+		}
 		BranchScope scope = securityScope.resolveBranchScope();
 		return switch (scope.visibility()) {
 			case ALL -> repository.findAll().stream().map(this::toResponse).toList();
@@ -46,6 +59,13 @@ public class DistributorServiceImpl implements DistributorService {
 	@Transactional(readOnly = true)
 	public DistributorResponse findById(Long id) {
 		Distributor distributor = findEntityById(id);
+		User user = securityScope.currentUser();
+		if (user.getRole() == Role.DISTRIBUTOR) {
+			if (user.getDistributorId() == null || !user.getDistributorId().equals(id)) {
+				throw new AccessDeniedException("Not allowed to access distributor id: " + id);
+			}
+			return toResponse(distributor);
+		}
 		securityScope.assertBranchInScope(distributor.getBranchId());
 		return toResponse(distributor);
 	}
