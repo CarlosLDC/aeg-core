@@ -70,6 +70,10 @@ public class Branch {
     public void setPhone(String phone) { this.phone = phone; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public String getContactPersonName() { return contactPersonName; }
+    public void setContactPersonName(String contactPersonName) {
+        this.contactPersonName = contactPersonName;
+    }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
     public Boolean getIsClient() { return isClient; }

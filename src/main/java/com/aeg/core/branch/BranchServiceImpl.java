@@ -112,6 +112,18 @@ public class BranchServiceImpl implements BranchService {
     }
 
     private BranchResponse toResponse(Branch b) {
-        return new BranchResponse(b.getId(), b.getCompanyId(), b.getCity(), b.getState(), b.getAddress(), b.getPhone(), b.getEmail(), b.getCreatedAt(), b.getIsClient(), b.getIsDistributor(), b.getIsServiceCenter());
+        return new BranchResponse(
+                b.getId(),
+                b.getCompanyId(),
+                b.getCity(),
+                b.getState(),
+                b.getAddress(),
+                b.getPhone(),
+                b.getEmail(),
+                b.getContactPersonName(),
+                b.getCreatedAt(),
+                b.getIsClient(),
+                b.getIsDistributor(),
+                b.getIsServiceCenter());
     }
 }
