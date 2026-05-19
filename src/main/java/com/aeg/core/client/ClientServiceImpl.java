@@ -65,7 +65,7 @@ public class ClientServiceImpl implements ClientService {
 		Client client = new Client();
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
-		securityScope.assertBranchInScope(branch.getId());
+		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
 		client.setBranch(branch);
 		if (request.distributorId() != null) {
 			client.setDistributor(distributorRepository.findById(request.distributorId())
@@ -80,7 +80,7 @@ public class ClientServiceImpl implements ClientService {
 		securityScope.assertClientInScope(client);
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
-		securityScope.assertBranchInScope(branch.getId());
+		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
 		client.setBranch(branch);
 		if (request.distributorId() != null) {
 			client.setDistributor(distributorRepository.findById(request.distributorId())

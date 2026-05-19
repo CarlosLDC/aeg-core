@@ -6,6 +6,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,6 +53,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Acceso denegado", mapAccessDeniedMessage(e.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
         boolean isConflict = e.getMessage().toLowerCase().contains("exists") || e.getMessage().toLowerCase().contains("existe");
@@ -93,6 +99,22 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String error, String message) {
         return ResponseEntity.status(status).body(buildBody(status, error, message));
+    }
+
+    private static String mapAccessDeniedMessage(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "No tienes permiso para realizar esta acción.";
+        }
+        if (raw.contains("Not allowed to access branch id:")) {
+            return "No tienes permiso sobre esa sucursal.";
+        }
+        if (raw.contains("Branch already assigned to another distributor")) {
+            return "Esta sucursal ya es cliente de otra distribuidora.";
+        }
+        if (raw.contains("Not allowed to create client for this distributor")) {
+            return "No puedes registrar clientes para otra distribuidora.";
+        }
+        return raw;
     }
 
     private Map<String, Object> buildBody(HttpStatus status, String error, String message) {

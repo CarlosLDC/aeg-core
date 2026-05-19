@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
+import com.aeg.core.client.ClientRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.seal.Seal;
@@ -24,14 +25,17 @@ import com.aeg.core.servicecenter.ResourceNotFoundException;
 public class SecurityScopeService {
 
 	private final BranchRepository branchRepository;
+	private final ClientRepository clientRepository;
 	private final PrinterRepository printerRepository;
 	private final SealRepository sealRepository;
 
 	public SecurityScopeService(
 			BranchRepository branchRepository,
+			ClientRepository clientRepository,
 			PrinterRepository printerRepository,
 			SealRepository sealRepository) {
 		this.branchRepository = branchRepository;
+		this.clientRepository = clientRepository;
 		this.printerRepository = printerRepository;
 		this.sealRepository = sealRepository;
 	}
@@ -81,6 +85,37 @@ public class SecurityScopeService {
 		if (!scope.allowsBranch(branchId)) {
 			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
 		}
+	}
+
+	/**
+	 * Alta de cliente en sucursal: el alcance del distribuidor se basa en clientes ya
+	 * vinculados, por lo que una sucursal recién creada aún no aparece en el scope.
+	 */
+	public void assertCanLinkClientToBranch(Long branchId, Long distributorId) {
+		User user = currentUser();
+		if (user.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (user.getRole() == Role.DISTRIBUTOR) {
+			Long userDistributorId = user.getDistributorId();
+			if (userDistributorId == null) {
+				throw new AccessDeniedException("Distributor user has no distributor id");
+			}
+			if (distributorId == null || !userDistributorId.equals(distributorId)) {
+				throw new AccessDeniedException("Not allowed to create client for this distributor");
+			}
+			if (resolveBranchScope().allowsBranch(branchId)) {
+				return;
+			}
+			clientRepository.findByBranch_Id(branchId).ifPresent(existing -> {
+				Long existingDistributorId = existing.getDistributorId();
+				if (existingDistributorId != null && !existingDistributorId.equals(distributorId)) {
+					throw new AccessDeniedException("Branch already assigned to another distributor");
+				}
+			});
+			return;
+		}
+		assertBranchInScope(branchId);
 	}
 
 	public void assertPrinterInScope(Printer printer) {
