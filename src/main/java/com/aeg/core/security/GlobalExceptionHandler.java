@@ -2,7 +2,10 @@ package com.aeg.core.security;
 
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceException;
+import org.hibernate.PropertyAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -60,9 +63,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException e) {
-        boolean isConflict = e.getMessage().toLowerCase().contains("exists") || e.getMessage().toLowerCase().contains("existe");
+        String message = mapBusinessMessage(e.getMessage());
+        boolean isConflict = message.toLowerCase().contains("ya ")
+                || (e.getMessage() != null && (e.getMessage().toLowerCase().contains("exists")
+                        || e.getMessage().toLowerCase().contains("already")));
         HttpStatus status = isConflict ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
-        return buildResponse(status, isConflict ? "Conflicto de datos" : "Petición inválida", e.getMessage());
+        return buildResponse(status, isConflict ? "Conflicto de datos" : "Petición inválida", message);
+    }
+
+    @ExceptionHandler({PersistenceException.class, JpaSystemException.class, PropertyAccessException.class})
+    public ResponseEntity<Map<String, Object>> handlePersistence(Exception e) {
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Conflicto de datos",
+                mapPersistenceMessage(e));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -94,11 +108,40 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception e) {
         e.printStackTrace(); // Keep for debugging in logs
+        String friendly = mapPersistenceMessage(e);
+        if (!friendly.equals(e.getMessage()) && friendly.contains("sucursal")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos", friendly);
+        }
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor", e.getMessage());
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String error, String message) {
         return ResponseEntity.status(status).body(buildBody(status, error, message));
+    }
+
+    private static String mapBusinessMessage(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "Petición inválida.";
+        }
+        if (raw.contains("branch already linked to another distributor")) {
+            return "Esta sucursal ya es cliente de otra distribuidora.";
+        }
+        if (raw.contains("rif already exists")) {
+            return raw;
+        }
+        return raw;
+    }
+
+    private static String mapPersistenceMessage(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String raw = current.getMessage();
+            if (raw != null && raw.contains("Binding property is null")) {
+                return "Esta sucursal ya está registrada. Si el alta se interrumpió, intenta de nuevo: se completará el vínculo como cliente.";
+            }
+            current = current.getCause();
+        }
+        return "No se pudo completar la operación. Revisa los datos o inténtalo de nuevo.";
     }
 
     private static String mapAccessDeniedMessage(String raw) {

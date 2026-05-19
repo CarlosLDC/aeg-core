@@ -131,6 +131,10 @@ public class SecurityScopeService {
 			if (isDistributorStaffBranch(branchId) || resolveBranchScope().allowsBranch(branchId)) {
 				return;
 			}
+			// Sucursal recién creada en alta de cliente, aún sin fila en clientes
+			if (clientRepository.findByBranch_Id(branchId).isEmpty()) {
+				return;
+			}
 			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
 		}
 		assertBranchInScope(branchId);

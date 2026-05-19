@@ -18,6 +18,11 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
             """)
     Optional<Company> findByNormalizedRif(@Param("normalized") String normalized);
 
-    @Query("SELECT DISTINCT c.branch.company FROM Client c WHERE c.distributor.id = :distributorId")
+    @Query("""
+            SELECT DISTINCT b.company FROM Client c
+            INNER JOIN c.distributor d
+            INNER JOIN c.branch b
+            WHERE d.id = :distributorId
+            """)
     List<Company> findCompaniesByDistributorId(@Param("distributorId") Long distributorId);
 }

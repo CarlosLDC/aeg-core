@@ -1,6 +1,7 @@
 package com.aeg.core.branch;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,18 @@ public class BranchServiceImpl implements BranchService {
         Branch branch = findEntityById(id);
         securityScope.assertBranchReadable(branch.getId());
         return toResponse(branch);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<BranchResponse> lookupByCompanyLocation(Long companyId, String city, String state) {
+        if (companyId == null || city == null || city.isBlank() || state == null || state.isBlank()) {
+            return Optional.empty();
+        }
+        return repository
+                .findFirstByCompany_IdAndCityIgnoreCaseAndStateIgnoreCase(
+                        companyId, city.trim(), state.trim())
+                .map(this::toResponse);
     }
 
     @Override

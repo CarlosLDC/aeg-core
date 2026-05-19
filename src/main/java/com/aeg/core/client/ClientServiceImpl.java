@@ -1,6 +1,7 @@
 package com.aeg.core.client;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,16 +63,46 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	public ClientResponse create(ClientRequest request) {
+		Optional<Client> existing = repository.findByBranch_Id(request.branchId());
+		if (existing.isPresent()) {
+			return linkOrUpdateExistingClient(existing.get(), request);
+		}
+		return createNewClient(request);
+	}
+
+	private ClientResponse createNewClient(ClientRequest request) {
 		Client client = new Client();
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
 		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
 		client.setBranch(branch);
-		if (request.distributorId() != null) {
-			client.setDistributor(distributorRepository.findById(request.distributorId())
-					.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + request.distributorId())));
-		}
+		applyDistributor(client, request.distributorId());
 		return toResponse(repository.save(client));
+	}
+
+	private ClientResponse linkOrUpdateExistingClient(Client client, ClientRequest request) {
+		securityScope.assertCanLinkClientToBranch(client.getBranchId(), request.distributorId());
+		Long existingDistributorId = client.getDistributorId();
+		if (request.distributorId() != null) {
+			if (existingDistributorId != null && !existingDistributorId.equals(request.distributorId())) {
+				throw new IllegalArgumentException(
+						"branch already linked to another distributor");
+			}
+			if (existingDistributorId == null) {
+				applyDistributor(client, request.distributorId());
+				client = repository.save(client);
+			}
+		}
+		return toResponse(client);
+	}
+
+	private void applyDistributor(Client client, Long distributorId) {
+		if (distributorId == null) {
+			client.setDistributor(null);
+			return;
+		}
+		client.setDistributor(distributorRepository.findById(distributorId)
+				.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distributorId)));
 	}
 
 	@Override
