@@ -35,6 +35,13 @@ public class EmployeeServiceImpl implements EmployeeService {
 		if (securityScope.isAdmin()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
+		if (securityScope.currentUser().getRole() == com.aeg.core.security.Role.DISTRIBUTOR) {
+			var staffBranches = securityScope.resolveDistributorStaffBranchIds();
+			if (staffBranches.isEmpty()) {
+				return List.of();
+			}
+			return repository.findByBranch_IdIn(staffBranches).stream().map(this::toResponse).toList();
+		}
 		BranchScope scope = securityScope.resolveBranchScope();
 		return switch (scope.visibility()) {
 			case ALL -> repository.findAll().stream().map(this::toResponse).toList();
@@ -47,7 +54,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Transactional(readOnly = true)
 	public EmployeeResponse findById(Long id) {
 		Employee employee = findEntity(id);
-		securityScope.assertBranchInScope(employee.getBranchId());
+		securityScope.assertDistributorStaffBranch(employee.getBranchId());
 		return toResponse(employee);
 	}
 
@@ -64,7 +71,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public EmployeeResponse update(Long id, EmployeeRequest request) {
 		Employee e = findEntity(id);
-		securityScope.assertBranchInScope(e.getBranchId());
+		securityScope.assertDistributorStaffBranch(e.getBranchId());
 		if (!e.getNationalId().equalsIgnoreCase(request.nationalId())
 				&& repository.existsByNationalIdIgnoreCase(request.nationalId())) {
 			throw new IllegalArgumentException("nationalId already exists: " + request.nationalId());
@@ -76,7 +83,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	@Override
 	public void delete(Long id) {
 		Employee e = findEntity(id);
-		securityScope.assertBranchInScope(e.getBranchId());
+		securityScope.assertDistributorStaffBranch(e.getBranchId());
 		repository.delete(e);
 	}
 
@@ -88,7 +95,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	private void applyRequest(Employee e, EmployeeRequest request) {
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
-		securityScope.assertBranchInScope(branch.getId());
+		securityScope.assertDistributorStaffBranch(branch.getId());
 		e.setNationalId(request.nationalId());
 		e.setName(request.name());
 		e.setPhone(request.phone());

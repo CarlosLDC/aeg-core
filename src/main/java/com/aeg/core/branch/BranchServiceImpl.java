@@ -43,7 +43,7 @@ public class BranchServiceImpl implements BranchService {
     @Transactional(readOnly = true)
     public BranchResponse findById(Long id) {
         Branch branch = findEntityById(id);
-        securityScope.assertBranchInScope(branch.getId());
+        securityScope.assertBranchReadable(branch.getId());
         return toResponse(branch);
     }
 
