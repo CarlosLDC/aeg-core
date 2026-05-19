@@ -40,10 +40,10 @@ public class ClientServiceImpl implements ClientService {
 	public List<ClientResponse> findAll() {
 		User currentUser = securityScope.currentUser();
 		if (currentUser.getRole() == Role.ADMIN) {
-			return repository.findAll().stream().map(this::toResponse).toList();
+			return repository.findAllFetched().stream().map(this::toResponse).toList();
 		}
 		if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
-			return repository.findByDistributor_Id(currentUser.getDistributorId()).stream()
+			return repository.findAllFetchedByDistributorId(currentUser.getDistributorId()).stream()
 					.map(this::toResponse)
 					.toList();
 		}
@@ -51,7 +51,9 @@ public class ClientServiceImpl implements ClientService {
 		if (scope.visibility() != BranchScope.Visibility.SCOPED) {
 			return List.of();
 		}
-		return repository.findByBranch_IdIn(scope.branchIds()).stream().map(this::toResponse).toList();
+		return repository.findAllFetchedByBranch_IdIn(scope.branchIds()).stream()
+				.map(this::toResponse)
+				.toList();
 	}
 
 	@Override
@@ -153,12 +155,7 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	private void markBranchAsClient(Long branchId) {
-		branchRepository.findByIdWithCompany(branchId).ifPresent(branch -> {
-			if (!Boolean.TRUE.equals(branch.getIsClient())) {
-				branch.setIsClient(true);
-				branchRepository.save(branch);
-			}
-		});
+		branchRepository.markAsClient(branchId);
 	}
 
 	private ClientResponse toResponseForBranch(Long branchId) {
@@ -213,10 +210,18 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	private ClientResponse toResponse(Client client) {
+		var branch = client.getBranch();
+		var company = branch != null ? branch.getCompany() : null;
 		return new ClientResponse(
 				client.getId(),
-				client.getBranchId(),
+				branch != null ? branch.getId() : null,
 				client.getDistributorId(),
-				client.getCreatedAt());
+				client.getCreatedAt(),
+				branch != null ? branch.getCity() : null,
+				branch != null ? branch.getState() : null,
+				company != null ? company.getBusinessName() : null,
+				company != null ? company.getRif() : null,
+				branch != null ? branch.getPhone() : null,
+				branch != null ? branch.getEmail() : null);
 	}
 }

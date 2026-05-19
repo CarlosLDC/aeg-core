@@ -13,6 +13,16 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
 	List<Client> findByBranch_IdIn(java.util.Collection<Long> branchIds);
 
+	@Query("""
+			SELECT c FROM Client c
+			JOIN FETCH c.branch b
+			JOIN FETCH b.company
+			LEFT JOIN FETCH c.distributor
+			WHERE b.id IN :branchIds
+			ORDER BY c.id ASC
+			""")
+	List<Client> findAllFetchedByBranch_IdIn(@Param("branchIds") java.util.Collection<Long> branchIds);
+
 	Optional<Client> findByBranch_Id(Long branchId);
 
 	Optional<Client> findFirstByBranch_Id(Long branchId);
@@ -27,4 +37,23 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 			ORDER BY c.id ASC
 			""")
 	List<Client> findAllFetchedByBranchId(@Param("branchId") Long branchId);
+
+	@Query("""
+			SELECT c FROM Client c
+			JOIN FETCH c.branch b
+			JOIN FETCH b.company
+			LEFT JOIN FETCH c.distributor
+			WHERE c.distributor.id = :distributorId
+			ORDER BY c.id ASC
+			""")
+	List<Client> findAllFetchedByDistributorId(@Param("distributorId") Long distributorId);
+
+	@Query("""
+			SELECT c FROM Client c
+			JOIN FETCH c.branch b
+			JOIN FETCH b.company
+			LEFT JOIN FETCH c.distributor
+			ORDER BY c.id ASC
+			""")
+	List<Client> findAllFetched();
 }

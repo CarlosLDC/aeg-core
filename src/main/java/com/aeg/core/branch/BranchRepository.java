@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -30,4 +31,12 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 			WHERE b.id = :id
 			""")
 	Optional<Branch> findByIdWithCompany(@Param("id") Long id);
+
+	@Modifying(clearAutomatically = true)
+	@Query("""
+			UPDATE Branch b
+			SET b.isClient = true
+			WHERE b.id = :branchId AND (b.isClient IS NULL OR b.isClient = false)
+			""")
+	int markAsClient(@Param("branchId") Long branchId);
 }
