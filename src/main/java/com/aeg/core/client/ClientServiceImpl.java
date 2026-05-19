@@ -62,8 +62,18 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
+	public Optional<ClientResponse> findByBranchId(Long branchId) {
+		User user = securityScope.currentUser();
+		Long distributorId =
+				user.getRole() == Role.DISTRIBUTOR ? user.getDistributorId() : null;
+		securityScope.assertCanLinkClientToBranch(branchId, distributorId);
+		return repository.findFirstByBranch_Id(branchId).map(this::toResponse);
+	}
+
+	@Override
 	public ClientResponse create(ClientRequest request) {
-		Optional<Client> existing = repository.findByBranch_Id(request.branchId());
+		Optional<Client> existing = repository.findFirstByBranch_Id(request.branchId());
 		if (existing.isPresent()) {
 			return linkOrUpdateExistingClient(existing.get(), request);
 		}

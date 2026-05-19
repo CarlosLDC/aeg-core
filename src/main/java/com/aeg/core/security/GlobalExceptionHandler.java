@@ -137,7 +137,7 @@ public class GlobalExceptionHandler {
         while (current != null) {
             String raw = current.getMessage();
             if (raw != null && raw.contains("Binding property is null")) {
-                return "Esta sucursal ya está registrada. Si el alta se interrumpió, intenta de nuevo: se completará el vínculo como cliente.";
+                return "La sucursal ya existe pero falta completar el vínculo como cliente. Pulsa «Registrar» de nuevo.";
             }
             current = current.getCause();
         }

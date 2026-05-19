@@ -2,6 +2,7 @@ package com.aeg.core.client;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -32,6 +33,12 @@ public class ClientController {
 	@GetMapping
 	public ResponseEntity<List<ClientResponse>> findAll() {
 		return ResponseEntity.ok(service.findAll());
+	}
+
+	@GetMapping("/by-branch/{branchId}")
+	public ResponseEntity<ClientResponse> findByBranch(@PathVariable Long branchId) {
+		Optional<ClientResponse> client = service.findByBranchId(branchId);
+		return client.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
 	@GetMapping("/{id}")
