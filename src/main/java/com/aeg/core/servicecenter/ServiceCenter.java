@@ -23,7 +23,7 @@ public class ServiceCenter {
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "id_sucursal", nullable = false)
-	private com.aeg.core.branch.Branch branchId;
+	private com.aeg.core.branch.Branch branch;
 
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
@@ -43,9 +43,17 @@ public class ServiceCenter {
 		this.id = id;
 	}
 
-	public com.aeg.core.branch.Branch getBranch() { return branchId; }
-	public void setBranch(com.aeg.core.branch.Branch branch) { this.branchId = branch; }
-	public Long getBranchId() { return branchId == null ? null : branchId.getId(); }
+	public com.aeg.core.branch.Branch getBranch() {
+		return branch;
+	}
+
+	public void setBranch(com.aeg.core.branch.Branch branch) {
+		this.branch = branch;
+	}
+
+	public Long getBranchId() {
+		return branch == null ? null : branch.getId();
+	}
 
 	public LocalDateTime getCreatedAt() {
 		return createdAt;

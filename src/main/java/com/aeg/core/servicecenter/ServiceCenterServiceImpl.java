@@ -37,7 +37,9 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
 		return switch (scope.visibility()) {
 			case ALL -> repository.findAll().stream().map(this::toResponse).toList();
 			case NONE -> List.of();
-			case SCOPED -> repository.findByBranch_IdIn(scope.branchIds()).stream().map(this::toResponse).toList();
+			case SCOPED -> repository.findAllFetchedByBranch_IdIn(scope.branchIds()).stream()
+					.map(this::toResponse)
+					.toList();
 		};
 	}
 
