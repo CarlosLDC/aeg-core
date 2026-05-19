@@ -168,11 +168,14 @@ public class ClientServiceImpl implements ClientService {
 
 	private void applyDistributor(Client client, Long distributorId) {
 		if (distributorId == null) {
+			client.setDistributorId(null);
 			client.setDistributor(null);
 			return;
 		}
-		client.setDistributor(distributorRepository.findById(distributorId)
-				.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distributorId)));
+		var distributor = distributorRepository.findById(distributorId)
+				.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distributorId));
+		client.setDistributor(distributor);
+		client.setDistributorId(distributorId);
 	}
 
 	@Override
@@ -212,10 +215,11 @@ public class ClientServiceImpl implements ClientService {
 	private ClientResponse toResponse(Client client) {
 		var branch = client.getBranch();
 		var company = branch != null ? branch.getCompany() : null;
+		Long distributorId = client.getDistributorId();
 		return new ClientResponse(
 				client.getId(),
 				branch != null ? branch.getId() : null,
-				client.getDistributorId(),
+				distributorId,
 				client.getCreatedAt(),
 				branch != null ? branch.getCity() : null,
 				branch != null ? branch.getState() : null,

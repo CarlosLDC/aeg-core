@@ -32,11 +32,15 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 			""")
 	Optional<Branch> findByIdWithCompany(@Param("id") Long id);
 
+	/** Native update: JPQL on {@code isClient} triggers Hibernate "Binding property is null". */
 	@Modifying(clearAutomatically = true)
-	@Query("""
-			UPDATE Branch b
-			SET b.isClient = true
-			WHERE b.id = :branchId AND (b.isClient IS NULL OR b.isClient = false)
-			""")
+	@Query(
+			value = """
+					UPDATE public.sucursales
+					SET es_cliente = true
+					WHERE id = :branchId
+					  AND (es_cliente IS NULL OR es_cliente = false)
+					""",
+			nativeQuery = true)
 	int markAsClient(@Param("branchId") Long branchId);
 }

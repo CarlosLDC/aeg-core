@@ -36,7 +36,7 @@ public class AuthController {
                 )
         );
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-        User user = userRepository.findByUsername(request.getUsername()).orElseThrow();
+        User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
         
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("role", user.getRole().name());
@@ -49,7 +49,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> me(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        User user = userRepository.findByUsernameWithRelations(userDetails.getUsername()).orElseThrow();
         return ResponseEntity.ok(new UserProfileResponse(
             user.getId(),
             user.getUsername(),

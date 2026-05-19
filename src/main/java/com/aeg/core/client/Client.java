@@ -25,8 +25,11 @@ public class Client {
 	@JoinColumn(name = "id_sucursal", nullable = false)
 	private com.aeg.core.branch.Branch branch;
 
+	@Column(name = "id_distribuidora")
+	private Long distributorId;
+
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_distribuidora")
+	@JoinColumn(name = "id_distribuidora", insertable = false, updatable = false)
 	private com.aeg.core.distributor.Distributor distributor;
 
 	@Column(name = "created_at", nullable = false)
@@ -51,8 +54,17 @@ public class Client {
 	public void setBranch(com.aeg.core.branch.Branch branch) { this.branch = branch; }
 	public Long getBranchId() { return branch == null ? null : branch.getId(); }
 	public com.aeg.core.distributor.Distributor getDistributor() { return distributor; }
-	public void setDistributor(com.aeg.core.distributor.Distributor distributor) { this.distributor = distributor; }
-	public Long getDistributorId() { return distributor == null ? null : distributor.getId(); }
+	public void setDistributor(com.aeg.core.distributor.Distributor distributor) {
+		this.distributor = distributor;
+		this.distributorId = distributor == null ? null : distributor.getId();
+	}
+	public Long getDistributorId() {
+		return distributorId;
+	}
+
+	public void setDistributorId(Long distributorId) {
+		this.distributorId = distributorId;
+	}
 
 	public LocalDateTime getCreatedAt() {
 		return createdAt;

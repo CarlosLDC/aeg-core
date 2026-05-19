@@ -13,7 +13,7 @@ public class ApplicationConfig {
 
     @Bean
     public UserDetailsService userDetailsService(UserRepository userRepository) {
-        return username -> userRepository.findByUsername(username)
+        return username -> userRepository.findByUsernameWithRelations(username)
                 .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuario no encontrado: " + username));
     }
 

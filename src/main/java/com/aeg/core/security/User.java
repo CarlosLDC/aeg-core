@@ -36,12 +36,18 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "branch_id", nullable = true)
-    private Branch branch;
+    @Column(name = "branch_id")
+    private Long branchId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "distributor_id", nullable = true)
+    @JoinColumn(name = "branch_id", insertable = false, updatable = false)
+    private Branch branch;
+
+    @Column(name = "distributor_id")
+    private Long distributorId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "distributor_id", insertable = false, updatable = false)
     private com.aeg.core.distributor.Distributor distributor;
 
     @Builder.Default
@@ -72,19 +78,14 @@ public class User implements UserDetails {
         return enabled;
     }
 
-    public Long getBranchId() {
-        return branch == null ? null : branch.getId();
-    }
-
-    public com.aeg.core.distributor.Distributor getDistributor() {
-        return distributor;
-    }
-
-    public void setDistributor(com.aeg.core.distributor.Distributor distributor) {
-        this.distributor = distributor;
-    }
-
-    public Long getDistributorId() {
-        return distributor == null ? null : distributor.getId();
+    @PrePersist
+    @PreUpdate
+    void syncForeignKeys() {
+        if (branch != null) {
+            branchId = branch.getId();
+        }
+        if (distributor != null) {
+            distributorId = distributor.getId();
+        }
     }
 }
