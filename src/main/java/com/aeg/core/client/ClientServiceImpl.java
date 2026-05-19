@@ -78,6 +78,11 @@ public class ClientServiceImpl implements ClientService {
 		securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
 		Client existing = resolveClientForBranch(request.branchId());
 		if (existing != null) {
+			Long linked = existing.getDistributorId();
+			if (linked != null && linked.equals(request.distributorId())) {
+				markBranchAsClient(request.branchId());
+				return toResponseForBranch(request.branchId());
+			}
 			return linkOrUpdateExistingClient(existing, request);
 		}
 		return createNewClient(request);
@@ -115,9 +120,9 @@ public class ClientServiceImpl implements ClientService {
 		Client client = new Client();
 		client.setBranch(branch);
 		applyDistributor(client, request.distributorId());
-		Client saved = repository.saveAndFlush(client);
+		repository.saveAndFlush(client);
 		markBranchAsClient(branch.getId());
-		return toResponse(saved);
+		return toResponseForBranch(request.branchId());
 	}
 
 	private ClientResponse linkOrUpdateExistingClient(Client client, ClientRequest request) {
@@ -133,24 +138,35 @@ public class ClientServiceImpl implements ClientService {
 						"branch already linked to another distributor");
 			}
 			if (existingDistributorId == null) {
-				applyDistributor(client, request.distributorId());
-				if (client.getBranch() == null) {
-					client.setBranch(requireBranchWithCompany(branchId));
+				Client managed = repository.findAllFetchedByBranchId(branchId).stream()
+						.findFirst()
+						.orElse(client);
+				applyDistributor(managed, request.distributorId());
+				if (managed.getBranch() == null) {
+					managed.setBranch(requireBranchWithCompany(branchId));
 				}
-				client = repository.saveAndFlush(client);
+				repository.saveAndFlush(managed);
 			}
 		}
 		markBranchAsClient(branchId);
-		return toResponse(client);
+		return toResponseForBranch(branchId);
 	}
 
 	private void markBranchAsClient(Long branchId) {
-		branchRepository.findById(branchId).ifPresent(branch -> {
+		branchRepository.findByIdWithCompany(branchId).ifPresent(branch -> {
 			if (!Boolean.TRUE.equals(branch.getIsClient())) {
 				branch.setIsClient(true);
 				branchRepository.save(branch);
 			}
 		});
+	}
+
+	private ClientResponse toResponseForBranch(Long branchId) {
+		Client client = resolveClientForBranch(branchId);
+		if (client == null) {
+			throw new IllegalStateException("Client link missing for branch id: " + branchId);
+		}
+		return toResponse(client);
 	}
 
 	private void applyDistributor(Client client, Long distributorId) {

@@ -131,11 +131,21 @@ public class SecurityScopeService {
 			if (isDistributorStaffBranch(branchId) || resolveBranchScope().allowsBranch(branchId)) {
 				return;
 			}
-			// Sucursal recién creada en alta de cliente, aún sin fila en clientes
-			if (clientRepository.findByBranch_Id(branchId).isEmpty()) {
+			Long userDistributorId = user.getDistributorId();
+			if (userDistributorId == null) {
+				throw new AccessDeniedException("Distributor user has no distributor id");
+			}
+			var clientOnBranch = clientRepository.findByBranch_Id(branchId);
+			if (clientOnBranch.isEmpty()) {
+				// Sucursal recién creada, aún sin fila en clientes
 				return;
 			}
-			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
+			Long linkedDistributorId = clientOnBranch.get().getDistributorId();
+			if (linkedDistributorId != null && !linkedDistributorId.equals(userDistributorId)) {
+				throw new AccessDeniedException("Branch already assigned to another distributor");
+			}
+			// Cliente sin distribuidor o ya vinculado a este distribuidor (completar vínculo)
+			return;
 		}
 		assertBranchInScope(branchId);
 	}
