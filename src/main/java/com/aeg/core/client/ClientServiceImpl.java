@@ -68,16 +68,29 @@ public class ClientServiceImpl implements ClientService {
 		Long distributorId =
 				user.getRole() == Role.DISTRIBUTOR ? user.getDistributorId() : null;
 		securityScope.assertCanLinkClientToBranch(branchId, distributorId);
-		return repository.findFirstByBranch_Id(branchId).map(this::toResponse);
+		Client client = resolveClientForBranch(branchId);
+		return client == null ? Optional.empty() : Optional.of(toResponse(client));
 	}
 
 	@Override
 	public ClientResponse create(ClientRequest request) {
-		Optional<Client> existing = repository.findFirstByBranch_Id(request.branchId());
-		if (existing.isPresent()) {
-			return linkOrUpdateExistingClient(existing.get(), request);
+		Client existing = resolveClientForBranch(request.branchId());
+		if (existing != null) {
+			return linkOrUpdateExistingClient(existing, request);
 		}
 		return createNewClient(request);
+	}
+
+	private Client resolveClientForBranch(Long branchId) {
+		var rows = repository.findAllFetchedByBranchId(branchId);
+		if (rows.isEmpty()) {
+			return null;
+		}
+		Client primary = rows.get(0);
+		for (int i = 1; i < rows.size(); i++) {
+			repository.delete(rows.get(i));
+		}
+		return primary;
 	}
 
 	private ClientResponse createNewClient(ClientRequest request) {
@@ -87,6 +100,7 @@ public class ClientServiceImpl implements ClientService {
 		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
 		client.setBranch(branch);
 		applyDistributor(client, request.distributorId());
+		markBranchAsClient(branch);
 		return toResponse(repository.save(client));
 	}
 
@@ -103,7 +117,15 @@ public class ClientServiceImpl implements ClientService {
 				client = repository.save(client);
 			}
 		}
+		branchRepository.findById(client.getBranchId()).ifPresent(this::markBranchAsClient);
 		return toResponse(client);
+	}
+
+	private void markBranchAsClient(com.aeg.core.branch.Branch branch) {
+		if (!Boolean.TRUE.equals(branch.getIsClient())) {
+			branch.setIsClient(true);
+			branchRepository.save(branch);
+		}
 	}
 
 	private void applyDistributor(Client client, Long distributorId) {

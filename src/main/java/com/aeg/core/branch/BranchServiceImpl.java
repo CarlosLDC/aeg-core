@@ -62,6 +62,13 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public BranchResponse create(BranchRequest request) {
+        Optional<Branch> existing = repository.findFirstByCompany_IdAndCityIgnoreCaseAndStateIgnoreCase(
+                request.companyId(),
+                request.city() != null ? request.city().trim() : "",
+                request.state() != null ? request.state().trim() : "");
+        if (existing.isPresent()) {
+            return toResponse(existing.get());
+        }
         Branch b = new Branch();
         b.setCompany(companyRepository.findById(request.companyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.companyId())));
