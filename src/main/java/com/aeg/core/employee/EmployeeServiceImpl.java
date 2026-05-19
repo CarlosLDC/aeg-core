@@ -6,11 +6,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.distributorperson.DistributorPersonRepository;
 import com.aeg.core.employee.dto.EmployeeRequest;
 import com.aeg.core.employee.dto.EmployeeResponse;
+import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
+import com.aeg.core.technician.TechnicianRepository;
 
 @Service
 @Transactional
@@ -18,14 +21,23 @@ public class EmployeeServiceImpl implements EmployeeService {
 
 	private final EmployeeRepository repository;
 	private final BranchRepository branchRepository;
+	private final DistributorPersonRepository distributorPersonRepository;
+	private final TechnicianRepository technicianRepository;
+	private final AnnualInspectionRepository annualInspectionRepository;
 	private final SecurityScopeService securityScope;
 
 	public EmployeeServiceImpl(
 			EmployeeRepository repository,
 			BranchRepository branchRepository,
+			DistributorPersonRepository distributorPersonRepository,
+			TechnicianRepository technicianRepository,
+			AnnualInspectionRepository annualInspectionRepository,
 			SecurityScopeService securityScope) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
+		this.distributorPersonRepository = distributorPersonRepository;
+		this.technicianRepository = technicianRepository;
+		this.annualInspectionRepository = annualInspectionRepository;
 		this.securityScope = securityScope;
 	}
 
@@ -84,6 +96,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public void delete(Long id) {
 		Employee e = findEntity(id);
 		securityScope.assertDistributorStaffBranch(e.getBranchId());
+		if (annualInspectionRepository.existsByEmployee_Id(id)) {
+			throw new IllegalArgumentException(
+					"employee has annual inspections and cannot be deleted: " + id);
+		}
+		distributorPersonRepository.findByEmployee_Id(id).ifPresent(distributorPersonRepository::delete);
+		technicianRepository.findByEmployee_Id(id).ifPresent(technicianRepository::delete);
 		repository.delete(e);
 	}
 

@@ -82,6 +82,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException e) {
         String message = e.getMostSpecificCause().getMessage();
+        if (message.contains("distribuidores_id_empleado_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar el empleado porque está registrado como persona distribuidor. Quita ese rol antes de eliminarlo.");
+        }
+        if (message.contains("tecnicos_id_empleado_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar el empleado porque está registrado como técnico. Quita ese rol antes de eliminarlo.");
+        }
+        if (message.contains("inspecciones_anuales_id_empleado_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar el empleado porque tiene inspecciones anuales registradas.");
+        }
         if (message.contains("violates foreign key constraint") || message.contains("fk_")) {
             return buildResponse(HttpStatus.BAD_REQUEST, "Error de integridad referencial", 
                 "No se puede realizar la operación porque el registro está siendo referenciado o hace referencia a un registro inexistente.");
@@ -128,6 +140,9 @@ public class GlobalExceptionHandler {
         }
         if (raw.contains("rif already exists")) {
             return raw;
+        }
+        if (raw.contains("employee has annual inspections and cannot be deleted")) {
+            return "No se puede eliminar el empleado porque tiene inspecciones anuales registradas.";
         }
         return raw;
     }

@@ -16,4 +16,6 @@ public interface AnnualInspectionRepository extends JpaRepository<AnnualInspecti
 	List<AnnualInspection> findByPrinter_IdInAndEmployee_Branch_IdIn(
 			@Param("printerIds") Collection<Long> printerIds,
 			@Param("branchIds") Collection<Long> branchIds);
+
+	boolean existsByEmployee_Id(Long employeeId);
 }
