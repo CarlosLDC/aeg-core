@@ -10,6 +10,11 @@ services:
     http_port: 8080
     health_check:
       http_path: /actuator/health
+      # El arranque (Flyway + JPA) puede tardar ~90s; evita "connection refused" en el probe.
+      initial_delay_seconds: 120
+      period_seconds: 15
+      timeout_seconds: 10
+      failure_threshold: 6
     instance_count: 1
     instance_size_slug: apps-s-1vcpu-1gb
     envs:
@@ -19,7 +24,15 @@ services:
         value: doadmin
       - key: SPRING_DATASOURCE_PASSWORD
         value: SET_IN_APP_PLATFORM
+        type: SECRET
       - key: MQTT_URL
         value: tcp://10.116.0.4:1883
-      - key: SPRING_FLYWAY_ENABLED
+      - key: MQTT_USER
+        value: SET_IN_APP_PLATFORM
+        type: SECRET
+      - key: MQTT_PASS
+        value: SET_IN_APP_PLATFORM
+        type: SECRET
+      # Solo publicación desde /api/mqtt/publish; evita bucles subscribe/disconnect si el broker no expone telemetría al API.
+      - key: MQTT_INBOUND_ENABLED
         value: "false"

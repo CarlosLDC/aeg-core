@@ -2,6 +2,7 @@ package com.aeg.core.config;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.MessagingGateway;
@@ -16,6 +17,8 @@ import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.Header;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PostConstruct;
+
 @Configuration
 @org.springframework.integration.annotation.IntegrationComponentScan
 @lombok.extern.slf4j.Slf4j
@@ -25,7 +28,13 @@ public class MqttConfig {
     private String brokerUrl;
 
     @Value("${app.mqtt.client-id:aeg-core-server}")
-    private String clientId;
+    private String clientIdBase;
+
+    @Value("${app.mqtt.inbound.topic:aeg/telemetry/#}")
+    private String inboundTopic;
+
+    @Value("${app.mqtt.inbound.enabled:true}")
+    private boolean inboundEnabled;
 
     @Value("${app.mqtt.default-topic:aeg/commands}")
     private String defaultTopic;
@@ -36,6 +45,15 @@ public class MqttConfig {
     @Value("${app.mqtt.password:}")
     private String password;
 
+    @PostConstruct
+    void logMqttSettings() {
+        log.info(
+                "MQTT broker={}, outboundClientId={}, inboundEnabled={}",
+                brokerUrl,
+                MqttClientIds.clientId(clientIdBase) + "-out",
+                inboundEnabled);
+    }
+
     @Bean
     public MqttConnectOptions mqttConnectOptions() {
         MqttConnectOptions options = new MqttConnectOptions();
@@ -43,6 +61,8 @@ public class MqttConfig {
         options.setCleanSession(true);
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(30);
+        options.setKeepAliveInterval(45);
+        options.setMaxReconnectDelay(15_000);
 
         if (username != null && !username.isBlank()) {
             options.setUserName(username);
@@ -74,7 +94,9 @@ public class MqttConfig {
     @Bean
     @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MessageHandler mqttOutbound() {
-        MqttPahoMessageHandler messageHandler = new MqttPahoMessageHandler(clientId + "-out", mqttClientFactory());
+        MqttPahoMessageHandler messageHandler = new MqttPahoMessageHandler(
+                MqttClientIds.clientId(clientIdBase) + "-out",
+                mqttClientFactory());
         messageHandler.setAsync(true);
         messageHandler.setDefaultTopic(defaultTopic);
         return messageHandler;
@@ -94,18 +116,24 @@ public class MqttConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.mqtt.inbound.enabled", havingValue = "true", matchIfMissing = true)
     public org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter mqttInbound() {
         org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter adapter =
-                new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(clientId + "-in", 
-                        mqttClientFactory(), "aeg/telemetry/#");
+                new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(
+                        MqttClientIds.clientId(clientIdBase) + "-in",
+                        mqttClientFactory(),
+                        inboundTopic);
         adapter.setCompletionTimeout(5000);
+        adapter.setRecoveryInterval(10_000L);
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
+        log.info("MQTT inbound enabled (topic={}, clientSuffix={})", inboundTopic, MqttClientIds.suffix());
         return adapter;
     }
 
     @Bean
+    @ConditionalOnProperty(name = "app.mqtt.inbound.enabled", havingValue = "true", matchIfMissing = true)
     @ServiceActivator(inputChannel = "mqttInboundChannel")
     public MessageHandler handler() {
         return message -> {
