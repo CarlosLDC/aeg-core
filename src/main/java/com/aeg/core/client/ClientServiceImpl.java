@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.branch.Branch;
 import com.aeg.core.client.dto.ClientRequest;
 import com.aeg.core.client.dto.ClientResponse;
 import com.aeg.core.security.BranchScope;
@@ -74,6 +75,7 @@ public class ClientServiceImpl implements ClientService {
 
 	@Override
 	public ClientResponse create(ClientRequest request) {
+		securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
 		Client existing = resolveClientForBranch(request.branchId());
 		if (existing != null) {
 			return linkOrUpdateExistingClient(existing, request);
@@ -86,26 +88,44 @@ public class ClientServiceImpl implements ClientService {
 		if (rows.isEmpty()) {
 			return null;
 		}
-		Client primary = rows.get(0);
-		for (int i = 1; i < rows.size(); i++) {
-			repository.delete(rows.get(i));
+		for (Client row : rows) {
+			if (row.getBranch() == null) {
+				repository.delete(row);
+			}
+		}
+		var valid = repository.findAllFetchedByBranchId(branchId);
+		if (valid.isEmpty()) {
+			return null;
+		}
+		Client primary = valid.get(0);
+		for (int i = 1; i < valid.size(); i++) {
+			repository.delete(valid.get(i));
 		}
 		return primary;
 	}
 
+	private Branch requireBranchWithCompany(Long branchId) {
+		return branchRepository
+				.findByIdWithCompany(branchId)
+				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + branchId));
+	}
+
 	private ClientResponse createNewClient(ClientRequest request) {
+		Branch branch = requireBranchWithCompany(request.branchId());
 		Client client = new Client();
-		var branch = branchRepository.findById(request.branchId())
-				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
-		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
 		client.setBranch(branch);
 		applyDistributor(client, request.distributorId());
-		markBranchAsClient(branch);
-		return toResponse(repository.save(client));
+		Client saved = repository.saveAndFlush(client);
+		markBranchAsClient(branch.getId());
+		return toResponse(saved);
 	}
 
 	private ClientResponse linkOrUpdateExistingClient(Client client, ClientRequest request) {
-		securityScope.assertCanLinkClientToBranch(client.getBranchId(), request.distributorId());
+		Long branchId = client.getBranchId();
+		if (branchId == null) {
+			throw new IllegalArgumentException("Client record is missing branch reference");
+		}
+		securityScope.assertCanLinkClientToBranch(branchId, request.distributorId());
 		Long existingDistributorId = client.getDistributorId();
 		if (request.distributorId() != null) {
 			if (existingDistributorId != null && !existingDistributorId.equals(request.distributorId())) {
@@ -114,18 +134,23 @@ public class ClientServiceImpl implements ClientService {
 			}
 			if (existingDistributorId == null) {
 				applyDistributor(client, request.distributorId());
-				client = repository.save(client);
+				if (client.getBranch() == null) {
+					client.setBranch(requireBranchWithCompany(branchId));
+				}
+				client = repository.saveAndFlush(client);
 			}
 		}
-		branchRepository.findById(client.getBranchId()).ifPresent(this::markBranchAsClient);
+		markBranchAsClient(branchId);
 		return toResponse(client);
 	}
 
-	private void markBranchAsClient(com.aeg.core.branch.Branch branch) {
-		if (!Boolean.TRUE.equals(branch.getIsClient())) {
-			branch.setIsClient(true);
-			branchRepository.save(branch);
-		}
+	private void markBranchAsClient(Long branchId) {
+		branchRepository.findById(branchId).ifPresent(branch -> {
+			if (!Boolean.TRUE.equals(branch.getIsClient())) {
+				branch.setIsClient(true);
+				branchRepository.save(branch);
+			}
+		});
 	}
 
 	private void applyDistributor(Client client, Long distributorId) {
@@ -140,10 +165,14 @@ public class ClientServiceImpl implements ClientService {
 	@Override
 	public ClientResponse update(Long id, ClientRequest request) {
 		Client client = findEntityById(id);
-		securityScope.assertClientInScope(client);
-		var branch = branchRepository.findById(request.branchId())
-				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
-		securityScope.assertCanLinkClientToBranch(branch.getId(), request.distributorId());
+		User user = securityScope.currentUser();
+		if (user.getRole() == Role.DISTRIBUTOR && client.getDistributorId() == null) {
+			securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
+		} else {
+			securityScope.assertClientInScope(client);
+			securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
+		}
+		var branch = requireBranchWithCompany(request.branchId());
 		client.setBranch(branch);
 		if (request.distributorId() != null) {
 			client.setDistributor(distributorRepository.findById(request.distributorId())
@@ -151,6 +180,7 @@ public class ClientServiceImpl implements ClientService {
 		} else {
 			client.setDistributor(null);
 		}
+		markBranchAsClient(branch.getId());
 		return toResponse(repository.save(client));
 	}
 

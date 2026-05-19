@@ -23,4 +23,11 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 			Long companyId, String city, String state);
 
 	List<Branch> findByIdIn(Iterable<Long> ids);
+
+	@Query("""
+			SELECT b FROM Branch b
+			JOIN FETCH b.company
+			WHERE b.id = :id
+			""")
+	Optional<Branch> findByIdWithCompany(@Param("id") Long id);
 }
