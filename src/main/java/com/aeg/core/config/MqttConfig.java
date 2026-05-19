@@ -124,7 +124,6 @@ public class MqttConfig {
                         mqttClientFactory(),
                         inboundTopic);
         adapter.setCompletionTimeout(5000);
-        adapter.setRecoveryInterval(10_000L);
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
