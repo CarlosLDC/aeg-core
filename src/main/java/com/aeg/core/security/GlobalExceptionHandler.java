@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -26,6 +28,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -127,12 +130,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(Exception e) {
-        e.printStackTrace(); // Keep for debugging in logs
+        log.error("Unhandled exception", e);
         String friendly = mapPersistenceMessage(e);
-        if (!friendly.equals(e.getMessage()) && friendly.contains("sucursal")) {
+        if (friendly.contains("sucursal")) {
             return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos", friendly);
         }
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno del servidor", e.getMessage());
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error interno del servidor",
+                "No se pudo completar la operación. Inténtalo de nuevo más tarde.");
     }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String error, String message) {

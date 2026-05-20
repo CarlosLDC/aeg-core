@@ -56,7 +56,9 @@ public class UserController {
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.valueOf(request.getRole().toUpperCase()))
-            .branch(branch)
+                .branchId(request.getBranchId())
+                .branch(branch)
+                .distributorId(request.getDistributorId())
                 .distributor(distributor)
                 .enabled(true)
                 .build();

@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +24,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    @Value("${app.security.basic-auth.enabled:false}")
+    private boolean basicAuthEnabled;
 
     @Override
     protected void doFilterInternal(
@@ -52,8 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             SecurityContextHolder.getContext().setAuthentication(authToken);
                         }
                     }
-                } else if (authHeader.startsWith("Basic ")) {
-                    // Support Basic auth for integration tests: decode and authenticate
+                } else if (basicAuthEnabled && authHeader.startsWith("Basic ")) {
+                    // Basic auth solo en tests (app.security.basic-auth.enabled=true)
                     String base64Credentials = authHeader.substring(6);
                     String credentials = new String(java.util.Base64.getDecoder().decode(base64Credentials));
                     int idx = credentials.indexOf(':');

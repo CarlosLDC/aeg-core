@@ -1,13 +1,12 @@
 package com.aeg.core.security;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+
+import com.aeg.core.config.AppCorsProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
@@ -28,9 +27,10 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthFilter;
+	private final AppCorsProperties corsProperties;
 
-	@Value("${app.cors.allowed-origins}")
-	private String allowedOrigins;
+	@Value("${app.security.swagger-enabled:false}")
+	private boolean swaggerEnabled;
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,11 +39,17 @@ public class SecurityConfig {
 			.cors(Customizer.withDefaults())
 			.csrf(csrf -> csrf.disable())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.authorizeHttpRequests(authorize -> authorize
+			.authorizeHttpRequests(authorize -> {
+				authorize
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				.requestMatchers("/api/auth/login").permitAll()
-				.requestMatchers("/api/auth/me").authenticated()
-				.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+				.requestMatchers("/api/auth/me").authenticated();
+				if (swaggerEnabled) {
+					authorize.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+				} else {
+					authorize.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN");
+				}
+				authorize
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").authenticated()
 				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").authenticated()
@@ -62,8 +68,8 @@ public class SecurityConfig {
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-				.anyRequest().authenticated()
-			)
+				.anyRequest().authenticated();
+			})
 			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
@@ -72,7 +78,7 @@ public class SecurityConfig {
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		configuration.setAllowedOriginPatterns(buildAllowedOriginPatterns());
+		configuration.setAllowedOriginPatterns(corsProperties.allowedOriginPatterns());
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept"));
 		configuration.setExposedHeaders(List.of("Authorization"));
@@ -83,27 +89,4 @@ public class SecurityConfig {
 		return source;
 	}
 
-	/**
-	 * Patrones (no lista fija de orígenes) para soportar www, previews de Vercel y localhost.
-	 * Con allowCredentials=true Spring recomienda allowedOriginPatterns en lugar de allowedOrigins.
-	 */
-	private List<String> buildAllowedOriginPatterns() {
-		Set<String> patterns = new LinkedHashSet<>();
-		patterns.add("http://localhost:*");
-		patterns.add("http://127.0.0.1:*");
-		patterns.add("https://aeg-admin.tech");
-		patterns.add("https://www.aeg-admin.tech");
-		patterns.add("https://*.aeg-admin.tech");
-		patterns.add("https://aeg-core-admin.vercel.app");
-		patterns.add("https://*.vercel.app");
-		parseAllowedOrigins().forEach(patterns::add);
-		return new ArrayList<>(patterns);
-	}
-
-	private List<String> parseAllowedOrigins() {
-		return Arrays.stream(allowedOrigins.split(","))
-				.map(String::trim)
-				.filter(origin -> !origin.isEmpty())
-				.toList();
-	}
 }

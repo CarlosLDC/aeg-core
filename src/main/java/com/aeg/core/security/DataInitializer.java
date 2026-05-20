@@ -1,25 +1,34 @@
 package com.aeg.core.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @org.springframework.beans.factory.annotation.Value("${app.security.admin.username:segar12345@gmail.com}")
+    @Value("${app.security.admin.username:}")
     private String adminUsername;
 
-    @org.springframework.beans.factory.annotation.Value("${app.security.admin.password:aeg-r1}")
+    @Value("${app.security.admin.password:}")
     private String adminPassword;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
+        if (adminUsername == null || adminUsername.isBlank()
+                || adminPassword == null || adminPassword.isBlank()) {
+            log.info("Admin bootstrap skipped: APP_SECURITY_ADMIN_USERNAME/PASSWORD not set.");
+            return;
+        }
+
         if (userRepository.findByUsername(adminUsername).isEmpty()) {
             User admin = User.builder()
                     .username(adminUsername)
@@ -28,13 +37,7 @@ public class DataInitializer implements CommandLineRunner {
                     .enabled(true)
                     .build();
             userRepository.save(admin);
-            System.out.println("✅ Administrador inicial creado con éxito.");
-        } else {
-            User admin = userRepository.findByUsername(adminUsername).get();
-            admin.setPassword(passwordEncoder.encode(adminPassword));
-            admin.setRole(Role.ADMIN);
-            userRepository.save(admin);
-            System.out.println("🔄 Credenciales de administrador sincronizadas desde configuración.");
+            log.info("Initial admin user created for username={}", adminUsername);
         }
     }
 }

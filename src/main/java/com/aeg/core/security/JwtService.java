@@ -17,7 +17,7 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${app.security.jwt.secret:ae9-core-secret-key-for-jwt-authentication-2025-aeg-sync}")
+    @Value("${app.security.jwt.secret}")
     private String secretKey;
 
     @Value("${app.security.jwt.expiration:86400000}") // 24 hours
