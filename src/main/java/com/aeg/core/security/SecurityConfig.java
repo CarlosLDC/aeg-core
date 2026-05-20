@@ -60,6 +60,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/printers/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN")
 				.requestMatchers("/api/seals/**", "/api/technical-services/**", "/api/annual-inspections/**", "/api/technicians/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
 				.requestMatchers("/error").permitAll()
+				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 				.anyRequest().authenticated()
 			)

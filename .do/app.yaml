@@ -33,6 +33,8 @@ services:
       - key: MQTT_PASS
         value: SET_IN_APP_PLATFORM
         type: SECRET
-      # Solo publicación desde /api/mqtt/publish; evita bucles subscribe/disconnect si el broker no expone telemetría al API.
+      # Suscripción entrante + monitor WebSocket (/ws/mqtt). Ajusta MQTT_INBOUND_TOPIC al patrón real de los dispositivos.
       - key: MQTT_INBOUND_ENABLED
-        value: "false"
+        value: "true"
+      - key: MQTT_INBOUND_TOPIC
+        value: "aeg/telemetry/#"

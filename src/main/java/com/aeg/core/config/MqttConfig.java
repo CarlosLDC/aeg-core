@@ -12,10 +12,14 @@ import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.integration.mqtt.support.MqttHeaders;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 import org.springframework.messaging.handler.annotation.Header;
+
+import com.aeg.core.mqtt.MqttInboundBridge;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import jakarta.annotation.PostConstruct;
 
@@ -23,6 +27,12 @@ import jakarta.annotation.PostConstruct;
 @org.springframework.integration.annotation.IntegrationComponentScan
 @lombok.extern.slf4j.Slf4j
 public class MqttConfig {
+
+    private final MqttInboundBridge mqttInboundBridge;
+
+    public MqttConfig(MqttInboundBridge mqttInboundBridge) {
+        this.mqttInboundBridge = mqttInboundBridge;
+    }
 
     @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
     private String brokerUrl;
@@ -83,7 +93,9 @@ public class MqttConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 
     @Bean
@@ -134,11 +146,7 @@ public class MqttConfig {
     @Bean
     @ConditionalOnProperty(name = "app.mqtt.inbound.enabled", havingValue = "true", matchIfMissing = true)
     @ServiceActivator(inputChannel = "mqttInboundChannel")
-    public MessageHandler handler() {
-        return message -> {
-            Object payload = message.getPayload();
-            Object topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
-            log.info("📥 MQTT Message received on topic {}: {}", topic, payload);
-        };
+    public MessageHandler mqttInboundHandler() {
+        return message -> mqttInboundBridge.handle((Message<?>) message);
     }
 }

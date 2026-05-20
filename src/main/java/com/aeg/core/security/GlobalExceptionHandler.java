@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -115,6 +116,13 @@ public class GlobalExceptionHandler {
         String message = String.format("Valor inválido '%s' para el parámetro '%s'. Se esperaba tipo: %s", 
                 e.getValue(), e.getName(), e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "desconocido");
         return buildResponse(HttpStatus.BAD_REQUEST, "Error de tipo de parámetro", message);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        return buildResponse(status, status.getReasonPhrase(), message);
     }
 
     @ExceptionHandler(Exception.class)

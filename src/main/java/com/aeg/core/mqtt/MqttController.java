@@ -10,11 +10,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.aeg.core.mqtt.dto.MqttMonitorStatusResponse;
+import com.aeg.core.mqtt.dto.MqttSubscriptionRequest;
+import com.aeg.core.mqtt.dto.MqttSubscriptionResponse;
 import org.springframework.web.server.ResponseStatusException;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -24,6 +32,9 @@ public class MqttController {
 
     private final MqttService mqttService;
     private final MqttConnectionProbeService mqttConnectionProbeService;
+    private final MqttMonitorStatusService mqttMonitorStatusService;
+    private final MqttMessageHistory mqttMessageHistory;
+    private final MqttSubscriptionManager mqttSubscriptionManager;
     private final ObjectMapper objectMapper;
 
     @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
@@ -74,5 +85,30 @@ public class MqttController {
         return result.success()
                 ? ResponseEntity.ok(result)
                 : ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(result);
+    }
+
+    @GetMapping("/status")
+    public MqttMonitorStatusResponse monitorStatus() {
+        return mqttMonitorStatusService.status();
+    }
+
+    @GetMapping("/subscription")
+    public MqttSubscriptionResponse getSubscription() {
+        return mqttSubscriptionManager.current();
+    }
+
+    @PutMapping("/subscription")
+    public MqttSubscriptionResponse updateSubscription(@Valid @RequestBody MqttSubscriptionRequest request) {
+        try {
+            return mqttSubscriptionManager.updateTopic(request.topic());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
+    }
+
+    @GetMapping("/messages")
+    public List<MqttInboundMessage> recentMessages(
+            @RequestParam(defaultValue = "50") int limit) {
+        return mqttMessageHistory.recent(limit);
     }
 }
