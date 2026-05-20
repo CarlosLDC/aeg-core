@@ -9,21 +9,18 @@ import org.springframework.context.annotation.Configuration;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * One-shot repair for environments where migration files were edited after apply
- * (checksum mismatch on validate-on-migrate). Enable with APP_FLYWAY_REPAIR_ON_STARTUP=true,
- * deploy once, then remove the variable.
+ * Sincroniza checksums en flyway_schema_history antes de migrate (V10/V11 editadas tras aplicarse en prod).
+ * repair() es seguro cuando el SQL aplicado en BD coincide con el archivo actual.
  */
 @Configuration
-@ConditionalOnProperty(name = "app.flyway.repair-on-startup", havingValue = "true")
+@ConditionalOnProperty(name = "spring.flyway.enabled", matchIfMissing = true)
 @Slf4j
-public class FlywayRepairConfig {
+public class FlywayMigrationConfig {
 
 	@Bean
 	FlywayMigrationStrategy repairThenMigrateStrategy() {
 		return (Flyway flyway) -> {
-			log.warn(
-					"APP_FLYWAY_REPAIR_ON_STARTUP=true: running Flyway repair() before migrate(). "
-							+ "Remove this env var after a successful deploy.");
+			log.info("Flyway: running repair() then migrate()");
 			flyway.repair();
 			flyway.migrate();
 		};

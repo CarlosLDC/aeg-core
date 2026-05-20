@@ -29,9 +29,6 @@ services:
         type: SECRET
       - key: APP_CORS_ALLOWED_ORIGINS
         value: https://aeg-core-admin.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech
-      # One deploy only: fixes Flyway checksum mismatch (V10/V11). Remove after successful start.
-      - key: APP_FLYWAY_REPAIR_ON_STARTUP
-        value: "true"
       - key: SPRING_DATASOURCE_URL
         value: jdbc:postgresql://private-db-postgresql-nyc1-16442-do-user-35225255-0.l.db.ondigitalocean.com:25060/defaultdb?sslmode=require
       - key: SPRING_DATASOURCE_USERNAME
