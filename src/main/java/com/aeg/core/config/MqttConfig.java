@@ -139,6 +139,8 @@ public class MqttConfig {
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
+        // No bloquear el arranque HTTP (health checks en App Platform).
+        adapter.setAutoStartup(false);
         log.info("MQTT inbound enabled (topic={}, clientSuffix={})", inboundTopic, MqttClientIds.suffix());
         return adapter;
     }

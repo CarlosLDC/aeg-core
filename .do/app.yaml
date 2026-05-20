@@ -10,11 +10,11 @@ services:
     http_port: 8080
     health_check:
       http_path: /actuator/health
-      # El arranque (Flyway + JPA) puede tardar ~90s; evita "connection refused" en el probe.
-      initial_delay_seconds: 120
-      period_seconds: 15
-      timeout_seconds: 10
-      failure_threshold: 6
+      # En apps-s-1vcpu-1gb el arranque (Flyway + JPA + Security) suele tardar 90–150s.
+      initial_delay_seconds: 180
+      period_seconds: 20
+      timeout_seconds: 15
+      failure_threshold: 10
     instance_count: 1
     instance_size_slug: apps-s-1vcpu-1gb
     envs:
