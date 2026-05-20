@@ -854,7 +854,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"contactPersonName\": \"María Pérez\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
