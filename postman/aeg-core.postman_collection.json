@@ -276,6 +276,7 @@
     },
     {
       "name": "MQTT",
+      "description": "Publicación MQTT y monitor en vivo (REST + WebSocket). Ejecuta Auth > Login antes de usar esta carpeta.",
       "item": [
         {
           "name": "Check broker connection",
@@ -377,6 +378,264 @@
                   "});"
                 ]
               }
+            }
+          ]
+        },
+        {
+          "name": "Monitor",
+          "description": "Monitor en vivo: un tópico a la vez. 1) Update subscription 2) WebSocket Connect 3) Publish en un tópico que coincida 4) Get messages o ver frames en WebSocket.",
+          "item": [
+            {
+              "name": "Get monitor status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttStatusPath}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has monitor fields', () => {",
+                      "  pm.expect(json).to.have.property('inboundEnabled');",
+                      "  pm.expect(json).to.have.property('subscribedTopic');",
+                      "  pm.expect(json).to.have.property('brokerUrl');",
+                      "  pm.expect(json).to.have.property('connected');",
+                      "  pm.expect(json).to.have.property('bufferedMessageCount');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get subscription topic",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttSubscriptionPath}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has topic and active flag', () => {",
+                      "  pm.expect(json.topic).to.be.a('string');",
+                      "  pm.expect(json.active).to.be.a('boolean');",
+                      "});",
+                      "if (json.topic) {",
+                      "  pm.environment.set('mqttMonitorTopic', json.topic);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update subscription topic",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"topic\": \"{{mqttMonitorTopic}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}{{mqttSubscriptionPath}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200 or 503', () => {",
+                      "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                      "});",
+                      "if (pm.response.code === 200) {",
+                      "  pm.test('Subscription updated', () => {",
+                      "    pm.expect(json.topic).to.eql(pm.environment.get('mqttMonitorTopic'));",
+                      "    pm.expect(json.active).to.eql(true);",
+                      "  });",
+                      "  pm.environment.set('mqttMonitorTopic', json.topic);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get recent messages",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttMessagesPath}}?limit={{mqttMessagesLimit}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                      "if (json.length > 0) {",
+                      "  pm.test('Message items have topic and payload', () => {",
+                      "    pm.expect(json[0]).to.have.property('topic');",
+                      "    pm.expect(json[0]).to.have.property('payload');",
+                      "    pm.expect(json[0]).to.have.property('receivedAt');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "WebSocket live monitor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{wsBaseUrl}}{{mqttWsPath}}?token={{token}}",
+                "description": "Abre la pestaña WebSocket en Postman y pulsa Connect. El JWT va en query (?token=). Tras conectar, ejecuta Update subscription y Publish; los frames type=message y type=subscription aparecen en Messages. Ping opcional: envía el texto ping."
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const token = pm.environment.get('token');",
+                      "pm.test('JWT token is set (run Auth > Login first)', () => {",
+                      "  pm.expect(token, 'token missing').to.be.a('string').and.not.empty;",
+                      "});",
+                      "const base = pm.environment.get('baseUrl') || '';",
+                      "const wsBase = pm.environment.get('wsBaseUrl');",
+                      "if (!wsBase && base) {",
+                      "  pm.environment.set('wsBaseUrl', base.replace(/^http/i, 'ws'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Flow - subscribe publish and history",
+              "item": [
+                {
+                  "name": "1. Update subscription topic",
+                  "request": {
+                    "method": "PUT",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"topic\": \"{{mqttMonitorTopic}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": "{{baseUrl}}{{mqttSubscriptionPath}}"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Subscription accepted or inbound disabled', () => {",
+                          "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "2. Publish to monitored topic",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"topic\": \"aeg/test/postman-monitor\",\n  \"payload\": {\n    \"message\": \"monitor flow from Postman\",\n    \"source\": \"postman\"\n  }\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": "{{baseUrl}}{{mqttPublishPath}}"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Publish accepted', () => pm.response.to.have.status(202));"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "3. Get recent messages",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseUrl}}{{mqttMessagesPath}}?limit={{mqttMessagesLimit}}"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "const json = pm.response.json();",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                          "pm.test('History is array', () => pm.expect(json).to.be.an('array'));"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "description": "Ejecuta esta carpeta con Collection Runner (en orden). Requiere MQTT inbound activo en el servidor y mqttMonitorTopic que coincida con aeg/test/# (p. ej. aeg/test/postman-monitor)."
             }
           ]
         }
