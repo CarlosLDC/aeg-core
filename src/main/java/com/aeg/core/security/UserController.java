@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
+import com.aeg.core.servicecenter.ServiceCenterRepository;
 
 import java.util.List;
 import java.net.URI;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestController
@@ -23,38 +25,44 @@ public class UserController {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
+    private final ServiceCenterRepository serviceCenterRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserRegistrationRequest request) {
-        if (request.getUsername() == null || request.getUsername().isBlank()) {
+        String name = normalizeName(request.getName());
+        String email = normalizeEmail(request.getEmail());
+        if (name == null || email == null || request.getPassword() == null || request.getPassword().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+        if (request.getBranchId() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (userRepository.findByUsername(email).isPresent()) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
         }
-
-        Branch branch = null;
-        if (request.getBranchId() != null) {
-            branch = branchRepository.findById(request.getBranchId())
+        Branch branch = branchRepository.findById(request.getBranchId())
                 .orElse(null);
-            if (branch == null) {
+        if (branch == null) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
-            }
         }
 
-        Role role = Role.valueOf(request.getRole().toUpperCase());
-        DistributorAssignment assignment;
+        Role role;
         try {
-            assignment = resolveDistributorAssignment(
-                    role, request.getBranchId(), request.getDistributorId());
+            role = Role.valueOf(request.getRole().toUpperCase(Locale.ROOT));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+        RoleAssignment assignment;
+        try {
+            assignment = resolveRoleAssignment(role, request.getBranchId());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
 
         User user = User.builder()
-                .username(request.getUsername())
+                .username(email)
+                .name(name)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
                 .branchId(request.getBranchId())
@@ -90,13 +98,20 @@ public class UserController {
         }
 
         User existing = maybe.get();
-        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+        if (request.getName() != null && !request.getName().isBlank()) {
+            existing.setName(request.getName().trim());
+        }
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            String email = normalizeEmail(request.getEmail());
+            if (email == null) {
+                return ResponseEntity.badRequest().build();
+            }
             // Check uniqueness (allow same username if it's the same user)
-            var found = userRepository.findByUsername(request.getUsername());
+            var found = userRepository.findByUsername(email);
             if (found.isPresent() && !found.get().getId().equals(existing.getId())) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
             }
-            existing.setUsername(request.getUsername());
+            existing.setUsername(email);
         }
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             existing.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -104,7 +119,7 @@ public class UserController {
         Role role = existing.getRole();
         if (request.getRole() != null && !request.getRole().isBlank()) {
             try {
-                role = Role.valueOf(request.getRole().toUpperCase());
+                role = Role.valueOf(request.getRole().toUpperCase(Locale.ROOT));
                 existing.setRole(role);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
@@ -120,12 +135,8 @@ public class UserController {
             existing.setBranch(branch);
             branchId = branch.getId();
         }
-        Long distributorId = existing.getDistributorId();
-        if (request.getDistributorId() != null) {
-            distributorId = request.getDistributorId();
-        }
         try {
-            DistributorAssignment assignment = resolveDistributorAssignment(role, branchId, distributorId);
+            RoleAssignment assignment = resolveRoleAssignment(role, branchId);
             existing.setDistributorId(assignment.distributorId());
             existing.setDistributor(assignment.distributor());
         } catch (IllegalArgumentException e) {
@@ -149,56 +160,74 @@ public class UserController {
 
     @Data
     public static class UserRegistrationRequest {
-        private String username;
+        private String name;
+        private String email;
         private String password;
         private String role;
         private Long branchId;
-        private Long distributorId;
     }
 
     @Data
     public static class UserUpdateRequest {
-        private String username;
+        private String name;
+        private String email;
         private String password;
         private String role;
         private Long branchId;
-        private Long distributorId;
         private Boolean enabled;
     }
 
     @Data
     public static class UserResponse {
         private Long id;
-        private String username;
+        private String name;
+        private String email;
         private Role role;
         private Long branchId;
-        private Long distributorId;
         private Boolean enabled;
 
-        public UserResponse(Long id, String username, Role role, Long branchId, Long distributorId, Boolean enabled) {
+        public UserResponse(Long id, String name, String email, Role role, Long branchId, Boolean enabled) {
             this.id = id;
-            this.username = username;
+            this.name = name;
+            this.email = email;
             this.role = role;
             this.branchId = branchId;
-            this.distributorId = distributorId;
             this.enabled = enabled;
         }
     }
 
     private UserResponse toResponse(User u) {
-        return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.getBranchId(), u.getDistributorId(), u.isEnabled());
+        return new UserResponse(
+                u.getId(),
+                u.getName(),
+                u.getUsername(),
+                u.getRole(),
+                u.getBranchId(),
+                u.isEnabled());
     }
 
-    private record DistributorAssignment(Long distributorId, Distributor distributor) {}
+    private record RoleAssignment(Long distributorId, Distributor distributor) {}
 
     /**
-     * Usuario DISTRIBUTOR: sucursal obligatoria con rol distribuidor en catálogo y
-     * distributorId alineado a esa sucursal.
+     * Reglas de elegibilidad por sucursal:
+     * - DISTRIBUTOR: la sucursal debe estar registrada como distribuidora.
+     * - TECHNICIAN/SERVICE_CENTER: la sucursal debe estar registrada como centro de servicio.
      */
-    private DistributorAssignment resolveDistributorAssignment(
-            Role role, Long branchId, Long distributorId) {
+    private RoleAssignment resolveRoleAssignment(Role role, Long branchId) {
+        if (role == Role.ADMIN) {
+            return new RoleAssignment(null, null);
+        }
         if (role != Role.DISTRIBUTOR) {
-            return new DistributorAssignment(null, null);
+            if (branchId == null) {
+                throw new IllegalArgumentException("branch is required");
+            }
+            if (role == Role.TECHNICIAN || role == Role.SERVICE_CENTER) {
+                boolean hasServiceCenter = serviceCenterRepository.findByBranch_Id(branchId).isPresent();
+                if (!hasServiceCenter) {
+                    throw new IllegalArgumentException("branch is not registered as service center");
+                }
+            }
+            return new RoleAssignment(null, null);
         }
         if (branchId == null) {
             throw new IllegalArgumentException("Distributor role requires branch");
@@ -206,10 +235,19 @@ public class UserController {
         Distributor onBranch = distributorRepository.findByBranch_Id(branchId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "branch is not registered as distributor"));
-        if (distributorId != null && !distributorId.equals(onBranch.getId())) {
-            throw new IllegalArgumentException(
-                    "distributorId does not match distributor on branch");
-        }
-        return new DistributorAssignment(onBranch.getId(), onBranch);
+        return new RoleAssignment(onBranch.getId(), onBranch);
+    }
+
+    private String normalizeEmail(String rawEmail) {
+        if (rawEmail == null) return null;
+        String email = rawEmail.trim().toLowerCase(Locale.ROOT);
+        if (email.isBlank() || !email.contains("@")) return null;
+        return email;
+    }
+
+    private String normalizeName(String rawName) {
+        if (rawName == null) return null;
+        String name = rawName.trim();
+        return name.isBlank() ? null : name;
     }
 }

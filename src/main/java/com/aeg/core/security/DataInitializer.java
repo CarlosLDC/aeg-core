@@ -30,8 +30,12 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         if (userRepository.findByUsername(adminUsername).isEmpty()) {
+            String adminName = adminUsername.contains("@")
+                    ? adminUsername.substring(0, adminUsername.indexOf('@'))
+                    : adminUsername;
             User admin = User.builder()
                     .username(adminUsername)
+                    .name(adminName)
                     .password(passwordEncoder.encode(adminPassword))
                     .role(Role.ADMIN)
                     .enabled(true)
