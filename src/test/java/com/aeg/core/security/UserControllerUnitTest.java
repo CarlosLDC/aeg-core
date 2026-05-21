@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -65,6 +66,55 @@ class UserControllerUnitTest {
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getBranchId()).isEqualTo(10L);
+    }
+
+    @Test
+    void createUser_distributorRole_withoutDistributorBranch_returnsBadRequest() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setUsername("dist@aeg.local");
+        req.setPassword("p");
+        req.setRole("DISTRIBUTOR");
+        req.setBranchId(10L);
+        req.setDistributorId(5L);
+
+        Branch branch = new Branch();
+        branch.setId(10L);
+
+        when(userRepository.findByUsername("dist@aeg.local")).thenReturn(Optional.empty());
+        when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
+        when(distributorRepository.findByBranch_Id(10L)).thenReturn(Optional.empty());
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(userRepository, never()).save(ArgumentMatchers.any());
+    }
+
+    @Test
+    void createUser_distributorRole_withMatchingBranch_setsDistributor() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setUsername("dist@aeg.local");
+        req.setPassword("p");
+        req.setRole("DISTRIBUTOR");
+        req.setBranchId(10L);
+        req.setDistributorId(5L);
+
+        Branch branch = new Branch();
+        branch.setId(10L);
+        Distributor distributor = new Distributor();
+        distributor.setId(5L);
+        distributor.setBranch(branch);
+
+        when(userRepository.findByUsername("dist@aeg.local")).thenReturn(Optional.empty());
+        when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
+        when(distributorRepository.findByBranch_Id(10L)).thenReturn(Optional.of(distributor));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getDistributorId()).isEqualTo(5L);
         assertThat(resp.getBody().getBranchId()).isEqualTo(10L);
     }
 

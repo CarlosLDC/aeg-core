@@ -158,6 +158,12 @@ public class GlobalExceptionHandler {
         if (raw.contains("employee has annual inspections and cannot be deleted")) {
             return "No se puede eliminar el empleado porque tiene inspecciones anuales registradas.";
         }
+        if (raw.contains("branch is not registered as distributor")) {
+            return "La sucursal no tiene rol de distribuidor. Asígnalo en Sucursales antes de vincular el usuario.";
+        }
+        if (raw.contains("distributorId does not match distributor on branch")) {
+            return "El distribuidor seleccionado no corresponde a la sucursal.";
+        }
         return raw;
     }
 

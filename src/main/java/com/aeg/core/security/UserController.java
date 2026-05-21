@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.distributor.Distributor;
 
 import java.util.List;
 import java.net.URI;
@@ -43,23 +44,23 @@ public class UserController {
             }
         }
 
-        com.aeg.core.distributor.Distributor distributor = null;
-        if (request.getDistributorId() != null) {
-            distributor = distributorRepository.findById(request.getDistributorId())
-                .orElse(null);
-            if (distributor == null) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
-            }
+        Role role = Role.valueOf(request.getRole().toUpperCase());
+        DistributorAssignment assignment;
+        try {
+            assignment = resolveDistributorAssignment(
+                    role, request.getBranchId(), request.getDistributorId());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
 
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.valueOf(request.getRole().toUpperCase()))
+                .role(role)
                 .branchId(request.getBranchId())
                 .branch(branch)
-                .distributorId(request.getDistributorId())
-                .distributor(distributor)
+                .distributorId(assignment.distributorId())
+                .distributor(assignment.distributor())
                 .enabled(true)
                 .build();
 
@@ -100,13 +101,16 @@ public class UserController {
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             existing.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+        Role role = existing.getRole();
         if (request.getRole() != null && !request.getRole().isBlank()) {
             try {
-                existing.setRole(Role.valueOf(request.getRole().toUpperCase()));
+                role = Role.valueOf(request.getRole().toUpperCase());
+                existing.setRole(role);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().build();
             }
         }
+        Long branchId = existing.getBranchId();
         if (request.getBranchId() != null) {
             Branch branch = branchRepository.findById(request.getBranchId())
                     .orElse(null);
@@ -114,14 +118,18 @@ public class UserController {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
             }
             existing.setBranch(branch);
+            branchId = branch.getId();
         }
+        Long distributorId = existing.getDistributorId();
         if (request.getDistributorId() != null) {
-            com.aeg.core.distributor.Distributor distributor = distributorRepository.findById(request.getDistributorId())
-                    .orElse(null);
-            if (distributor == null) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
-            }
-            existing.setDistributor(distributor);
+            distributorId = request.getDistributorId();
+        }
+        try {
+            DistributorAssignment assignment = resolveDistributorAssignment(role, branchId, distributorId);
+            existing.setDistributorId(assignment.distributorId());
+            existing.setDistributor(assignment.distributor());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
@@ -179,5 +187,29 @@ public class UserController {
 
     private UserResponse toResponse(User u) {
         return new UserResponse(u.getId(), u.getUsername(), u.getRole(), u.getBranchId(), u.getDistributorId(), u.isEnabled());
+    }
+
+    private record DistributorAssignment(Long distributorId, Distributor distributor) {}
+
+    /**
+     * Usuario DISTRIBUTOR: sucursal obligatoria con rol distribuidor en catálogo y
+     * distributorId alineado a esa sucursal.
+     */
+    private DistributorAssignment resolveDistributorAssignment(
+            Role role, Long branchId, Long distributorId) {
+        if (role != Role.DISTRIBUTOR) {
+            return new DistributorAssignment(null, null);
+        }
+        if (branchId == null) {
+            throw new IllegalArgumentException("Distributor role requires branch");
+        }
+        Distributor onBranch = distributorRepository.findByBranch_Id(branchId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "branch is not registered as distributor"));
+        if (distributorId != null && !distributorId.equals(onBranch.getId())) {
+            throw new IllegalArgumentException(
+                    "distributorId does not match distributor on branch");
+        }
+        return new DistributorAssignment(onBranch.getId(), onBranch);
     }
 }
