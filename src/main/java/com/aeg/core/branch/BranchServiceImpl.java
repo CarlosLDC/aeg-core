@@ -87,6 +87,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
+        securityScope.assertBranchReadable(b.getId());
         b.setCompany(companyRepository.findById(request.companyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.companyId())));
         b.setCity(request.city());
@@ -104,6 +105,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public void delete(Long id) {
         Branch b = findEntityById(id);
+        securityScope.assertBranchReadable(b.getId());
         repository.delete(b);
     }
 
@@ -124,6 +126,7 @@ public class BranchServiceImpl implements BranchService {
                 b.getCreatedAt(),
                 b.getIsClient(),
                 b.getIsDistributor(),
-                b.getIsServiceCenter());
+                b.getIsServiceCenter(),
+                false);
     }
 }

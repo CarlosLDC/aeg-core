@@ -16,6 +16,7 @@ import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
+import org.springframework.security.access.AccessDeniedException;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -64,7 +65,9 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     @Transactional(readOnly = true)
     public CompanyResponse findById(Long id) {
-        return toResponse(findEntityById(id));
+        Company company = findEntityById(id);
+        assertCompanyReadable(company.getId());
+        return toResponse(company);
     }
 
     @Override
@@ -106,6 +109,7 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     public CompanyResponse update(Long id, CompanyRequest request) {
         Company c = findEntityById(id);
+        assertCompanyReadable(c.getId());
         if (!c.getRif().equals(request.rif()) && repository.existsByRif(request.rif())) {
             throw new IllegalArgumentException("rif already exists: " + request.rif());
         }
@@ -118,7 +122,24 @@ public class CompanyServiceImpl implements CompanyService {
     @Override
     public void delete(Long id) {
         Company c = findEntityById(id);
+        assertCompanyReadable(c.getId());
         repository.delete(c);
+    }
+
+    private void assertCompanyReadable(Long companyId) {
+        User currentUser = securityScope.currentUser();
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+        if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
+            boolean inScope = repository.findCompaniesByDistributorId(currentUser.getDistributorId())
+                    .stream()
+                    .anyMatch(c -> c.getId().equals(companyId));
+            if (inScope) {
+                return;
+            }
+        }
+        throw new AccessDeniedException("Not allowed to access company id: " + companyId);
     }
 
     private Company findEntityById(Long id) {

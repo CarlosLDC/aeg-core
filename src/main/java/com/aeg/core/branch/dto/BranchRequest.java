@@ -14,5 +14,6 @@ public record BranchRequest(
         @NotBlank String contactPersonName,
         Boolean isClient,
         Boolean isDistributor,
-        Boolean isServiceCenter
+        Boolean isServiceCenter,
+        Boolean isHeadquarters
 ) {}
