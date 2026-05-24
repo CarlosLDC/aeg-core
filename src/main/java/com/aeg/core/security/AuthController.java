@@ -52,6 +52,8 @@ public class AuthController {
         User user = userRepository.findByUsernameWithRelations(userDetails.getUsername()).orElseThrow();
         return ResponseEntity.ok(new UserProfileResponse(
             user.getId(),
+            user.getName(),
+            user.getUsername(),
             user.getUsername(),
             user.getRole(),
             user.getBranchId(),
@@ -76,6 +78,8 @@ public class AuthController {
     @RequiredArgsConstructor
     public static class UserProfileResponse {
         private final Long id;
+        private final String name;
+        private final String email;
         private final String username;
         private final Role role;
         private final Long branchId;
