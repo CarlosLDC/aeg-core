@@ -167,6 +167,18 @@ public class GlobalExceptionHandler {
         if (raw.contains("employee is not in pending review state")) {
             return "El empleado no está bloqueado para revisión.";
         }
+        if (raw.contains("client has printers and cannot be deleted")) {
+            return "No se puede eliminar el cliente porque tiene impresoras vinculadas.";
+        }
+        if (raw.contains("client has a pending review request")) {
+            return "El cliente tiene una solicitud pendiente de aprobación.";
+        }
+        if (raw.contains("client is not in pending review state")) {
+            return "El cliente no está bloqueado para revisión.";
+        }
+        if (raw.contains("client updates must be requested for review")) {
+            return "Los cambios de clientes requieren solicitud de revisión.";
+        }
         if (raw.contains("branch is not registered as distributor")) {
             return "La sucursal no tiene rol de distribuidor. Asígnalo en Sucursales antes de vincular el usuario.";
         }

@@ -29,8 +29,12 @@ public class ModificationRequest {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "employee_id", nullable = false)
-	private Long employeeId;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "target_type", nullable = false)
+	private ModificationTargetType targetType = ModificationTargetType.EMPLOYEE;
+
+	@Column(name = "target_id", nullable = false)
+	private Long targetId;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "action_type", nullable = false)
@@ -59,6 +63,9 @@ public class ModificationRequest {
 		if (status == null) {
 			status = ModificationRequestStatus.PENDING;
 		}
+		if (targetType == null) {
+			targetType = ModificationTargetType.EMPLOYEE;
+		}
 	}
 
 	public Long getId() {
@@ -69,12 +76,20 @@ public class ModificationRequest {
 		this.id = id;
 	}
 
-	public Long getEmployeeId() {
-		return employeeId;
+	public ModificationTargetType getTargetType() {
+		return targetType;
 	}
 
-	public void setEmployeeId(Long employeeId) {
-		this.employeeId = employeeId;
+	public void setTargetType(ModificationTargetType targetType) {
+		this.targetType = targetType;
+	}
+
+	public Long getTargetId() {
+		return targetId;
+	}
+
+	public void setTargetId(Long targetId) {
+		this.targetId = targetId;
 	}
 
 	public ModificationActionType getActionType() {

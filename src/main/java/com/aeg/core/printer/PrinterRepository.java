@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface PrinterRepository extends JpaRepository<Printer, Long> {
     boolean existsByFiscalSerialIgnoreCase(String fiscalSerial);
+    boolean existsByClient_Id(Long clientId);
 
     /** Navega la relación {@code distributor}, no un atributo {@code distributorId}. */
     List<Printer> findByDistributor_Id(Long distributorId);

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.dto.CompanyRequest;
 import com.aeg.core.company.dto.CompanyResponse;
 import com.aeg.core.security.BranchScope;
@@ -25,14 +26,17 @@ public class CompanyServiceImpl implements CompanyService {
 
     private final CompanyRepository repository;
     private final BranchRepository branchRepository;
+    private final ClientRepository clientRepository;
     private final SecurityScopeService securityScope;
 
     public CompanyServiceImpl(
             CompanyRepository repository,
             BranchRepository branchRepository,
+            ClientRepository clientRepository,
             SecurityScopeService securityScope) {
         this.repository = repository;
         this.branchRepository = branchRepository;
+        this.clientRepository = clientRepository;
         this.securityScope = securityScope;
     }
 
@@ -110,6 +114,10 @@ public class CompanyServiceImpl implements CompanyService {
     public CompanyResponse update(Long id, CompanyRequest request) {
         Company c = findEntityById(id);
         assertCompanyReadable(c.getId());
+        if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR
+                && clientRepository.existsByBranch_Company_Id(c.getId())) {
+            throw new IllegalArgumentException("client updates must be requested for review");
+        }
         if (!c.getRif().equals(request.rif()) && repository.existsByRif(request.rif())) {
             throw new IllegalArgumentException("rif already exists: " + request.rif());
         }

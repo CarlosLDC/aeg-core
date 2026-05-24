@@ -8,7 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.dto.BranchRequest;
 import com.aeg.core.branch.dto.BranchResponse;
+import com.aeg.core.client.ClientRepository;
 import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
@@ -18,14 +20,17 @@ public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository repository;
     private final com.aeg.core.company.CompanyRepository companyRepository;
+    private final ClientRepository clientRepository;
     private final SecurityScopeService securityScope;
 
     public BranchServiceImpl(
             BranchRepository repository,
             com.aeg.core.company.CompanyRepository companyRepository,
+            ClientRepository clientRepository,
             SecurityScopeService securityScope) {
         this.repository = repository;
         this.companyRepository = companyRepository;
+        this.clientRepository = clientRepository;
         this.securityScope = securityScope;
     }
 
@@ -88,6 +93,10 @@ public class BranchServiceImpl implements BranchService {
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
         securityScope.assertBranchReadable(b.getId());
+        if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR
+                && clientRepository.existsByBranch_Id(b.getId())) {
+            throw new IllegalArgumentException("client updates must be requested for review");
+        }
         b.setCompany(companyRepository.findById(request.companyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.companyId())));
         b.setCity(request.city());

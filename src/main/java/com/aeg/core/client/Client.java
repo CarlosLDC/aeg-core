@@ -7,6 +7,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,10 +37,17 @@ public class Client {
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "review_status", nullable = false)
+	private ClientReviewStatus reviewStatus = ClientReviewStatus.ACTIVE;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
 			createdAt = LocalDateTime.now();
+		}
+		if (reviewStatus == null) {
+			reviewStatus = ClientReviewStatus.ACTIVE;
 		}
 	}
 
@@ -72,5 +81,13 @@ public class Client {
 
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public ClientReviewStatus getReviewStatus() {
+		return reviewStatus;
+	}
+
+	public void setReviewStatus(ClientReviewStatus reviewStatus) {
+		this.reviewStatus = reviewStatus;
 	}
 }

@@ -9,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.client.dto.ClientRequest;
 import com.aeg.core.client.dto.ClientResponse;
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
+import com.aeg.core.modificationrequest.ModificationRequestStatus;
+import com.aeg.core.modificationrequest.ModificationTargetType;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
@@ -22,16 +25,19 @@ public class ClientServiceImpl implements ClientService {
 	private final ClientRepository repository;
 	private final com.aeg.core.branch.BranchRepository branchRepository;
 	private final com.aeg.core.distributor.DistributorRepository distributorRepository;
+	private final ModificationRequestRepository modificationRequestRepository;
 	private final SecurityScopeService securityScope;
 
 	public ClientServiceImpl(
 			ClientRepository repository,
 			com.aeg.core.branch.BranchRepository branchRepository,
 			com.aeg.core.distributor.DistributorRepository distributorRepository,
+			ModificationRequestRepository modificationRequestRepository,
 			SecurityScopeService securityScope) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
 		this.distributorRepository = distributorRepository;
+		this.modificationRequestRepository = modificationRequestRepository;
 		this.securityScope = securityScope;
 	}
 
@@ -181,6 +187,7 @@ public class ClientServiceImpl implements ClientService {
 	@Override
 	public ClientResponse update(Long id, ClientRequest request) {
 		Client client = findEntityById(id);
+		assertClientNotPending(client);
 		User user = securityScope.currentUser();
 		if (user.getRole() == Role.DISTRIBUTOR && client.getDistributorId() == null) {
 			securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
@@ -204,6 +211,7 @@ public class ClientServiceImpl implements ClientService {
 	public void delete(Long id) {
 		Client client = findEntityById(id);
 		securityScope.assertClientInScope(client);
+		assertClientNotPending(client);
 		repository.delete(client);
 	}
 
@@ -216,16 +224,31 @@ public class ClientServiceImpl implements ClientService {
 		var branch = client.getBranch();
 		var company = branch != null ? branch.getCompany() : null;
 		Long distributorId = client.getDistributorId();
+		Long activeRequestId = modificationRequestRepository
+				.findFirstByTargetTypeAndTargetIdAndStatusOrderByCreatedAtDesc(
+						ModificationTargetType.CLIENT,
+						client.getId(),
+						ModificationRequestStatus.PENDING)
+				.map(mr -> mr.getId())
+				.orElse(null);
 		return new ClientResponse(
 				client.getId(),
 				branch != null ? branch.getId() : null,
 				distributorId,
 				client.getCreatedAt(),
+				client.getReviewStatus(),
+				activeRequestId,
 				branch != null ? branch.getCity() : null,
 				branch != null ? branch.getState() : null,
 				company != null ? company.getBusinessName() : null,
 				company != null ? company.getRif() : null,
 				branch != null ? branch.getPhone() : null,
 				branch != null ? branch.getEmail() : null);
+	}
+
+	private void assertClientNotPending(Client client) {
+		if (client.getReviewStatus() == ClientReviewStatus.PENDING_REVIEW) {
+			throw new IllegalArgumentException("client has a pending review request");
+		}
 	}
 }

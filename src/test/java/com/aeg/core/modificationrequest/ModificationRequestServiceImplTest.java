@@ -107,7 +107,8 @@ class ModificationRequestServiceImplTest {
 
 		ModificationRequest request = new ModificationRequest();
 		request.setId(100L);
-		request.setEmployeeId(10L);
+		request.setTargetType(ModificationTargetType.EMPLOYEE);
+		request.setTargetId(10L);
 		request.setActionType(ModificationActionType.UPDATE);
 		request.setStatus(ModificationRequestStatus.PENDING);
 		request.setRequestedBy(requester);

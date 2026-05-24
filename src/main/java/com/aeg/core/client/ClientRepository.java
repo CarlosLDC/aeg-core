@@ -25,6 +25,10 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
 	Optional<Client> findByBranch_Id(Long branchId);
 
+	boolean existsByBranch_Id(Long branchId);
+
+	boolean existsByBranch_Company_Id(Long companyId);
+
 	Optional<Client> findFirstByBranch_Id(Long branchId);
 
 	List<Client> findAllByBranch_Id(Long branchId);

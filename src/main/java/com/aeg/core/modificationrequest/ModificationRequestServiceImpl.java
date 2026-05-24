@@ -82,7 +82,8 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		employeeRepository.save(employee);
 
 		ModificationRequest request = new ModificationRequest();
-		request.setEmployeeId(employee.getId());
+		request.setTargetType(ModificationTargetType.EMPLOYEE);
+		request.setTargetId(employee.getId());
 		request.setActionType(ModificationActionType.UPDATE);
 		request.setProposedData(toProposedDataMap(proposedData));
 		request.setRequestedBy(requestedBy);
@@ -102,7 +103,8 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		employeeRepository.save(employee);
 
 		ModificationRequest request = new ModificationRequest();
-		request.setEmployeeId(employee.getId());
+		request.setTargetType(ModificationTargetType.EMPLOYEE);
+		request.setTargetId(employee.getId());
 		request.setActionType(ModificationActionType.DELETE);
 		request.setRequestedBy(requestedBy);
 		request.setStatus(ModificationRequestStatus.PENDING);
@@ -114,7 +116,9 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 	@Transactional(readOnly = true)
 	public List<ModificationRequestListItemResponse> findByStatus(ModificationRequestStatus status) {
 		ModificationRequestStatus target = status == null ? ModificationRequestStatus.PENDING : status;
-		return repository.findByStatusOrderByCreatedAtDesc(target).stream()
+		return repository.findByTargetTypeAndStatusOrderByCreatedAtDesc(
+				ModificationTargetType.EMPLOYEE,
+				target).stream()
 				.map(this::toListItemResponse)
 				.toList();
 	}
@@ -123,14 +127,20 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 	@Transactional(readOnly = true)
 	public ModificationRequestDetailResponse findById(Long id) {
 		ModificationRequest request = findRequest(id);
-		Employee employee = employeeRepository.findById(request.getEmployeeId()).orElse(null);
+		if (request.getTargetType() != ModificationTargetType.EMPLOYEE) {
+			throw new ResourceNotFoundException("Modification request not found with id: " + id);
+		}
+		Employee employee = employeeRepository.findById(request.getTargetId()).orElse(null);
 		return toDetailResponse(request, employee);
 	}
 
 	@Override
 	public ModificationRequestDetailResponse approve(Long id) {
 		ModificationRequest request = findPendingRequest(id);
-		Employee employee = findEmployee(request.getEmployeeId());
+		if (request.getTargetType() != ModificationTargetType.EMPLOYEE) {
+			throw new ResourceNotFoundException("Modification request not found with id: " + id);
+		}
+		Employee employee = findEmployee(request.getTargetId());
 		assertEmployeePending(employee);
 
 		if (request.getActionType() == ModificationActionType.UPDATE) {
@@ -166,14 +176,17 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 
 		request.setStatus(ModificationRequestStatus.APPROVED);
 		ModificationRequest saved = repository.save(request);
-		Employee current = employeeRepository.findById(request.getEmployeeId()).orElse(null);
+		Employee current = employeeRepository.findById(request.getTargetId()).orElse(null);
 		return toDetailResponse(saved, current);
 	}
 
 	@Override
 	public ModificationRequestDetailResponse reject(Long id) {
 		ModificationRequest request = findPendingRequest(id);
-		Employee employee = findEmployee(request.getEmployeeId());
+		if (request.getTargetType() != ModificationTargetType.EMPLOYEE) {
+			throw new ResourceNotFoundException("Modification request not found with id: " + id);
+		}
+		Employee employee = findEmployee(request.getTargetId());
 		assertEmployeePending(employee);
 
 		employee.setReviewStatus(EmployeeReviewStatus.ACTIVE);
@@ -272,10 +285,10 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 	}
 
 	private ModificationRequestListItemResponse toListItemResponse(ModificationRequest request) {
-		Employee employee = employeeRepository.findById(request.getEmployeeId()).orElse(null);
+		Employee employee = employeeRepository.findById(request.getTargetId()).orElse(null);
 		return new ModificationRequestListItemResponse(
 				request.getId(),
-				request.getEmployeeId(),
+				request.getTargetId(),
 				employee != null ? employee.getName() : "Empleado eliminado",
 				request.getActionType(),
 				request.getStatus(),
@@ -287,7 +300,7 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 	private ModificationRequestDetailResponse toDetailResponse(ModificationRequest request, Employee employee) {
 		return new ModificationRequestDetailResponse(
 				request.getId(),
-				request.getEmployeeId(),
+				request.getTargetId(),
 				request.getActionType(),
 				request.getStatus(),
 				request.getProposedData(),
