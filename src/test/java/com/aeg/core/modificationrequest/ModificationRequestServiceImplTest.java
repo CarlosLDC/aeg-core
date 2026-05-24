@@ -21,6 +21,7 @@ import com.aeg.core.employee.EmployeeRepository;
 import com.aeg.core.employee.EmployeeReviewStatus;
 import com.aeg.core.employee.EmployeeType;
 import com.aeg.core.employee.dto.EmployeeRequest;
+import com.aeg.core.modificationrequest.dto.EmployeeModificationProposedData;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
@@ -65,13 +66,15 @@ class ModificationRequestServiceImplTest {
 		employee.setReviewStatus(EmployeeReviewStatus.PENDING_REVIEW);
 		when(employeeRepository.findById(10L)).thenReturn(Optional.of(employee));
 
-		EmployeeRequest request = new EmployeeRequest(
+		EmployeeModificationProposedData request = new EmployeeModificationProposedData(
 				"V123",
 				"Empleado",
 				"04120000000",
 				"empleado@test.com",
 				EmployeeType.ADMINISTRATIVO,
-				5L);
+				5L,
+				false,
+				true);
 
 		assertThatThrownBy(() -> service.requestUpdate(10L, request))
 				.isInstanceOf(IllegalArgumentException.class)
@@ -105,13 +108,15 @@ class ModificationRequestServiceImplTest {
 		request.setActionType(ModificationActionType.UPDATE);
 		request.setStatus(ModificationRequestStatus.PENDING);
 		request.setRequestedBy(requester);
-		request.setProposedData(new ObjectMapper().valueToTree(new EmployeeRequest(
+		request.setProposedData(new ObjectMapper().valueToTree(new EmployeeModificationProposedData(
 				"V555",
 				"Después",
 				"04129999999",
 				"despues@test.com",
 				EmployeeType.TECNICO,
-				9L)));
+				9L,
+				true,
+				false)));
 
 		when(modificationRequestRepository.findById(100L)).thenReturn(Optional.of(request));
 		when(employeeRepository.findById(10L)).thenReturn(Optional.of(employee));

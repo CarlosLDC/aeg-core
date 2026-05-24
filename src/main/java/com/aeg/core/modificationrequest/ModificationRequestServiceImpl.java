@@ -10,15 +10,19 @@ import com.aeg.core.distributorperson.DistributorPersonRepository;
 import com.aeg.core.employee.Employee;
 import com.aeg.core.employee.EmployeeRepository;
 import com.aeg.core.employee.EmployeeReviewStatus;
+import com.aeg.core.distributorperson.DistributorPerson;
 import com.aeg.core.employee.dto.EmployeeRequest;
 import com.aeg.core.inspection.AnnualInspectionRepository;
+import com.aeg.core.modificationrequest.dto.EmployeeModificationProposedData;
 import com.aeg.core.modificationrequest.dto.EmployeeSnapshotResponse;
+import com.aeg.core.technician.Technician;
 import com.aeg.core.modificationrequest.dto.ModificationRequestDetailResponse;
 import com.aeg.core.modificationrequest.dto.ModificationRequestListItemResponse;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.technician.TechnicianRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -55,18 +59,22 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 	}
 
 	@Override
-	public ModificationRequestDetailResponse requestUpdate(Long employeeId, EmployeeRequest proposedData) {
+	public ModificationRequestDetailResponse requestUpdate(
+			Long employeeId,
+			EmployeeModificationProposedData proposedData) {
 		Employee employee = findEmployee(employeeId);
 		securityScope.assertDistributorStaffBranch(employee.getBranchId());
 		assertEmployeeNotPending(employee);
 
-		var branch = branchRepository.findById(proposedData.branchId())
-				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + proposedData.branchId()));
+		EmployeeRequest employeeRequest = proposedData.toEmployeeRequest();
+		var branch = branchRepository.findById(employeeRequest.branchId())
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"Branch not found with id: " + employeeRequest.branchId()));
 		securityScope.assertDistributorStaffBranch(branch.getId());
 
-		if (!employee.getNationalId().equalsIgnoreCase(proposedData.nationalId())
-				&& employeeRepository.existsByNationalIdIgnoreCase(proposedData.nationalId())) {
-			throw new IllegalArgumentException("nationalId already exists: " + proposedData.nationalId());
+		if (!employee.getNationalId().equalsIgnoreCase(employeeRequest.nationalId())
+				&& employeeRepository.existsByNationalIdIgnoreCase(employeeRequest.nationalId())) {
+			throw new IllegalArgumentException("nationalId already exists: " + employeeRequest.nationalId());
 		}
 
 		User requestedBy = securityScope.currentUser();
@@ -76,7 +84,7 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		ModificationRequest request = new ModificationRequest();
 		request.setEmployeeId(employee.getId());
 		request.setActionType(ModificationActionType.UPDATE);
-		request.setProposedData(objectMapper.valueToTree(proposedData));
+		request.setProposedData(toJsonNode(proposedData));
 		request.setRequestedBy(requestedBy);
 		request.setStatus(ModificationRequestStatus.PENDING);
 
@@ -126,23 +134,26 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		assertEmployeePending(employee);
 
 		if (request.getActionType() == ModificationActionType.UPDATE) {
-			EmployeeRequest proposed = toEmployeeRequest(request.getProposedData());
-			var branch = branchRepository.findById(proposed.branchId())
-					.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + proposed.branchId()));
+			EmployeeModificationProposedData proposed = toProposedData(request.getProposedData());
+			EmployeeRequest employeeRequest = proposed.toEmployeeRequest();
+			var branch = branchRepository.findById(employeeRequest.branchId())
+					.orElseThrow(() -> new ResourceNotFoundException(
+							"Branch not found with id: " + employeeRequest.branchId()));
 
-			if (!employee.getNationalId().equalsIgnoreCase(proposed.nationalId())
-					&& employeeRepository.existsByNationalIdIgnoreCase(proposed.nationalId())) {
-				throw new IllegalArgumentException("nationalId already exists: " + proposed.nationalId());
+			if (!employee.getNationalId().equalsIgnoreCase(employeeRequest.nationalId())
+					&& employeeRepository.existsByNationalIdIgnoreCase(employeeRequest.nationalId())) {
+				throw new IllegalArgumentException("nationalId already exists: " + employeeRequest.nationalId());
 			}
 
-			employee.setNationalId(proposed.nationalId());
-			employee.setName(proposed.name());
-			employee.setPhone(proposed.phone());
-			employee.setEmail(proposed.email());
-			employee.setType(proposed.type());
+			employee.setNationalId(employeeRequest.nationalId());
+			employee.setName(employeeRequest.name());
+			employee.setPhone(employeeRequest.phone());
+			employee.setEmail(employeeRequest.email());
+			employee.setType(employeeRequest.type());
 			employee.setBranch(branch);
 			employee.setReviewStatus(EmployeeReviewStatus.ACTIVE);
 			employeeRepository.save(employee);
+			syncEmployeeRoles(employee, proposed);
 		} else {
 			if (annualInspectionRepository.existsByEmployee_Id(employee.getId())) {
 				throw new IllegalArgumentException(
@@ -202,11 +213,53 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		}
 	}
 
-	private EmployeeRequest toEmployeeRequest(JsonNode proposedData) {
+	private JsonNode toJsonNode(Object value) {
+		try {
+			return objectMapper.readTree(objectMapper.writeValueAsString(value));
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Failed to serialize proposed data", e);
+		}
+	}
+
+	private EmployeeModificationProposedData toProposedData(JsonNode proposedData) {
 		if (proposedData == null || proposedData.isNull()) {
 			throw new IllegalArgumentException("proposedData is required for UPDATE requests");
 		}
-		return objectMapper.convertValue(proposedData, EmployeeRequest.class);
+		return objectMapper.convertValue(proposedData, EmployeeModificationProposedData.class);
+	}
+
+	private void syncEmployeeRoles(Employee employee, EmployeeModificationProposedData proposed) {
+		Boolean wantTechnician = proposed.isTechnician();
+		Boolean wantDistributorPerson = proposed.isDistributorPerson();
+		if (wantTechnician == null && wantDistributorPerson == null) {
+			return;
+		}
+
+		var technician = technicianRepository.findByEmployee_Id(employee.getId());
+		var distributorPerson = distributorPersonRepository.findByEmployee_Id(employee.getId());
+
+		boolean assignTechnician = wantTechnician != null
+				? wantTechnician
+				: technician.isPresent();
+		boolean assignDistributorPerson = wantDistributorPerson != null
+				? wantDistributorPerson
+				: distributorPerson.isPresent();
+
+		if (assignTechnician && technician.isEmpty()) {
+			Technician created = new Technician();
+			created.setEmployee(employee);
+			technicianRepository.save(created);
+		} else if (!assignTechnician && technician.isPresent()) {
+			technicianRepository.delete(technician.get());
+		}
+
+		if (assignDistributorPerson && distributorPerson.isEmpty()) {
+			DistributorPerson created = new DistributorPerson();
+			created.setEmployee(employee);
+			distributorPersonRepository.save(created);
+		} else if (!assignDistributorPerson && distributorPerson.isPresent()) {
+			distributorPersonRepository.delete(distributorPerson.get());
+		}
 	}
 
 	private ModificationRequestListItemResponse toListItemResponse(ModificationRequest request) {
@@ -247,6 +300,8 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 				employee.getEmail(),
 				employee.getType(),
 				employee.getBranchId(),
-				employee.getReviewStatus());
+				employee.getReviewStatus(),
+				technicianRepository.findByEmployee_Id(employee.getId()).isPresent(),
+				distributorPersonRepository.findByEmployee_Id(employee.getId()).isPresent());
 	}
 }

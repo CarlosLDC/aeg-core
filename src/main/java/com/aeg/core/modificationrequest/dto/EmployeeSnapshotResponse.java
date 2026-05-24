@@ -11,5 +11,7 @@ public record EmployeeSnapshotResponse(
 		String email,
 		EmployeeType type,
 		Long branchId,
-		EmployeeReviewStatus reviewStatus) {
+		EmployeeReviewStatus reviewStatus,
+		boolean isTechnician,
+		boolean isDistributorPerson) {
 }

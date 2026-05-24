@@ -11,15 +11,19 @@ import org.springframework.web.socket.WebSocketSession;
 import com.aeg.core.mqtt.MqttInboundMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class MqttMonitorSessionRegistry {
 
 	private final ObjectMapper objectMapper;
+
+	public MqttMonitorSessionRegistry(@Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
+		this.objectMapper = objectMapper;
+	}
 	private final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
 
 	public void register(WebSocketSession session) {

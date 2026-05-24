@@ -5,6 +5,7 @@ import com.aeg.core.mqtt.dto.MqttPublishResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,14 +21,11 @@ import com.aeg.core.mqtt.dto.MqttMonitorStatusResponse;
 import com.aeg.core.mqtt.dto.MqttSubscriptionRequest;
 import com.aeg.core.mqtt.dto.MqttSubscriptionResponse;
 import org.springframework.web.server.ResponseStatusException;
-import lombok.RequiredArgsConstructor;
-
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/mqtt")
-@RequiredArgsConstructor
 public class MqttController {
 
     private final MqttService mqttService;
@@ -36,6 +34,21 @@ public class MqttController {
     private final MqttMessageHistory mqttMessageHistory;
     private final MqttSubscriptionManager mqttSubscriptionManager;
     private final ObjectMapper objectMapper;
+
+    public MqttController(
+            MqttService mqttService,
+            MqttConnectionProbeService mqttConnectionProbeService,
+            MqttMonitorStatusService mqttMonitorStatusService,
+            MqttMessageHistory mqttMessageHistory,
+            MqttSubscriptionManager mqttSubscriptionManager,
+            @Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
+        this.mqttService = mqttService;
+        this.mqttConnectionProbeService = mqttConnectionProbeService;
+        this.mqttMonitorStatusService = mqttMonitorStatusService;
+        this.mqttMessageHistory = mqttMessageHistory;
+        this.mqttSubscriptionManager = mqttSubscriptionManager;
+        this.objectMapper = objectMapper;
+    }
 
     @Value("${app.mqtt.broker-url:tcp://localhost:1883}")
     private String brokerUrl;

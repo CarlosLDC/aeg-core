@@ -2,13 +2,13 @@ package com.aeg.core.modificationrequest;
 
 import java.util.List;
 
-import com.aeg.core.employee.dto.EmployeeRequest;
+import com.aeg.core.modificationrequest.dto.EmployeeModificationProposedData;
 import com.aeg.core.modificationrequest.dto.ModificationRequestDetailResponse;
 import com.aeg.core.modificationrequest.dto.ModificationRequestListItemResponse;
 
 public interface ModificationRequestService {
 
-	ModificationRequestDetailResponse requestUpdate(Long employeeId, EmployeeRequest proposedData);
+	ModificationRequestDetailResponse requestUpdate(Long employeeId, EmployeeModificationProposedData proposedData);
 
 	ModificationRequestDetailResponse requestDelete(Long employeeId);
 

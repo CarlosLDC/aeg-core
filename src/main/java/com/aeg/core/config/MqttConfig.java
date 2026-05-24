@@ -91,8 +91,8 @@ public class MqttConfig {
         return factory;
     }
 
-    @Bean
-    public ObjectMapper objectMapper() {
+    @Bean(name = "mqttObjectMapper")
+    public ObjectMapper mqttObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         return mapper;
