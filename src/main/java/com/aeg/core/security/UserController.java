@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class UserController {
     private final BranchRepository branchRepository;
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
     private final ServiceCenterRepository serviceCenterRepository;
+    private final ModificationRequestRepository modificationRequestRepository;
     private final PasswordEncoder passwordEncoder;
 
     @PostMapping
@@ -153,7 +155,8 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         return userRepository.findById(id).map(u -> {
-            userRepository.deleteById(id);
+            modificationRequestRepository.deleteByRequestedBy_Id(id);
+            userRepository.delete(u);
             return ResponseEntity.noContent().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
     }

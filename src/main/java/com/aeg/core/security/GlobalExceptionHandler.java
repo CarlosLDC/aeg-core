@@ -98,6 +98,14 @@ public class GlobalExceptionHandler {
             return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
                     "No se puede eliminar el empleado porque tiene inspecciones anuales registradas.");
         }
+        if (message.contains("fk_users_branch") || message.contains("users_branch_id_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar la sucursal porque tiene usuarios asociados. Reasigna o elimina esos usuarios primero.");
+        }
+        if (message.contains("modification_requests_requested_by_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar el usuario porque tiene solicitudes de modificación registradas.");
+        }
         if (message.contains("violates foreign key constraint") || message.contains("fk_")) {
             return buildResponse(HttpStatus.BAD_REQUEST, "Error de integridad referencial", 
                 "No se puede realizar la operación porque el registro está siendo referenciado o hace referencia a un registro inexistente.");
@@ -178,6 +186,12 @@ public class GlobalExceptionHandler {
         }
         if (raw.contains("client updates must be requested for review")) {
             return "Los cambios de clientes requieren solicitud de revisión.";
+        }
+        if (raw.contains("branch has linked users and cannot be deleted")) {
+            return "No se puede eliminar la sucursal porque tiene usuarios asociados. Reasigna o elimina esos usuarios primero.";
+        }
+        if (raw.contains("branch has linked employees and cannot be deleted")) {
+            return "No se puede eliminar la sucursal porque tiene empleados asociados.";
         }
         if (raw.contains("branch is not registered as distributor")) {
             return "La sucursal no tiene rol de distribuidor. Asígnalo en Sucursales antes de vincular el usuario.";

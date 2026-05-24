@@ -9,9 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.dto.BranchRequest;
 import com.aeg.core.branch.dto.BranchResponse;
 import com.aeg.core.client.ClientRepository;
+import com.aeg.core.employee.EmployeeRepository;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
+import com.aeg.core.security.UserRepository;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -21,16 +23,22 @@ public class BranchServiceImpl implements BranchService {
     private final BranchRepository repository;
     private final com.aeg.core.company.CompanyRepository companyRepository;
     private final ClientRepository clientRepository;
+    private final UserRepository userRepository;
+    private final EmployeeRepository employeeRepository;
     private final SecurityScopeService securityScope;
 
     public BranchServiceImpl(
             BranchRepository repository,
             com.aeg.core.company.CompanyRepository companyRepository,
             ClientRepository clientRepository,
+            UserRepository userRepository,
+            EmployeeRepository employeeRepository,
             SecurityScopeService securityScope) {
         this.repository = repository;
         this.companyRepository = companyRepository;
         this.clientRepository = clientRepository;
+        this.userRepository = userRepository;
+        this.employeeRepository = employeeRepository;
         this.securityScope = securityScope;
     }
 
@@ -115,6 +123,12 @@ public class BranchServiceImpl implements BranchService {
     public void delete(Long id) {
         Branch b = findEntityById(id);
         securityScope.assertBranchReadable(b.getId());
+        if (userRepository.existsByBranchId(id)) {
+            throw new IllegalArgumentException("branch has linked users and cannot be deleted: " + id);
+        }
+        if (employeeRepository.existsByBranch_Id(id)) {
+            throw new IllegalArgumentException("branch has linked employees and cannot be deleted: " + id);
+        }
         repository.delete(b);
     }
 

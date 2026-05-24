@@ -50,4 +50,6 @@ public interface ModificationRequestRepository extends JpaRepository<Modificatio
 			order by mr.createdAt desc
 			""")
 	List<Long> findPendingRequestIdsByTarget(ModificationTargetType targetType, Long targetId);
+
+	void deleteByRequestedBy_Id(Long requestedById);
 }

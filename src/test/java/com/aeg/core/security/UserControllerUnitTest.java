@@ -9,6 +9,7 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -23,6 +24,7 @@ class UserControllerUnitTest {
     private BranchRepository branchRepository;
     private DistributorRepository distributorRepository;
     private ServiceCenterRepository serviceCenterRepository;
+    private ModificationRequestRepository modificationRequestRepository;
     private PasswordEncoder passwordEncoder;
     private UserController controller;
 
@@ -32,12 +34,14 @@ class UserControllerUnitTest {
         branchRepository = mock(BranchRepository.class);
         distributorRepository = mock(DistributorRepository.class);
         serviceCenterRepository = mock(ServiceCenterRepository.class);
+        modificationRequestRepository = mock(ModificationRequestRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         controller = new UserController(
                 userRepository,
                 branchRepository,
                 distributorRepository,
                 serviceCenterRepository,
+                modificationRequestRepository,
                 passwordEncoder);
     }
 
@@ -131,6 +135,27 @@ class UserControllerUnitTest {
         assertThat(resp.getBody()).isNotNull();
         assertThat(resp.getBody().getBranchId()).isEqualTo(10L);
         assertThat(resp.getBody().getEmail()).isEqualTo("dist@aeg.local");
+    }
+
+    @Test
+    void deleteUser_removesModificationRequestsBeforeDeletingUser() {
+        User existing = User.builder()
+                .id(3L)
+                .username("dist@aeg.local")
+                .name("Distribuidor")
+                .password("x")
+                .role(Role.DISTRIBUTOR)
+                .branchId(10L)
+                .enabled(true)
+                .build();
+
+        when(userRepository.findById(3L)).thenReturn(Optional.of(existing));
+
+        ResponseEntity<Void> resp = controller.deleteUser(3L);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        verify(modificationRequestRepository).deleteByRequestedBy_Id(3L);
+        verify(userRepository).delete(existing);
     }
 
     @Test
