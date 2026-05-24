@@ -1,0 +1,1318 @@
+{
+  "info": {
+    "_postman_id": "d9f7b6d2-7ad8-4b3d-b7f5-9f4d2a4e0c01",
+    "name": "AEG Core API (Safe Read-Only)",
+    "description": "Coleccion Postman segura (read-only) para diagnostico en cloud. Solo ejecuta requests GET y Auth > Login. No incluye creaciones, actualizaciones ni borrados.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Token exists', () => pm.expect(json.token).to.be.a('string'));",
+                  "pm.environment.set('adminToken', json.token);",
+                  "pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has user profile', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('name');",
+                  "  pm.expect(json).to.have.property('email');",
+                  "  pm.expect(json).to.have.property('username');",
+                  "  pm.expect(json).to.have.property('role');",
+                  "  pm.expect(json).to.have.property('branchId');",
+                  "  pm.expect(json).to.have.property('distributorId');",
+                  "  pm.expect(json).to.have.property('enabled');",
+                  "  pm.expect(json.email).to.eql(json.username);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "MQTT",
+      "description": "Publicación MQTT y monitor en vivo (REST + WebSocket). Ejecuta Auth > Login antes de usar esta carpeta.",
+      "item": [
+        {
+          "name": "Check broker connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}{{mqttProbePath}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Status code is 200 or 503', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 503]);",
+                  "});",
+                  "",
+                  "pm.test('Response has probe fields', () => {",
+                  "  pm.expect(json).to.have.property('success');",
+                  "  pm.expect(json).to.have.property('connected');",
+                  "  pm.expect(json).to.have.property('broker');",
+                  "  pm.expect(json).to.have.property('durationMs');",
+                  "  pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "pm.test('Broker matches current configuration', () => {",
+                  "  pm.expect(json.broker).to.include('tcp://');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monitor",
+          "description": "Monitor en vivo: un tópico a la vez. 1) Update subscription 2) WebSocket Connect 3) Publish en un tópico que coincida 4) Get messages o ver frames en WebSocket.",
+          "item": [
+            {
+              "name": "Get monitor status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttStatusPath}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has monitor fields', () => {",
+                      "  pm.expect(json).to.have.property('inboundEnabled');",
+                      "  pm.expect(json).to.have.property('subscribedTopic');",
+                      "  pm.expect(json).to.have.property('brokerUrl');",
+                      "  pm.expect(json).to.have.property('connected');",
+                      "  pm.expect(json).to.have.property('bufferedMessageCount');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get subscription topic",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttSubscriptionPath}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response has topic and active flag', () => {",
+                      "  pm.expect(json.topic).to.be.a('string');",
+                      "  pm.expect(json.active).to.be.a('boolean');",
+                      "});",
+                      "if (json.topic) {",
+                      "  pm.environment.set('mqttMonitorTopic', json.topic);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get recent messages",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}{{mqttMessagesPath}}?limit={{mqttMessagesLimit}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const json = pm.response.json();",
+                      "",
+                      "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Response is an array', () => pm.expect(json).to.be.an('array'));",
+                      "if (json.length > 0) {",
+                      "  pm.test('Message items have topic and payload', () => {",
+                      "    pm.expect(json[0]).to.have.property('topic');",
+                      "    pm.expect(json[0]).to.have.property('payload');",
+                      "    pm.expect(json[0]).to.have.property('receivedAt');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "WebSocket live monitor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{wsBaseUrl}}{{mqttWsPath}}?token={{token}}",
+                "description": "Abre la pestaña WebSocket en Postman y pulsa Connect. El JWT va en query (?token=). Tras conectar, ejecuta Update subscription y Publish; los frames type=message y type=subscription aparecen en Messages. Ping opcional: envía el texto ping."
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const token = pm.environment.get('token');",
+                      "pm.test('JWT token is set (run Auth > Login first)', () => {",
+                      "  pm.expect(token, 'token missing').to.be.a('string').and.not.empty;",
+                      "});",
+                      "const base = pm.environment.get('baseUrl') || '';",
+                      "const wsBase = pm.environment.get('wsBaseUrl');",
+                      "if (!wsBase && base) {",
+                      "  pm.environment.set('wsBaseUrl', base.replace(/^http/i, 'ws'));",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Flow - subscribe publish and history",
+              "item": [
+                {
+                  "name": "3. Get recent messages",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseUrl}}{{mqttMessagesPath}}?limit={{mqttMessagesLimit}}"
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "const json = pm.response.json();",
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                          "pm.test('History is array', () => pm.expect(json).to.be.an('array'));"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "description": "Ejecuta esta carpeta con Collection Runner (en orden). Requiere MQTT inbound activo en el servidor y mqttMonitorTopic que coincida con aeg/test/# (p. ej. aeg/test/postman-monitor)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Company",
+      "item": [
+        {
+          "name": "List companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/companies"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get company by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/companies/{{companyId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('companyId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Branch",
+      "item": [
+        {
+          "name": "List branches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/branches"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get branch by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));",
+                  "pm.test('Has contact and headquarters fields', () => {",
+                  "  pm.expect(json).to.have.property('contactPersonName');",
+                  "  pm.expect(json).to.have.property('isHeadquarters');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup branch by location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/branches/lookup?companyId={{companyId}}&city=Caracas&state=Distrito Capital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branches",
+                "lookup"
+              ],
+              "query": [
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}"
+                },
+                {
+                  "key": "city",
+                  "value": "Caracas"
+                },
+                {
+                  "key": "state",
+                  "value": "Distrito Capital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Matches company and location', () => {",
+                  "  pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
+                  "  pm.expect(json.city).to.eql('Caracas');",
+                  "  pm.expect(json.state).to.eql('Distrito Capital');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID matches', () => pm.expect(String(json.id)).to.eql(pm.environment.get('createdUserId')));",
+                  "pm.test('Has name and email', () => {",
+                  "  pm.expect(json).to.have.property('name');",
+                  "  pm.expect(json).to.have.property('email');",
+                  "});",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted user (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "item": [
+        {
+          "name": "List clients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clients"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get client by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/clients/{{clientId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('clientId')));",
+                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
+                  "  pm.test('Distributor ID matches', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Distributor",
+      "item": [
+        {
+          "name": "List distributors",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributors"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get distributor by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributors/{{distributorId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('distributorId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Service Center",
+      "item": [
+        {
+          "name": "List service centers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-centers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get service center by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-centers/{{serviceCenterId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('serviceCenterId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Employee",
+      "item": [
+        {
+          "name": "List employees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get employee by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('employeeId')));",
+                  "pm.test('Has review fields', () => {",
+                  "  pm.expect(json).to.have.property('reviewStatus');",
+                  "  pm.expect(json).to.have.property('activeModificationRequestId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Employee Modification Requests",
+      "description": "Flujo distribuidor (submit) y admin (listar/aprobar/rechazar). Requiere Auth > Login, Company, Branch, Distributor y Employee previos.",
+      "item": [
+        {
+          "name": "Get employee (pending review)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Employee pending review', () => {",
+                  "  pm.expect(json.reviewStatus).to.eql('PENDING_REVIEW');",
+                  "  pm.expect(String(json.activeModificationRequestId)).to.eql(pm.environment.get('modificationRequestId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pending modification requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee-modification-requests?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "employee-modification-requests"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test('Response is array', () => pm.expect(list).to.be.an('array'));",
+                  "pm.test('Contains current request', () => {",
+                  "  const id = pm.environment.get('modificationRequestId');",
+                  "  pm.expect(list.some((r) => String(r.id) === id)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get modification request by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employee-modification-requests/{{modificationRequestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Detail has snapshot', () => {",
+                  "  pm.expect(json).to.have.property('currentEmployeeSnapshot');",
+                  "  pm.expect(json).to.have.property('requestedByName');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get employee (after approve)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Employee active again', () => {",
+                  "  pm.expect(json.reviewStatus).to.eql('ACTIVE');",
+                  "  pm.expect(json.activeModificationRequestId).to.be.null;",
+                  "});",
+                  "pm.test('Name updated', () => pm.expect(json.name).to.eql('Empleado Actualizado Postman'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flow - reject delete request",
+          "item": [
+            {
+              "name": "Get employee (still exists after reject delete)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Employee active', () => pm.expect(pm.response.json().reviewStatus).to.eql('ACTIVE'));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Distributor Person",
+      "item": [
+        {
+          "name": "List distributor persons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-persons"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get distributor person by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-persons/{{distributorPersonId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('distributorPersonId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Technician",
+      "item": [
+        {
+          "name": "List technicians",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/technicians"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get technician by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/technicians/{{technicianId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('technicianId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Printer Model",
+      "item": [
+        {
+          "name": "List printer models",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/printer-models"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get printer model by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/printer-models/{{printerModelId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('printerModelId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Software",
+      "item": [
+        {
+          "name": "List software",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/software"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get software by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/software/{{softwareId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('softwareId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Printer",
+      "item": [
+        {
+          "name": "List printers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/printers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get printer by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/printers/{{printerId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('printerId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Seal",
+      "item": [
+        {
+          "name": "List seals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/seals"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get seal by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/seals/{{sealId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('sealId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Distributor Contract",
+      "item": [
+        {
+          "name": "List distributor contracts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-contracts"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get distributor contract by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/distributor-contracts/{{distributorContractId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('distributorContractId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Service Center Contract",
+      "item": [
+        {
+          "name": "List service center contracts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-center-contracts"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get service center contract by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/service-center-contracts/{{serviceCenterContractId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('serviceCenterContractId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Annual Inspection",
+      "item": [
+        {
+          "name": "List annual inspections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/annual-inspections"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get annual inspection by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/annual-inspections/{{annualInspectionId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('annualInspectionId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Technical Service",
+      "item": [
+        {
+          "name": "List technical services",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/technical-services"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get technical service by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/technical-services/{{technicalServiceId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('technicalServiceId')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Handling",
+      "item": [
+        {
+          "name": "Get non-existent company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/companies/999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error message is present', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.error).to.equal('Recurso no encontrado');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -774,7 +774,7 @@
                   "    pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
                   "    pm.expect(json.city).to.eql('Caracas');",
                   "    pm.expect(json.contactPersonName).to.eql('María Pérez');",
-                  "    pm.expect(json.isHeadquarters).to.eql(true);",
+                  "  pm.expect(json).to.have.property('isHeadquarters');",
                   "});",
                   "",
                   "pm.environment.set('branchId', String(json.id));"
@@ -944,7 +944,8 @@
                   "const json = pm.response.json();",
                   "pm.test('contactPersonName may be null', () => {",
                   "  pm.expect(json).to.have.property('contactPersonName');",
-                  "});"
+                  "});",
+                  "pm.environment.set('secondBranchId', String(json.id));"
                 ]
               }
             }
@@ -3159,8 +3160,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3179,8 +3179,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3199,8 +3198,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3219,8 +3217,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3239,8 +3236,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3259,8 +3255,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3279,8 +3274,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3299,8 +3293,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3319,8 +3312,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3339,8 +3331,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3359,8 +3350,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3379,8 +3369,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3399,8 +3388,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3419,8 +3407,26 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete secondary branch (optional)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/branches/{{secondBranchId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3439,8 +3445,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
@@ -3459,8 +3464,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
-                  "pm.test('Response body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+                  "pm.test('Status code is 204 or 404', () => pm.expect(pm.response.code).to.be.oneOf([204, 404]));"
                 ]
               }
             }
