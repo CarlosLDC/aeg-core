@@ -13,6 +13,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "empleados", schema = "public")
@@ -44,6 +47,14 @@ public class Employee {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "id_sucursal", nullable = false)
 	private com.aeg.core.branch.Branch branch;
+
+	@Enumerated(EnumType.STRING)
+	@Column(name = "review_status", nullable = false)
+	private EmployeeReviewStatus reviewStatus = EmployeeReviewStatus.ACTIVE;
+
+	@Version
+	@Column(name = "version", nullable = false)
+	private Long version = 0L;
 
 	@PrePersist
 	void prePersist() {
@@ -118,5 +129,21 @@ public class Employee {
 
 	public Long getBranchId() {
 		return branch == null ? null : branch.getId();
+	}
+
+	public EmployeeReviewStatus getReviewStatus() {
+		return reviewStatus;
+	}
+
+	public void setReviewStatus(EmployeeReviewStatus reviewStatus) {
+		this.reviewStatus = reviewStatus;
+	}
+
+	public Long getVersion() {
+		return version;
+	}
+
+	public void setVersion(Long version) {
+		this.version = version;
 	}
 }

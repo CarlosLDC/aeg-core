@@ -1,19 +1,15 @@
-package com.aeg.core.employee.dto;
-
-import java.time.OffsetDateTime;
+package com.aeg.core.modificationrequest.dto;
 
 import com.aeg.core.employee.EmployeeReviewStatus;
 import com.aeg.core.employee.EmployeeType;
 
-public record EmployeeResponse(
+public record EmployeeSnapshotResponse(
 		Long id,
 		String nationalId,
 		String name,
 		String phone,
 		String email,
-		OffsetDateTime createdAt,
 		EmployeeType type,
 		Long branchId,
-		EmployeeReviewStatus reviewStatus,
-		Long activeModificationRequestId) {
+		EmployeeReviewStatus reviewStatus) {
 }

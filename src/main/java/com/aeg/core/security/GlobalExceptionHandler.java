@@ -158,6 +158,15 @@ public class GlobalExceptionHandler {
         if (raw.contains("employee has annual inspections and cannot be deleted")) {
             return "No se puede eliminar el empleado porque tiene inspecciones anuales registradas.";
         }
+        if (raw.contains("employee has a pending review request")) {
+            return "El empleado tiene una solicitud pendiente de aprobación.";
+        }
+        if (raw.contains("modification request is no longer pending")) {
+            return "La solicitud ya fue procesada.";
+        }
+        if (raw.contains("employee is not in pending review state")) {
+            return "El empleado no está bloqueado para revisión.";
+        }
         if (raw.contains("branch is not registered as distributor")) {
             return "La sucursal no tiene rol de distribuidor. Asígnalo en Sucursales antes de vincular el usuario.";
         }

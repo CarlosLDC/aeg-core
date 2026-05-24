@@ -10,6 +10,8 @@ import com.aeg.core.distributorperson.DistributorPersonRepository;
 import com.aeg.core.employee.dto.EmployeeRequest;
 import com.aeg.core.employee.dto.EmployeeResponse;
 import com.aeg.core.inspection.AnnualInspectionRepository;
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
+import com.aeg.core.modificationrequest.ModificationRequestStatus;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
@@ -24,6 +26,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	private final DistributorPersonRepository distributorPersonRepository;
 	private final TechnicianRepository technicianRepository;
 	private final AnnualInspectionRepository annualInspectionRepository;
+	private final ModificationRequestRepository modificationRequestRepository;
 	private final SecurityScopeService securityScope;
 
 	public EmployeeServiceImpl(
@@ -32,12 +35,14 @@ public class EmployeeServiceImpl implements EmployeeService {
 			DistributorPersonRepository distributorPersonRepository,
 			TechnicianRepository technicianRepository,
 			AnnualInspectionRepository annualInspectionRepository,
+			ModificationRequestRepository modificationRequestRepository,
 			SecurityScopeService securityScope) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
 		this.distributorPersonRepository = distributorPersonRepository;
 		this.technicianRepository = technicianRepository;
 		this.annualInspectionRepository = annualInspectionRepository;
+		this.modificationRequestRepository = modificationRequestRepository;
 		this.securityScope = securityScope;
 	}
 
@@ -84,6 +89,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public EmployeeResponse update(Long id, EmployeeRequest request) {
 		Employee e = findEntity(id);
 		securityScope.assertDistributorStaffBranch(e.getBranchId());
+		assertEmployeeNotPending(e);
 		if (!e.getNationalId().equalsIgnoreCase(request.nationalId())
 				&& repository.existsByNationalIdIgnoreCase(request.nationalId())) {
 			throw new IllegalArgumentException("nationalId already exists: " + request.nationalId());
@@ -96,6 +102,7 @@ public class EmployeeServiceImpl implements EmployeeService {
 	public void delete(Long id) {
 		Employee e = findEntity(id);
 		securityScope.assertDistributorStaffBranch(e.getBranchId());
+		assertEmployeeNotPending(e);
 		if (annualInspectionRepository.existsByEmployee_Id(id)) {
 			throw new IllegalArgumentException(
 					"employee has annual inspections and cannot be deleted: " + id);
@@ -122,7 +129,19 @@ public class EmployeeServiceImpl implements EmployeeService {
 		e.setBranch(branch);
 	}
 
+	private void assertEmployeeNotPending(Employee employee) {
+		if (employee.getReviewStatus() == EmployeeReviewStatus.PENDING_REVIEW) {
+			throw new IllegalArgumentException("employee has a pending review request");
+		}
+	}
+
 	private EmployeeResponse toResponse(Employee e) {
+		Long activeRequestId = modificationRequestRepository
+				.findFirstByEmployeeIdAndStatusOrderByCreatedAtDesc(
+						e.getId(),
+						ModificationRequestStatus.PENDING)
+				.map(mr -> mr.getId())
+				.orElse(null);
 		return new EmployeeResponse(
 				e.getId(),
 				e.getNationalId(),
@@ -131,6 +150,8 @@ public class EmployeeServiceImpl implements EmployeeService {
 				e.getEmail(),
 				e.getCreatedAt(),
 				e.getType(),
-				e.getBranchId());
+				e.getBranchId(),
+				e.getReviewStatus(),
+				activeRequestId);
 	}
 }
