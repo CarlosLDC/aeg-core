@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d9f7b6d2-7ad8-4b3d-b7f5-9f4d2a4e0c01",
     "name": "AEG Core API",
-    "description": "Coleccion Postman para la API Spring Boot de AEG Core. Usa Basic Auth con el usuario admin definido en application.properties.",
+    "description": "Coleccion Postman para la API Spring Boot de AEG Core. Autenticacion JWT: ejecuta Auth > Login (Bearer {{token}}). Usuarios admin: name + email. Sucursales: contactPersonName opcional, isHeadquarters.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -70,203 +70,15 @@
                   "pm.test('Response has user profile', () => {",
                   "  const json = pm.response.json();",
                   "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('name');",
+                  "  pm.expect(json).to.have.property('email');",
                   "  pm.expect(json).to.have.property('username');",
                   "  pm.expect(json).to.have.property('role');",
                   "  pm.expect(json).to.have.property('branchId');",
                   "  pm.expect(json).to.have.property('distributorId');",
                   "  pm.expect(json).to.have.property('enabled');",
+                  "  pm.expect(json.email).to.eql(json.username);",
                   "});"
-                ]
-              }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Admin Users",
-      "item": [
-        {
-          "name": "Create user",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": \"{{branchId}}\",\n  \"distributorId\": \"{{distributorId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": "{{baseUrl}}/api/admin/users"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
-                  "const json = pm.response.json();",
-                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
-                  "  pm.test('Branch ID matches request', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
-                  "}",
-                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
-                  "  pm.test('Distributor ID matches request', () => pm.expect(String(json.distributorId)).to.eql(pm.environment.get('distributorId')));",
-                  "}",
-                  "pm.environment.set('createdUserId', String(json.id));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Create user - Duplicate",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"test.user@aeg.local\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": \"{{branchId}}\",\n  \"distributorId\": \"{{distributorId}}\"\n}"
-            },
-            "url": "{{baseUrl}}/api/admin/users"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List users",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/admin/users"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Get user by id",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('ID matches', () => pm.expect(String(pm.response.json().id)).to.eql(pm.environment.get('createdUserId')));",
-                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
-                  "  pm.test('Branch ID matches', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
-                  "}",
-                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
-                  "  pm.test('Distributor ID matches', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update user",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"password\": \"newpass\",\n  \"role\": \"ADMIN\",\n  \"branchId\": \"{{branchId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"enabled\": true\n}"
-            },
-            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Role updated', () => pm.expect(pm.response.json().role).to.eql('ADMIN'));",
-                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
-                  "  pm.test('Branch ID retained', () => pm.expect(String(pm.response.json().branchId)).to.eql(pm.environment.get('branchId')));",
-                  "}",
-                  "if (pm.environment.get('distributorId') && pm.environment.get('distributorId') !== '') {",
-                  "  pm.test('Distributor ID retained', () => pm.expect(String(pm.response.json().distributorId)).to.eql(pm.environment.get('distributorId')));",
-                  "}"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete user",
-          "request": {
-            "method": "DELETE",
-            "header": [],
-            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
-                ]
-              }
-            }
-          ]
-        }
-        ,
-        {
-          "name": "Get deleted user (expect 404)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
@@ -679,12 +491,12 @@
                   "pm.environment.set('printerId', '');",
                   "pm.environment.set('sealId', '');",
                   "",
-                  "// Generar RIF v\u00e1lido (Letra + 8 d\u00edgitos)",
+                  "// Generar RIF válido (Letra + 8 dígitos)",
                   "const randomDigits = Math.floor(10000000 + Math.random() * 90000000);",
                   "pm.environment.set('tempRif', 'J' + randomDigits);",
                   "pm.environment.set('tempCompanyName', 'AEG Test ' + pm.variables.replaceIn('{{$randomInt}}'));",
                   "",
-                  "// Generar Serial Fiscal v\u00e1lido (3 letras + 7 d\u00edgitos)",
+                  "// Generar Serial Fiscal válido (3 letras + 7 dígitos)",
                   "const letters = 'ABC';",
                   "const serialDigits = Math.floor(1000000 + Math.random() * 9000000);",
                   "pm.environment.set('tempSerial', letters + serialDigits);"
@@ -854,7 +666,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"contactPersonName\": \"María Pérez\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"contactPersonName\": \"María Pérez\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isHeadquarters\": true,\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -880,7 +692,12 @@
                   "    'id': { 'type': ['number', 'string'] },",
                   "    'companyId': { 'type': ['number', 'string'] },",
                   "    'city': { 'type': 'string' },",
-                  "    'state': { 'type': 'string' }",
+                  "    'state': { 'type': 'string' },",
+                  "    'contactPersonName': { 'type': ['string', 'null'] },",
+                  "    'isHeadquarters': { 'type': ['boolean', 'null'] },",
+                  "    'isClient': { 'type': ['boolean', 'null'] },",
+                  "    'isDistributor': { 'type': ['boolean', 'null'] },",
+                  "    'isServiceCenter': { 'type': ['boolean', 'null'] }",
                   "  }",
                   "};",
                   "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
@@ -888,6 +705,8 @@
                   "pm.test('Data integrity', () => {",
                   "    pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
                   "    pm.expect(json.city).to.eql('Caracas');",
+                  "    pm.expect(json.contactPersonName).to.eql('María Pérez');",
+                  "    pm.expect(json.isHeadquarters).to.eql(true);",
                   "});",
                   "",
                   "pm.environment.set('branchId', String(json.id));"
@@ -931,7 +750,328 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));"
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));",
+                  "pm.test('Has contact and headquarters fields', () => {",
+                  "  pm.expect(json).to.have.property('contactPersonName');",
+                  "  pm.expect(json).to.have.property('isHeadquarters');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lookup branch by location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/branches/lookup?companyId={{companyId}}&city=Caracas&state=Distrito Capital",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branches",
+                "lookup"
+              ],
+              "query": [
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}"
+                },
+                {
+                  "key": "city",
+                  "value": "Caracas"
+                },
+                {
+                  "key": "state",
+                  "value": "Distrito Capital"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Matches company and location', () => {",
+                  "  pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
+                  "  pm.expect(json.city).to.eql('Caracas');",
+                  "  pm.expect(json.state).to.eql('Distrito Capital');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update branch",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices, Torre A\",\n  \"contactPersonName\": \"María Pérez Gómez\",\n  \"phone\": \"+58 212 555 0199\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isHeadquarters\": true,\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/branches/{{branchId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Contact person updated', () => pm.expect(json.contactPersonName).to.eql('María Pérez Gómez'));",
+                  "pm.test('Service center role removed', () => pm.expect(json.isServiceCenter).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create branch without contact (optional field)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Valencia\",\n  \"state\": \"Carabobo\",\n  \"address\": \"Av. Bolívar\",\n  \"phone\": \"+58 241 555 0102\",\n  \"email\": \"sucursal.valencia@aeg.local\",\n  \"isHeadquarters\": false,\n  \"isClient\": false,\n  \"isDistributor\": false,\n  \"isServiceCenter\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/branches"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('contactPersonName may be null', () => {",
+                  "  pm.expect(json).to.have.property('contactPersonName');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Users",
+      "item": [
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{testUserName}}\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": {{branchId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response has name and email', () => {",
+                  "  pm.expect(json).to.have.property('name');",
+                  "  pm.expect(json).to.have.property('email');",
+                  "});",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches request', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}",
+                  "pm.environment.set('createdUserId', String(json.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create user - Duplicate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{testUserName}}\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"secret\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": {{branchId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('ID matches', () => pm.expect(String(json.id)).to.eql(pm.environment.get('createdUserId')));",
+                  "pm.test('Has name and email', () => {",
+                  "  pm.expect(json).to.have.property('name');",
+                  "  pm.expect(json).to.have.property('email');",
+                  "});",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID matches', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Usuario Admin Actualizado\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"newpass\",\n  \"role\": \"ADMIN\",\n  \"branchId\": {{branchId}},\n  \"enabled\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Role updated', () => pm.expect(json.role).to.eql('ADMIN'));",
+                  "pm.test('Name updated', () => pm.expect(json.name).to.eql('Usuario Admin Actualizado'));",
+                  "if (pm.environment.get('branchId') && pm.environment.get('branchId') !== '') {",
+                  "  pm.test('Branch ID retained', () => pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId')));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted user (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{createdUserId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
                 ]
               }
             }
