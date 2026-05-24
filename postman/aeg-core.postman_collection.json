@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d9f7b6d2-7ad8-4b3d-b7f5-9f4d2a4e0c01",
     "name": "AEG Core API",
-    "description": "Coleccion Postman para la API Spring Boot de AEG Core. Autenticacion JWT: ejecuta Auth > Login (Bearer {{token}}). Usuarios admin: name + email. Sucursales: contactPersonName opcional, isHeadquarters.",
+    "description": "Coleccion Postman para la API Spring Boot de AEG Core. JWT: Auth > Login (Bearer {{token}}). Usuarios admin: name + email. Sucursales: contactPersonName opcional, isHeadquarters. Empleados: reviewStatus, activeModificationRequestId. Solicitudes de cambio: carpeta Employee Modification Requests (distribuidor + admin).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -47,6 +47,7 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Token exists', () => pm.expect(json.token).to.be.a('string'));",
+                  "pm.environment.set('adminToken', json.token);",
                   "pm.environment.set('token', json.token);"
                 ]
               }
@@ -79,6 +80,73 @@
                   "  pm.expect(json).to.have.property('enabled');",
                   "  pm.expect(json.email).to.eql(json.username);",
                   "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as distributor",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('distributorToken', json.token);",
+                  "pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Restore admin token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('token', pm.response.json().token);",
+                  "pm.environment.set('adminToken', pm.response.json().token);"
                 ]
               }
             }
@@ -1424,7 +1492,9 @@
                   "    'nationalId': { 'type': 'string' },",
                   "    'name': { 'type': 'string' },",
                   "    'type': { 'type': 'string' },",
-                  "    'branchId': { 'type': ['number', 'string'] }",
+                  "    'branchId': { 'type': ['number', 'string'] },",
+                  "    'reviewStatus': { 'type': 'string' },",
+                  "    'activeModificationRequestId': { 'type': ['number', 'null'] }",
                   "  }",
                   "};",
                   "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
@@ -1433,6 +1503,8 @@
                   "    pm.expect(String(json.branchId)).to.eql(pm.environment.get('branchId'));",
                   "});",
                   "",
+                  "pm.test('No pending modification', () => pm.expect(json.activeModificationRequestId).to.be.null);",
+                  "pm.test('Review status is ACTIVE', () => pm.expect(json.reviewStatus).to.eql('ACTIVE'));",
                   "pm.environment.set('employeeId', String(json.id));"
                 ]
               }
@@ -1474,9 +1546,455 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('employeeId')));"
+                  "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('employeeId')));",
+                  "pm.test('Has review fields', () => {",
+                  "  pm.expect(json).to.have.property('reviewStatus');",
+                  "  pm.expect(json).to.have.property('activeModificationRequestId');",
+                  "});"
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Employee Modification Requests",
+      "description": "Flujo distribuidor (submit) y admin (listar/aprobar/rechazar). Requiere Auth > Login, Company, Branch, Distributor y Employee previos.",
+      "item": [
+        {
+          "name": "Setup - Create distributor user",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{testUserName}}\",\n  \"email\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\",\n  \"role\": \"DISTRIBUTOR\",\n  \"branchId\": {{branchId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const admin = pm.environment.get('adminToken');",
+                  "if (admin) { pm.environment.set('token', admin); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201 or 409', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as distributor",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request employee update",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": {{employeeId}},\n  \"proposedData\": {\n    \"nationalId\": \"V-UPD-{{$timestamp}}\",\n    \"name\": \"Empleado Actualizado Postman\",\n    \"phone\": \"+58 412 555 9999\",\n    \"email\": \"updated.{{$timestamp}}@aeg.local\",\n    \"type\": \"tecnico\",\n    \"branchId\": {{branchId}}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/employee-modification-requests/update"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('Pending UPDATE request', () => {",
+                  "  pm.expect(json.actionType).to.eql('UPDATE');",
+                  "  pm.expect(json.status).to.eql('PENDING');",
+                  "  pm.expect(String(json.employeeId)).to.eql(pm.environment.get('employeeId'));",
+                  "});",
+                  "pm.environment.set('modificationRequestId', String(json.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get employee (pending review)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Employee pending review', () => {",
+                  "  pm.expect(json.reviewStatus).to.eql('PENDING_REVIEW');",
+                  "  pm.expect(String(json.activeModificationRequestId)).to.eql(pm.environment.get('modificationRequestId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Restore admin token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List pending modification requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/employee-modification-requests?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "employee-modification-requests"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const list = pm.response.json();",
+                  "pm.test('Response is array', () => pm.expect(list).to.be.an('array'));",
+                  "pm.test('Contains current request', () => {",
+                  "  const id = pm.environment.get('modificationRequestId');",
+                  "  pm.expect(list.some((r) => String(r.id) === id)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get modification request by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employee-modification-requests/{{modificationRequestId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Detail has snapshot', () => {",
+                  "  pm.expect(json).to.have.property('currentEmployeeSnapshot');",
+                  "  pm.expect(json).to.have.property('requestedByName');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve modification request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/employee-modification-requests/{{modificationRequestId}}/approve"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.expect(pm.response.json().status).to.eql('APPROVED');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get employee (after approve)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Employee active again', () => {",
+                  "  pm.expect(json.reviewStatus).to.eql('ACTIVE');",
+                  "  pm.expect(json.activeModificationRequestId).to.be.null;",
+                  "});",
+                  "pm.test('Name updated', () => pm.expect(json.name).to.eql('Empleado Actualizado Postman'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flow - reject delete request",
+          "item": [
+            {
+              "name": "Login as distributor",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{testUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/auth/login"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.environment.set('token', pm.response.json().token);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Request employee delete",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"employeeId\": {{employeeId}}\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/employee-modification-requests/delete"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                      "const json = pm.response.json();",
+                      "pm.test('Pending DELETE request', () => {",
+                      "  pm.expect(json.actionType).to.eql('DELETE');",
+                      "  pm.expect(json.status).to.eql('PENDING');",
+                      "});",
+                      "pm.environment.set('modificationRequestId', String(json.id));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Restore admin token",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/auth/login"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.environment.set('token', pm.response.json().token);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject modification request",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/employee-modification-requests/{{modificationRequestId}}/reject"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Request rejected', () => pm.expect(pm.response.json().status).to.eql('REJECTED'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get employee (still exists after reject delete)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/employees/{{employeeId}}"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Employee active', () => pm.expect(pm.response.json().reviewStatus).to.eql('ACTIVE'));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
