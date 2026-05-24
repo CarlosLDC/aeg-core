@@ -11,7 +11,7 @@ public record BranchRequest(
         String address,
         String phone,
         @Email String email,
-        @NotBlank String contactPersonName,
+        String contactPersonName,
         Boolean isClient,
         Boolean isDistributor,
         Boolean isServiceCenter,
