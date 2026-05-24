@@ -1,6 +1,8 @@
 package com.aeg.core.modificationrequest;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +24,6 @@ import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.technician.TechnicianRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -84,7 +84,7 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		ModificationRequest request = new ModificationRequest();
 		request.setEmployeeId(employee.getId());
 		request.setActionType(ModificationActionType.UPDATE);
-		request.setProposedData(toJsonNode(proposedData));
+		request.setProposedData(toProposedDataMap(proposedData));
 		request.setRequestedBy(requestedBy);
 		request.setStatus(ModificationRequestStatus.PENDING);
 
@@ -213,16 +213,25 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 		}
 	}
 
-	private JsonNode toJsonNode(Object value) {
-		try {
-			return objectMapper.readTree(objectMapper.writeValueAsString(value));
-		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("Failed to serialize proposed data", e);
+	private Map<String, Object> toProposedDataMap(EmployeeModificationProposedData proposed) {
+		Map<String, Object> map = new LinkedHashMap<>();
+		map.put("nationalId", proposed.nationalId());
+		map.put("name", proposed.name());
+		map.put("phone", proposed.phone());
+		map.put("email", proposed.email());
+		map.put("type", proposed.type().getValue());
+		map.put("branchId", proposed.branchId());
+		if (proposed.isTechnician() != null) {
+			map.put("isTechnician", proposed.isTechnician());
 		}
+		if (proposed.isDistributorPerson() != null) {
+			map.put("isDistributorPerson", proposed.isDistributorPerson());
+		}
+		return map;
 	}
 
-	private EmployeeModificationProposedData toProposedData(JsonNode proposedData) {
-		if (proposedData == null || proposedData.isNull()) {
+	private EmployeeModificationProposedData toProposedData(Map<String, Object> proposedData) {
+		if (proposedData == null || proposedData.isEmpty()) {
 			throw new IllegalArgumentException("proposedData is required for UPDATE requests");
 		}
 		return objectMapper.convertValue(proposedData, EmployeeModificationProposedData.class);

@@ -6,7 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.aeg.core.security.User;
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Map;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,7 +38,7 @@ public class ModificationRequest {
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(name = "proposed_data")
-	private JsonNode proposedData;
+	private Map<String, Object> proposedData;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "requested_by", nullable = false)
@@ -85,11 +85,11 @@ public class ModificationRequest {
 		this.actionType = actionType;
 	}
 
-	public JsonNode getProposedData() {
+	public Map<String, Object> getProposedData() {
 		return proposedData;
 	}
 
-	public void setProposedData(JsonNode proposedData) {
+	public void setProposedData(Map<String, Object> proposedData) {
 		this.proposedData = proposedData;
 	}
 

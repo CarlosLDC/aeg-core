@@ -4,14 +4,14 @@ import java.time.OffsetDateTime;
 
 import com.aeg.core.modificationrequest.ModificationActionType;
 import com.aeg.core.modificationrequest.ModificationRequestStatus;
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Map;
 
 public record ModificationRequestDetailResponse(
 		Long id,
 		Long employeeId,
 		ModificationActionType actionType,
 		ModificationRequestStatus status,
-		JsonNode proposedData,
+		Map<String, Object> proposedData,
 		EmployeeSnapshotResponse currentEmployeeSnapshot,
 		Long requestedById,
 		String requestedByName,

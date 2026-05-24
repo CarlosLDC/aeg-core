@@ -8,7 +8,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
 import java.util.Optional;
+
+import org.mockito.ArgumentCaptor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,15 +111,15 @@ class ModificationRequestServiceImplTest {
 		request.setActionType(ModificationActionType.UPDATE);
 		request.setStatus(ModificationRequestStatus.PENDING);
 		request.setRequestedBy(requester);
-		request.setProposedData(new ObjectMapper().valueToTree(new EmployeeModificationProposedData(
-				"V555",
-				"Después",
-				"04129999999",
-				"despues@test.com",
-				EmployeeType.TECNICO,
-				9L,
-				true,
-				false)));
+		request.setProposedData(Map.of(
+				"nationalId", "V555",
+				"name", "Después",
+				"phone", "04129999999",
+				"email", "despues@test.com",
+				"type", "tecnico",
+				"branchId", 9L,
+				"isTechnician", true,
+				"isDistributorPerson", false));
 
 		when(modificationRequestRepository.findById(100L)).thenReturn(Optional.of(request));
 		when(employeeRepository.findById(10L)).thenReturn(Optional.of(employee));
@@ -134,6 +137,55 @@ class ModificationRequestServiceImplTest {
 		assertThat(employee.getName()).isEqualTo("Después");
 		assertThat(employee.getBranchId()).isEqualTo(9L);
 		assertThat(employee.getReviewStatus()).isEqualTo(EmployeeReviewStatus.ACTIVE);
+	}
+
+	@Test
+	void requestUpdate_persistsProposedDataMapWithEmployeeFields() {
+		Employee employee = new Employee();
+		employee.setId(10L);
+		employee.setNationalId("V123");
+		employee.setName("Antes");
+		employee.setPhone("04120000000");
+		employee.setEmail("antes@test.com");
+		employee.setType(EmployeeType.ADMINISTRATIVO);
+		employee.setBranch(branch(5L));
+		employee.setReviewStatus(EmployeeReviewStatus.ACTIVE);
+
+		Branch targetBranch = branch(9L);
+
+		User requester = new User();
+		requester.setId(99L);
+		requester.setName("Distribuidor");
+		requester.setRole(Role.DISTRIBUTOR);
+
+		when(employeeRepository.findById(10L)).thenReturn(Optional.of(employee));
+		when(branchRepository.findById(9L)).thenReturn(Optional.of(targetBranch));
+		when(employeeRepository.existsByNationalIdIgnoreCase("V555")).thenReturn(false);
+		when(securityScope.currentUser()).thenReturn(requester);
+		when(modificationRequestRepository.save(org.mockito.ArgumentMatchers.any(ModificationRequest.class)))
+				.thenAnswer(invocation -> invocation.getArgument(0));
+
+		EmployeeModificationProposedData proposed = new EmployeeModificationProposedData(
+				"V555",
+				"Después",
+				"04129999999",
+				"despues@test.com",
+				EmployeeType.TECNICO,
+				9L,
+				true,
+				false);
+
+		service.requestUpdate(10L, proposed);
+
+		ArgumentCaptor<ModificationRequest> captor = ArgumentCaptor.forClass(ModificationRequest.class);
+		verify(modificationRequestRepository).save(captor.capture());
+		Map<String, Object> stored = captor.getValue().getProposedData();
+
+		assertThat(stored).isNotNull();
+		assertThat(stored.get("nationalId")).isEqualTo("V555");
+		assertThat(stored.get("name")).isEqualTo("Después");
+		assertThat(stored.get("branchId")).isEqualTo(9L);
+		assertThat(stored.get("isTechnician")).isEqualTo(true);
 	}
 
 	private static Branch branch(Long id) {
