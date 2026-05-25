@@ -199,9 +199,6 @@ public class GlobalExceptionHandler {
         if (raw.contains("distributorId does not match distributor on branch")) {
             return "El distribuidor seleccionado no corresponde a la sucursal.";
         }
-        if (raw.contains("Invalid printer status")) {
-            return "Estatus de impresora no válido.";
-        }
         return raw;
     }
 

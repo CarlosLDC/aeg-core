@@ -27,6 +27,9 @@ public enum PrinterStatus {
     public static PrinterStatus fromValue(String v) {
         if (v == null) return null;
         v = v.trim().toLowerCase();
+        if (v.isBlank()) {
+            return LABORATORIO;
+        }
         if ("activo".equals(v)) {
             return ASIGNADA;
         }
@@ -36,6 +39,7 @@ public enum PrinterStatus {
         for (PrinterStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
         }
-        throw new IllegalArgumentException("Invalid printer status: " + v);
+        // Compatibilidad: datos legacy o valores externos no deben romper lectura.
+        return LABORATORIO;
     }
 }
