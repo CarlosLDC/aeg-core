@@ -119,7 +119,7 @@ public class Printer {
     public void prePersist() {
         if (createdAt == null) createdAt = OffsetDateTime.now();
         if (paid == null) paid = false;
-        if (status == null) status = PrinterStatus.LABORATORIO;
+        if (status == null) status = PrinterStatus.DE_FABRICA;
         if (deviceType == null) deviceType = DeviceType.INTERNO;
     }
 }
