@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.employee.EmployeeRepository;
 import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.technician.dto.TechnicianRequest;
@@ -35,6 +36,15 @@ public class TechnicianServiceImpl implements TechnicianService {
 		if (securityScope.isAdmin()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
+		if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR) {
+			var staffBranchIds = securityScope.resolveDistributorStaffBranchIds();
+			if (staffBranchIds.isEmpty()) {
+				return List.of();
+			}
+			return repository.findByEmployee_Branch_IdIn(staffBranchIds).stream()
+					.map(this::toResponse)
+					.toList();
+		}
 		BranchScope scope = securityScope.resolveBranchScope();
 		return switch (scope.visibility()) {
 			case ALL -> repository.findAll().stream().map(this::toResponse).toList();
@@ -49,7 +59,7 @@ public class TechnicianServiceImpl implements TechnicianService {
 	@Transactional(readOnly = true)
 	public TechnicianResponse findById(Long id) {
 		Technician technician = findEntity(id);
-		securityScope.assertBranchInScope(technician.getEmployee().getBranchId());
+		securityScope.assertDistributorStaffBranch(technician.getEmployee().getBranchId());
 		return toResponse(technician);
 	}
 
@@ -58,7 +68,7 @@ public class TechnicianServiceImpl implements TechnicianService {
 		Technician e = new Technician();
 		var employee = employeeRepository.findById(request.employeeId())
 				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId()));
-		securityScope.assertBranchInScope(employee.getBranchId());
+		securityScope.assertDistributorStaffBranch(employee.getBranchId());
 		e.setEmployee(employee);
 		return toResponse(repository.save(e));
 	}
@@ -66,10 +76,10 @@ public class TechnicianServiceImpl implements TechnicianService {
 	@Override
 	public TechnicianResponse update(Long id, TechnicianRequest request) {
 		Technician e = findEntity(id);
-		securityScope.assertBranchInScope(e.getEmployee().getBranchId());
+		securityScope.assertDistributorStaffBranch(e.getEmployee().getBranchId());
 		var employee = employeeRepository.findById(request.employeeId())
 				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId()));
-		securityScope.assertBranchInScope(employee.getBranchId());
+		securityScope.assertDistributorStaffBranch(employee.getBranchId());
 		e.setEmployee(employee);
 		return toResponse(repository.save(e));
 	}
@@ -77,7 +87,7 @@ public class TechnicianServiceImpl implements TechnicianService {
 	@Override
 	public void delete(Long id) {
 		Technician e = findEntity(id);
-		securityScope.assertBranchInScope(e.getEmployee().getBranchId());
+		securityScope.assertDistributorStaffBranch(e.getEmployee().getBranchId());
 		repository.delete(e);
 	}
 
