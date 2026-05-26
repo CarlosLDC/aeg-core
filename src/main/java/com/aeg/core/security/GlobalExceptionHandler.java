@@ -199,6 +199,12 @@ public class GlobalExceptionHandler {
         if (raw.contains("distributorId does not match distributor on branch")) {
             return "El distribuidor seleccionado no corresponde a la sucursal.";
         }
+        if (raw.contains("branch is not registered as service center")) {
+            return "La sucursal no tiene rol de centro de servicio. Asígnalo en Sucursales.";
+        }
+        if (raw.contains("role requires branch")) {
+            return "Selecciona una sucursal para este rol.";
+        }
         return raw;
     }
 
