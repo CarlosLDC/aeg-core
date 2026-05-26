@@ -14,6 +14,5 @@ public record BranchResponse(
         OffsetDateTime createdAt,
         Boolean isClient,
         Boolean isDistributor,
-        Boolean isServiceCenter,
-        Boolean isHeadquarters
+        Boolean isServiceCenter
 ) {}

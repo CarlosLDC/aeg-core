@@ -149,7 +149,6 @@ public class BranchServiceImpl implements BranchService {
                 b.getCreatedAt(),
                 b.getIsClient(),
                 b.getIsDistributor(),
-                b.getIsServiceCenter(),
-                false);
+                b.getIsServiceCenter());
     }
 }

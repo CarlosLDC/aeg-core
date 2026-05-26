@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d9f7b6d2-7ad8-4b3d-b7f5-9f4d2a4e0c01",
     "name": "AEG Core API",
-    "description": "Coleccion Postman para la API Spring Boot de AEG Core. JWT: Auth > Login (Bearer {{token}}). Usuarios admin: name + email. Sucursales: contactPersonName opcional, isHeadquarters. Empleados: reviewStatus, activeModificationRequestId. Solicitudes de cambio: carpeta Employee Modification Requests (distribuidor + admin).",
+    "description": "Coleccion Postman para la API Spring Boot de AEG Core. JWT: Auth > Login (Bearer {{token}}). Usuarios admin: name + email. Sucursales: contactPersonName opcional. Empleados: reviewStatus, activeModificationRequestId. Solicitudes de cambio: carpeta Employee Modification Requests (distribuidor + admin).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -734,7 +734,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"contactPersonName\": \"María Pérez\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isHeadquarters\": true,\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices\",\n  \"contactPersonName\": \"María Pérez\",\n  \"phone\": \"+58 212 555 0101\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -762,7 +762,6 @@
                   "    'city': { 'type': 'string' },",
                   "    'state': { 'type': 'string' },",
                   "    'contactPersonName': { 'type': ['string', 'null'] },",
-                  "    'isHeadquarters': { 'type': ['boolean', 'null'] },",
                   "    'isClient': { 'type': ['boolean', 'null'] },",
                   "    'isDistributor': { 'type': ['boolean', 'null'] },",
                   "    'isServiceCenter': { 'type': ['boolean', 'null'] }",
@@ -774,7 +773,6 @@
                   "    pm.expect(String(json.companyId)).to.eql(pm.environment.get('companyId'));",
                   "    pm.expect(json.city).to.eql('Caracas');",
                   "    pm.expect(json.contactPersonName).to.eql('María Pérez');",
-                  "  pm.expect(json).to.have.property('isHeadquarters');",
                   "});",
                   "",
                   "pm.environment.set('branchId', String(json.id));"
@@ -819,9 +817,8 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));",
-                  "pm.test('Has contact and headquarters fields', () => {",
+                  "pm.test('Has contact field', () => {",
                   "  pm.expect(json).to.have.property('contactPersonName');",
-                  "  pm.expect(json).to.have.property('isHeadquarters');",
                   "});"
                 ]
               }
@@ -889,7 +886,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices, Torre A\",\n  \"contactPersonName\": \"María Pérez Gómez\",\n  \"phone\": \"+58 212 555 0199\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isHeadquarters\": true,\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": false\n}",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Caracas\",\n  \"state\": \"Distrito Capital\",\n  \"address\": \"Av. Principal de Los Ruices, Torre A\",\n  \"contactPersonName\": \"María Pérez Gómez\",\n  \"phone\": \"+58 212 555 0199\",\n  \"email\": \"sucursal.caracas@aeg.local\",\n  \"isClient\": true,\n  \"isDistributor\": true,\n  \"isServiceCenter\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -925,7 +922,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Valencia\",\n  \"state\": \"Carabobo\",\n  \"address\": \"Av. Bolívar\",\n  \"phone\": \"+58 241 555 0102\",\n  \"email\": \"sucursal.valencia@aeg.local\",\n  \"isHeadquarters\": false,\n  \"isClient\": false,\n  \"isDistributor\": false,\n  \"isServiceCenter\": false\n}",
+              "raw": "{\n  \"companyId\": {{companyId}},\n  \"city\": \"Valencia\",\n  \"state\": \"Carabobo\",\n  \"address\": \"Av. Bolívar\",\n  \"phone\": \"+58 241 555 0102\",\n  \"email\": \"sucursal.valencia@aeg.local\",\n  \"isClient\": false,\n  \"isDistributor\": false,\n  \"isServiceCenter\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"

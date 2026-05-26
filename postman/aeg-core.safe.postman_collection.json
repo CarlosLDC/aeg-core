@@ -359,9 +359,8 @@
                   "const json = pm.response.json();",
                   "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Response id matches environment', () => pm.expect(String(json.id)).to.eql(pm.environment.get('branchId')));",
-                  "pm.test('Has contact and headquarters fields', () => {",
+                  "pm.test('Has contact field', () => {",
                   "  pm.expect(json).to.have.property('contactPersonName');",
-                  "  pm.expect(json).to.have.property('isHeadquarters');",
                   "});"
                 ]
               }
