@@ -184,6 +184,10 @@ public class PrinterServiceImpl implements PrinterService {
         securityScope.assertClientInScope(client);
         printer.setClient(client);
         printer.setStatus(PrinterStatus.ENAJENADA);
+        printer.setInstallationDate(
+                request.installationDate() != null
+                        ? request.installationDate()
+                        : java.time.OffsetDateTime.now());
         return repository.save(printer);
     }
 
@@ -195,15 +199,31 @@ public class PrinterServiceImpl implements PrinterService {
         if (!Objects.equals(printer.getModelId(), request.modelId())
                 || !Objects.equals(printer.getSoftwareId(), request.softwareId())
                 || !printer.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial())
-                || !Objects.equals(printer.getFinalSalePrice(), request.finalSalePrice())
+                || !sameDecimal(printer.getFinalSalePrice(), request.finalSalePrice())
                 || !Objects.equals(printer.getPaid(), request.paid())
-                || !Objects.equals(printer.getInstallationDate(), request.installationDate())
                 || !Objects.equals(printer.getVersionFirmware(), request.versionFirmware())
-                || !Objects.equals(printer.getMacAddress(), request.macAddress())
+                || !Objects.equals(normalizeMac(printer.getMacAddress()), normalizeMac(request.macAddress()))
                 || printer.getDeviceType() != request.deviceType()) {
             throw new AccessDeniedException(
                     "Distributors can only change printer status to disposed and assign a client");
         }
+    }
+
+    private static boolean sameDecimal(java.math.BigDecimal left, java.math.BigDecimal right) {
+        if (left == null && right == null) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        return left.compareTo(right) == 0;
+    }
+
+    private static String normalizeMac(String mac) {
+        if (mac == null || mac.isBlank()) {
+            return null;
+        }
+        return mac.trim().toUpperCase();
     }
 
     private PrinterResponse toResponse(Printer p) {
