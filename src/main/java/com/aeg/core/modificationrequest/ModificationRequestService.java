@@ -19,4 +19,6 @@ public interface ModificationRequestService {
 	ModificationRequestDetailResponse approve(Long id);
 
 	ModificationRequestDetailResponse reject(Long id);
+
+	ModificationRequestDetailResponse cancel(Long id);
 }

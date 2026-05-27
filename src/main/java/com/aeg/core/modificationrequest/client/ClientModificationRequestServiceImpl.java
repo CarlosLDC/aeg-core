@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import com.aeg.core.modificationrequest.client.dto.ClientModificationProposedDat
 import com.aeg.core.modificationrequest.client.dto.ClientModificationRequestDetailResponse;
 import com.aeg.core.modificationrequest.client.dto.ClientModificationRequestListItemResponse;
 import com.aeg.core.modificationrequest.client.dto.ClientSnapshotResponse;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
@@ -166,6 +168,34 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 
 		request.setStatus(ModificationRequestStatus.REJECTED);
 		return toDetailResponse(repository.save(request), client);
+	}
+
+	@Override
+	public ClientModificationRequestDetailResponse cancel(Long id) {
+		ModificationRequest request = findPendingRequest(id);
+		if (request.getTargetType() != ModificationTargetType.CLIENT) {
+			throw new ResourceNotFoundException("Modification request not found with id: " + id);
+		}
+		assertRequesterCanCancel(request);
+		Client client = findClient(request.getTargetId());
+		securityScope.assertClientInScope(client);
+		assertClientPending(client);
+
+		client.setReviewStatus(ClientReviewStatus.ACTIVE);
+		clientRepository.save(client);
+
+		request.setStatus(ModificationRequestStatus.REJECTED);
+		return toDetailResponse(repository.save(request), client);
+	}
+
+	private void assertRequesterCanCancel(ModificationRequest request) {
+		User user = securityScope.currentUser();
+		if (user.getRole() != Role.DISTRIBUTOR) {
+			throw new AccessDeniedException("Only distributors can cancel modification requests");
+		}
+		if (!request.getRequestedBy().getId().equals(user.getId())) {
+			throw new AccessDeniedException("Only the requester can cancel this modification request");
+		}
 	}
 
 	private void applyUpdate(Client client, ClientModificationProposedData proposed) {

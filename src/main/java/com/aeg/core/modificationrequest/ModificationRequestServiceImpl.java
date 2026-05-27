@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import com.aeg.core.modificationrequest.dto.EmployeeSnapshotResponse;
 import com.aeg.core.technician.Technician;
 import com.aeg.core.modificationrequest.dto.ModificationRequestDetailResponse;
 import com.aeg.core.modificationrequest.dto.ModificationRequestListItemResponse;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
@@ -194,6 +196,34 @@ public class ModificationRequestServiceImpl implements ModificationRequestServic
 
 		request.setStatus(ModificationRequestStatus.REJECTED);
 		return toDetailResponse(repository.save(request), employee);
+	}
+
+	@Override
+	public ModificationRequestDetailResponse cancel(Long id) {
+		ModificationRequest request = findPendingRequest(id);
+		if (request.getTargetType() != ModificationTargetType.EMPLOYEE) {
+			throw new ResourceNotFoundException("Modification request not found with id: " + id);
+		}
+		assertRequesterCanCancel(request);
+		Employee employee = findEmployee(request.getTargetId());
+		securityScope.assertDistributorStaffBranch(employee.getBranchId());
+		assertEmployeePending(employee);
+
+		employee.setReviewStatus(EmployeeReviewStatus.ACTIVE);
+		employeeRepository.save(employee);
+
+		request.setStatus(ModificationRequestStatus.REJECTED);
+		return toDetailResponse(repository.save(request), employee);
+	}
+
+	private void assertRequesterCanCancel(ModificationRequest request) {
+		User user = securityScope.currentUser();
+		if (user.getRole() != Role.DISTRIBUTOR) {
+			throw new AccessDeniedException("Only distributors can cancel modification requests");
+		}
+		if (!request.getRequestedBy().getId().equals(user.getId())) {
+			throw new AccessDeniedException("Only the requester can cancel this modification request");
+		}
 	}
 
 	private ModificationRequest findRequest(Long id) {

@@ -20,4 +20,6 @@ public interface ClientModificationRequestService {
 	ClientModificationRequestDetailResponse approve(Long id);
 
 	ClientModificationRequestDetailResponse reject(Long id);
+
+	ClientModificationRequestDetailResponse cancel(Long id);
 }

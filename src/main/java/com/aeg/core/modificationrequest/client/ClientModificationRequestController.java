@@ -64,4 +64,9 @@ public class ClientModificationRequestController {
 	public ClientModificationRequestDetailResponse reject(@PathVariable Long id) {
 		return service.reject(id);
 	}
+
+	@PostMapping("/{id}/cancel")
+	public ClientModificationRequestDetailResponse cancel(@PathVariable Long id) {
+		return service.cancel(id);
+	}
 }
