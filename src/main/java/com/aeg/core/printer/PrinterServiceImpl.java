@@ -1,6 +1,7 @@
 package com.aeg.core.printer;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -90,6 +91,9 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterResponse update(Long id, PrinterRequest request) {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
+        if (currentUser().getRole() == Role.DISTRIBUTOR) {
+            return toResponse(applyDistributorDisposition(p, request));
+        }
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
         }
@@ -157,6 +161,48 @@ public class PrinterServiceImpl implements PrinterService {
                 .orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distributorId)));
         } else if (currentUser().getRole() != Role.DISTRIBUTOR) {
             printer.setDistributor(null);
+        }
+    }
+
+    /**
+     * Distribuidor: única mutación permitida — enajenar impresora asignada a un cliente propio.
+     */
+    private Printer applyDistributorDisposition(Printer printer, PrinterRequest request) {
+        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
+            throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
+        }
+        if (request.status() != PrinterStatus.ENAJENADA) {
+            throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
+        }
+        if (request.clientId() == null) {
+            throw new IllegalArgumentException("clientId is required to dispose a printer");
+        }
+        assertDispositionFieldsUnchanged(printer, request);
+
+        var client = clientRepository.findById(request.clientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
+        securityScope.assertClientInScope(client);
+        printer.setClient(client);
+        printer.setStatus(PrinterStatus.ENAJENADA);
+        return repository.save(printer);
+    }
+
+    private void assertDispositionFieldsUnchanged(Printer printer, PrinterRequest request) {
+        Long ownDistributorId = resolveDistributorIdForWrite(request.distributorId());
+        if (!Objects.equals(printer.getDistributorId(), ownDistributorId)) {
+            throw new AccessDeniedException("Cannot reassign printer to another distributor");
+        }
+        if (!Objects.equals(printer.getModelId(), request.modelId())
+                || !Objects.equals(printer.getSoftwareId(), request.softwareId())
+                || !printer.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial())
+                || !Objects.equals(printer.getFinalSalePrice(), request.finalSalePrice())
+                || !Objects.equals(printer.getPaid(), request.paid())
+                || !Objects.equals(printer.getInstallationDate(), request.installationDate())
+                || !Objects.equals(printer.getVersionFirmware(), request.versionFirmware())
+                || !Objects.equals(printer.getMacAddress(), request.macAddress())
+                || printer.getDeviceType() != request.deviceType()) {
+            throw new AccessDeniedException(
+                    "Distributors can only change printer status to disposed and assign a client");
         }
     }
 
