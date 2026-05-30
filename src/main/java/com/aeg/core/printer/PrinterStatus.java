@@ -4,9 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum PrinterStatus {
-    DE_DEMOSTRACION("de_demostracion"),
     DE_FABRICA("de_fabrica"),
-    INICIALIZADA("inicializada"),
+    SIN_ASIGNAR("sin_asignar"),
     ASIGNADA("asignada"),
     ENAJENADA("enajenada"),
     DESINCORPORADA("desincorporada"),
@@ -35,6 +34,12 @@ public enum PrinterStatus {
         }
         if ("inactivo".equals(v)) {
             return DESINCORPORADA;
+        }
+        if ("inicializada".equals(v)) {
+            return SIN_ASIGNAR;
+        }
+        if ("de_demostracion".equals(v)) {
+            return LABORATORIO;
         }
         for (PrinterStatus s : values()) {
             if (s.value.equalsIgnoreCase(v) || s.name().equalsIgnoreCase(v)) return s;
