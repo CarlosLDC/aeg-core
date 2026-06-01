@@ -13,6 +13,7 @@ import com.aeg.core.inspection.dto.AnnualInspectionResponse;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.security.BranchScope;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
@@ -42,9 +43,17 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		if (securityScope.isAdmin()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
-		BranchScope scope = securityScope.resolveBranchScope();
 		List<Long> printerIds = securityScope.visiblePrinterIds();
-		if (scope.visibility() != BranchScope.Visibility.SCOPED || printerIds.isEmpty()) {
+		if (printerIds.isEmpty()) {
+			return List.of();
+		}
+		if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR) {
+			return repository.findByPrinter_IdIn(printerIds).stream()
+					.map(this::toResponse)
+					.toList();
+		}
+		BranchScope scope = securityScope.resolveBranchScope();
+		if (scope.visibility() != BranchScope.Visibility.SCOPED) {
 			return List.of();
 		}
 		return repository
@@ -91,7 +100,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 			securityScope.assertPrinterInScope(printer);
 		}
 		if (employee != null) {
-			securityScope.assertBranchInScope(employee.getBranchId());
+			assertInspectionEmployeeInScope(employee);
 		}
 	}
 
@@ -106,7 +115,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		securityScope.assertPrinterInScope(printer);
 		Employee employee = employeeRepository.findById(request.employeeId())
 				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId()));
-		securityScope.assertBranchInScope(employee.getBranchId());
+		assertInspectionEmployeeInScope(employee);
 		e.setPrinter(printer);
 		e.setEmployee(employee);
 		e.setSealTampered(request.sealTampered());
@@ -115,6 +124,14 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		if (request.inspectionDate() != null) {
 			e.setInspectionDate(request.inspectionDate());
 		}
+	}
+
+	private void assertInspectionEmployeeInScope(Employee employee) {
+		if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR) {
+			securityScope.assertDistributorStaffBranch(employee.getBranchId());
+			return;
+		}
+		securityScope.assertBranchInScope(employee.getBranchId());
 	}
 
 	private AnnualInspectionResponse toResponse(AnnualInspection e) {
