@@ -57,10 +57,16 @@ public class SecurityScopeService {
 		return currentUser().getRole() == Role.ADMIN;
 	}
 
+	/** Lectura sin restricción de alcance (administración y SENIAT). */
+	public boolean isGlobalReader() {
+		Role role = currentUser().getRole();
+		return role == Role.ADMIN || role == Role.SENIAT;
+	}
+
 	public BranchScope resolveBranchScope() {
 		User user = currentUser();
 		return switch (user.getRole()) {
-			case ADMIN -> BranchScope.all();
+			case ADMIN, SENIAT -> BranchScope.all();
 			case DISTRIBUTOR -> {
 				if (user.getDistributorId() == null) {
 					yield BranchScope.none();
@@ -124,7 +130,7 @@ public class SecurityScopeService {
 	/** Lectura de sucursal: clientes en alcance o sucursal propia de la distribuidora. */
 	public void assertBranchReadable(Long branchId) {
 		User user = currentUser();
-		if (user.getRole() == Role.ADMIN) {
+		if (isGlobalReader()) {
 			return;
 		}
 		if (user.getRole() == Role.DISTRIBUTOR) {
@@ -183,7 +189,7 @@ public class SecurityScopeService {
 
 	public void assertPrinterInScope(Printer printer) {
 		User user = currentUser();
-		if (user.getRole() == Role.ADMIN) {
+		if (isGlobalReader()) {
 			return;
 		}
 		if (user.getRole() == Role.DISTRIBUTOR) {
@@ -234,7 +240,7 @@ public class SecurityScopeService {
 
 	public List<Printer> findVisiblePrinters() {
 		User user = currentUser();
-		if (user.getRole() == Role.ADMIN) {
+		if (isGlobalReader()) {
 			return printerRepository.findAll();
 		}
 		if (user.getRole() == Role.DISTRIBUTOR) {
@@ -251,7 +257,7 @@ public class SecurityScopeService {
 	}
 
 	public List<Seal> findVisibleSeals() {
-		if (isAdmin()) {
+		if (isGlobalReader()) {
 			return sealRepository.findAll();
 		}
 		List<Long> printerIds = findVisiblePrinters().stream().map(Printer::getId).toList();
@@ -266,7 +272,7 @@ public class SecurityScopeService {
 	}
 
 	public void assertSealInScope(Seal seal) {
-		if (isAdmin()) {
+		if (isGlobalReader()) {
 			return;
 		}
 		if (seal.getPrinter() == null) {

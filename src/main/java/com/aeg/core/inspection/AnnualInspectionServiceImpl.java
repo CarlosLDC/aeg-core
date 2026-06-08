@@ -40,7 +40,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<AnnualInspectionResponse> findAll() {
-		if (securityScope.isAdmin()) {
+		if (securityScope.isGlobalReader()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
 		List<Long> printerIds = securityScope.visiblePrinterIds();

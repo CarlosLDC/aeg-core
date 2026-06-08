@@ -9,7 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.seal.Seal;
 import com.aeg.core.seal.SealRepository;
+import com.aeg.core.seal.SealStatus;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
@@ -51,7 +53,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<TechnicalServiceResponse> findAll() {
-		if (securityScope.isAdmin()) {
+		if (securityScope.isGlobalReader()) {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
 		List<Long> printerIds = securityScope.visiblePrinterIds();
@@ -81,6 +83,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	public TechnicalServiceResponse create(TechnicalServiceRequest request) {
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
 		applyRequest(e, request);
+		applySealStatusChanges(e, request);
 		return toResponse(repository.save(e));
 	}
 
@@ -166,6 +169,37 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 					.orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + r.distributorId())));
 		} else {
 			e.setDistributor(null);
+		}
+	}
+
+	private void applySealStatusChanges(TechnicalServiceVisit visit, TechnicalServiceRequest request) {
+		var endAt = request.endAt();
+		Printer printer = visit.getPrinter();
+
+		if (request.installedSealId() != null) {
+			Seal installed = visit.getInstalledSeal();
+			if (installed == null || installed.getStatus() != SealStatus.DISPONIBLE) {
+				throw new IllegalArgumentException("installed seal is not available");
+			}
+			if (request.removedSealId() != null && request.installedSealId().equals(request.removedSealId())) {
+				throw new IllegalArgumentException("installed and removed seal must differ");
+			}
+		}
+
+		if (request.removedSealId() != null) {
+			Seal removed = visit.getRemovedSeal();
+			removed.setStatus(SealStatus.SUSTITUIDO);
+			removed.setRemovalDate(endAt);
+			removed.setPrinter(null);
+			sealRepository.save(removed);
+		}
+
+		if (request.installedSealId() != null) {
+			Seal installed = visit.getInstalledSeal();
+			installed.setStatus(SealStatus.EN_IMPRESORA);
+			installed.setInstallationDate(endAt);
+			installed.setPrinter(printer);
+			sealRepository.save(installed);
 		}
 	}
 

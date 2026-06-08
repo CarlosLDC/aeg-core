@@ -11,4 +11,6 @@ public interface TechnicalServiceVisitRepository extends JpaRepository<Technical
 
 	@Query("SELECT v FROM TechnicalServiceVisit v WHERE v.printer.id IN :printerIds")
 	List<TechnicalServiceVisit> findByPrinter_IdIn(@Param("printerIds") Collection<Long> printerIds);
+
+	List<TechnicalServiceVisit> findByPrinter_IdOrderByCreatedAtAsc(Long printerId);
 }

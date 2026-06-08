@@ -19,5 +19,7 @@ public interface AnnualInspectionRepository extends JpaRepository<AnnualInspecti
 
 	List<AnnualInspection> findByPrinter_IdIn(Collection<Long> printerIds);
 
+	List<AnnualInspection> findByPrinter_IdOrderByCreatedAtAsc(Long printerId);
+
 	boolean existsByEmployee_Id(Long employeeId);
 }
