@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final JwtAuthenticationFilter jwtAuthFilter;
+	private final PortalAuthorizationFilter portalAuthorizationFilter;
 	private final AppCorsProperties corsProperties;
 
 	@Value("${app.security.swagger-enabled:false}")
@@ -43,7 +44,9 @@ public class SecurityConfig {
 				authorize
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				.requestMatchers("/api/auth/login").permitAll()
-				.requestMatchers("/api/auth/me").authenticated();
+				.requestMatchers("/api/auth/fiscal-book/login").permitAll()
+				.requestMatchers("/api/auth/me").authenticated()
+				.requestMatchers("/api/auth/fiscal-book/me").authenticated();
 				if (swaggerEnabled) {
 					authorize.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
 				} else {
@@ -95,14 +98,15 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER")
 				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER")
 				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**")
-					.hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "SENIAT")
+					.hasAnyRole("FISCAL_ADMIN", "FISCAL_TECHNICIAN", "FISCAL_AUDITOR")
 				.requestMatchers("/api/technicians/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER")
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
 				.anyRequest().authenticated();
 			})
-			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+			.addFilterAfter(portalAuthorizationFilter, JwtAuthenticationFilter.class);
 
 		return http.build();
 	}

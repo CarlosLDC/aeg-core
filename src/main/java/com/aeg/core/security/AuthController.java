@@ -39,6 +39,7 @@ public class AuthController {
         User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
         
         Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("portal", Portal.CORE_ADMIN);
         extraClaims.put("role", user.getRole().name());
         extraClaims.put("branchId", user.getBranchId());
         extraClaims.put("distributorId", user.getDistributorId());

@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.aeg.core.fiscalbookuser.FiscalBookUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
@@ -23,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final FiscalBookUserRepository fiscalBookUserRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Value("${app.security.basic-auth.enabled:false}")
@@ -43,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     jwt = authHeader.substring(7);
                     userEmail = jwtService.extractUsername(jwt);
                     if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                        UserDetails userDetails = loadUserDetailsForToken(jwt, userEmail);
                         if (jwtService.isTokenValid(jwt, userDetails)) {
                             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -83,5 +85,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             logger.warn("Authentication processing failed: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
+    }
+
+    private UserDetails loadUserDetailsForToken(String jwt, String username) {
+        String portal = jwtService.extractPortal(jwt);
+        if (Portal.FISCAL_BOOK.equals(portal)) {
+            return fiscalBookUserRepository.findByUsernameWithRelations(username)
+                    .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException(
+                            "Usuario fiscal no encontrado: " + username));
+        }
+        return this.userDetailsService.loadUserByUsername(username);
     }
 }

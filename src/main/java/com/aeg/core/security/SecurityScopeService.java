@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.fiscalbookuser.FiscalBookRole;
+import com.aeg.core.fiscalbookuser.FiscalBookUser;
+import com.aeg.core.fiscalbookuser.FiscalBookUserScopeService;
 import com.aeg.core.client.Client;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.DistributorRepository;
@@ -31,18 +34,21 @@ public class SecurityScopeService {
 	private final DistributorRepository distributorRepository;
 	private final PrinterRepository printerRepository;
 	private final SealRepository sealRepository;
+	private final FiscalBookUserScopeService fiscalBookUserScopeService;
 
 	public SecurityScopeService(
 			BranchRepository branchRepository,
 			ClientRepository clientRepository,
 			DistributorRepository distributorRepository,
 			PrinterRepository printerRepository,
-			SealRepository sealRepository) {
+			SealRepository sealRepository,
+			FiscalBookUserScopeService fiscalBookUserScopeService) {
 		this.branchRepository = branchRepository;
 		this.clientRepository = clientRepository;
 		this.distributorRepository = distributorRepository;
 		this.printerRepository = printerRepository;
 		this.sealRepository = sealRepository;
+		this.fiscalBookUserScopeService = fiscalBookUserScopeService;
 	}
 
 	public User currentUser() {
@@ -239,6 +245,10 @@ public class SecurityScopeService {
 	}
 
 	public List<Printer> findVisiblePrinters() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication != null && authentication.getPrincipal() instanceof FiscalBookUser fiscalUser) {
+			return findVisiblePrintersForFiscalUser(fiscalUser);
+		}
 		User user = currentUser();
 		if (isGlobalReader()) {
 			return printerRepository.findAll();
@@ -269,6 +279,26 @@ public class SecurityScopeService {
 
 	public List<Long> visiblePrinterIds() {
 		return findVisiblePrinters().stream().map(Printer::getId).toList();
+	}
+
+	private List<Printer> findVisiblePrintersForFiscalUser(FiscalBookUser fiscalUser) {
+		return switch (fiscalUser.getRole()) {
+			case FISCAL_ADMIN, FISCAL_AUDITOR -> printerRepository.findAll();
+			case FISCAL_TECHNICIAN -> {
+				Long distributorId = fiscalBookUserScopeService.resolveDistributorId(fiscalUser.getEmployeeId());
+				if (distributorId != null) {
+					yield printerRepository.findByDistributor_Id(distributorId);
+				}
+				if (fiscalUser.getEmployee() != null && fiscalUser.getEmployee().getBranch() != null) {
+					Long companyId = fiscalUser.getEmployee().getBranch().getCompanyId();
+					Set<Long> branchIds = branchRepository.findByCompany_Id(companyId).stream()
+							.map(Branch::getId)
+							.collect(Collectors.toSet());
+					yield printerRepository.findByVisibleBranchIds(branchIds);
+				}
+				yield List.of();
+			}
+		};
 	}
 
 	public void assertSealInScope(Seal seal) {
