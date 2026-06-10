@@ -12,6 +12,7 @@ import com.aeg.core.inspection.dto.AnnualInspectionRequest;
 import com.aeg.core.inspection.dto.AnnualInspectionResponse;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
@@ -104,6 +105,13 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		}
 	}
 
+	private void assertPrinterEligibleForInspection(Printer printer) {
+		if (printer.getStatus() != PrinterStatus.ASIGNADA) {
+			throw new IllegalArgumentException(
+					"Only assigned printers can have annual inspections");
+		}
+	}
+
 	private AnnualInspection findEntity(Long id) {
 		return repository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Annual inspection not found with id: " + id));
@@ -113,6 +121,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		Printer printer = printerRepository.findById(request.printerId())
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId()));
 		securityScope.assertPrinterInScope(printer);
+		assertPrinterEligibleForInspection(printer);
 		Employee employee = employeeRepository.findById(request.employeeId())
 				.orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + request.employeeId()));
 		assertInspectionEmployeeInScope(employee);
