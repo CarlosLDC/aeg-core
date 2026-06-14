@@ -1,0 +1,41 @@
+{
+  "cmd": "wFileSPIFF",
+  "data": {
+    "nameFile": "configSPIFFS.json",
+    "contenido": {
+      "simMonL": "Bs",
+      "impArt": {
+        "desc": ["Exonerado", "IVA", "Reducido", "Lujo", "Percibido"],
+        "abrev": ["(E)", "(G)", "(R)", "(A)", "(P)"],
+        "valor": [0, 1600, 800, 3100, 0],
+        "impMontoPtr": [
+          "EXENTO (E)",
+          "BI G (16.00%)",
+          "BI R (8.00%)",
+          "BI A (31.00%)",
+          "PERCIBIDO"
+        ],
+        "impMontoImp": ["", "IVA G (16.00%)", "IVA R (8.00%)", "IVA A (31.00%)", ""]
+      },
+      "formPago": {
+        "tituloFormPag": "FORMA DE PAGO",
+        "desc": [
+          "EFECTIVO", "T. DEBITO", "T. CREDITO", "TRANSFERENCIA", "PAGO MOVIL", "BIOPAGO",
+          "EFECTIVO 7", "EFECTIVO 8", "EFECTIVO 9", "EFECTIVO 10",
+          "DIVISA 1", "DIVISA 2", "DIVISA 3", "DIVISA 4", "DIVISA 5", "DIVISA 6"
+        ],
+        "impG": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 300, 300, 300, 300, 300],
+        "impMontoPtr": [
+          "", "", "", "", "", "", "", "", "", "",
+          "BI IGTF (3.00%)", "BI IGTF (3.00%)", "BI IGTF (3.00%)",
+          "BI IGTF (3.00%)", "BI IGTF (3.00%)", "BI IGTF (3.00%)"
+        ],
+        "impMontoImp": [
+          "", "", "", "", "", "", "", "", "", "",
+          "IGTF (3.00%)", "IGTF (3.00%)", "IGTF (3.00%)",
+          "IGTF (3.00%)", "IGTF (3.00%)", "IGTF (3.00%)"
+        ]
+      }
+    }
+  }
+}

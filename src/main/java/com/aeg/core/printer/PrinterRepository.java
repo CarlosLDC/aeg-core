@@ -2,6 +2,7 @@ package com.aeg.core.printer;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +10,15 @@ import org.springframework.data.repository.query.Param;
 
 public interface PrinterRepository extends JpaRepository<Printer, Long> {
     boolean existsByFiscalSerialIgnoreCase(String fiscalSerial);
+
+    @Query("""
+            SELECT p FROM Printer p
+            LEFT JOIN FETCH p.client c
+            LEFT JOIN FETCH c.branch b
+            LEFT JOIN FETCH b.company
+            WHERE UPPER(p.fiscalSerial) = UPPER(:fiscalSerial)
+            """)
+    Optional<Printer> findEnajenacionCandidateByFiscalSerial(@Param("fiscalSerial") String fiscalSerial);
     boolean existsByClient_Id(Long clientId);
 
     /** Navega la relación {@code distributor}, no un atributo {@code distributorId}. */

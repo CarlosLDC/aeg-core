@@ -1,0 +1,211 @@
+package com.aeg.core.enajenacion.mqtt;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@Component
+public class EnajenacionPayloadBuilder {
+
+    private static final DateTimeFormatter INVOICE_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    private final ObjectMapper objectMapper;
+    private volatile String configSpiffsTemplate;
+
+    public EnajenacionPayloadBuilder(@Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    public String buildDnfAlertPayload() {
+        List<Map<String, String>> commands = List.of(
+                line("aperDNF", "DOCUMENTO NO FISCAL"),
+                line("efeNeDAnJuCeDNF", "***** ALERTA *****"),
+                line("efeNoDAnJuCeDNF", "IMPRESORA EN PROCESO"),
+                line("efeNoDAnJuCeDNF", "DE ENAJENACION"),
+                line("efeNoDAnJuCeDNF", "DURANTE EL PROCESO"),
+                line("efeNoDAnJuCeDNF", "DE ENAJENACION"),
+                line("efeNoDAnJuCeDNF", "NO PUEDE SER UTILIZADA,"),
+                line("efeNoDAnJuCeDNF", "DEBE MANTENERSE ENCENDIDA."),
+                line("efeNoDAnJuCeDNF", "EL PROCESO TERMINA CUANDO SE"),
+                line("efeNoDAnJuCeDNF", "IMPRIMA UN REPORTE Z"),
+                line("endDNF", "TIEMPO APROXIMADO DE ESPERA 3 MIN"));
+        return writeJson(commands);
+    }
+
+    public String buildFiscalRifPayload(EnajenacionContext context) {
+        Map<String, Object> contenido = new LinkedHashMap<>();
+        contenido.put("tituloSeniat", "SENIAT");
+        contenido.put("rifEmp", RifFormatter.toFiscalForm(context.rif()));
+        contenido.put("nomEmp", context.businessName());
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("nameFile", "rifEmp.json");
+        data.put("Access", "config");
+        data.put("contenido", contenido);
+
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("cmd", EnajenacionConstants.CMD_FISCAL_AEG);
+        root.put("data", data);
+        return writeJson(root);
+    }
+
+    public String buildHeaderPayload(EnajenacionContext context) {
+        List<String> encFacFijo = List.of(
+                context.addressLine1(),
+                context.addressLine2(),
+                context.cityStateLine(),
+                context.contributorTypeLine());
+
+        Map<String, Object> contenido = Map.of("encFacFijo", encFacFijo);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("Access", "config");
+        data.put("nameFile", "paramFacSPIFF.json");
+        data.put("contenido", contenido);
+
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("cmd", EnajenacionConstants.CMD_W_FILE_SPIFF);
+        root.put("data", data);
+        return writeJson(root);
+    }
+
+    public String buildConfigSpiffsPayload() {
+        return loadConfigSpiffsTemplate();
+    }
+
+    public String buildInvoicePayload() {
+        List<Object> commands = new ArrayList<>();
+        for (int imp = 1; imp <= 5; imp++) {
+            commands.add(productLine("proF", imp));
+        }
+        commands.add(Map.of("cmd", "subToF", "data", 1, "valor", 0));
+        commands.add(Map.of(
+                "cmd", "fpaF",
+                "data", Map.of("tipo", 1, "monto", -1, "tasaConv", 0)));
+        commands.add(Map.of("cmd", "endFac", "data", 1));
+        return writeJson(commands);
+    }
+
+    public String buildCreditNotePayload(EnajenacionContext context, int invoiceNumber, LocalDate invoiceDate) {
+        List<Object> commands = new ArrayList<>();
+        commands.add(Map.of("cmd", "nroFacNC", "data", invoiceNumber));
+        commands.add(Map.of("cmd", "fechFacNC", "data", INVOICE_DATE.format(invoiceDate)));
+        commands.add(Map.of("cmd", "conSerNC", "data", context.fiscalSerial()));
+        commands.add(Map.of("cmd", "rifCiNC", "data", RifFormatter.toFiscalForm(context.rif())));
+        commands.add(Map.of("cmd", "razSocNC", "data", splitBusinessName(context.businessName())));
+        for (int imp = 1; imp <= 5; imp++) {
+            commands.add(productLine("prodNC", imp));
+        }
+        commands.add(Map.of("cmd", "endPoNC", "data", 1, "valor", 0));
+        commands.add(Map.of(
+                "cmd", "fpaNC",
+                "data", Map.of("tipo", 1, "monto", -1, "tasaConv", 0)));
+        commands.add(Map.of("cmd", "endNC", "data", 1));
+        return writeJson(commands);
+    }
+
+    public String buildReportZPayload() {
+        return writeJson(Map.of("cmd", EnajenacionConstants.CMD_GEN_IMP_REP_Z, "data", 1));
+    }
+
+    private static Map<String, Object> productLine(String cmd, int imp) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("pre", 100);
+        data.put("cant", 1000);
+        data.put("imp", imp);
+        data.put("des01", "PRODUCTO");
+        return Map.of("cmd", cmd, "data", data);
+    }
+
+    private static Map<String, String> line(String cmd, String data) {
+        return Map.of("cmd", cmd, "data", data);
+    }
+
+    static List<String> splitBusinessName(String businessName) {
+        if (businessName == null || businessName.isBlank()) {
+            return List.of("");
+        }
+        String trimmed = businessName.trim();
+        if (trimmed.length() <= 45) {
+            return List.of(trimmed);
+        }
+        List<String> lines = new ArrayList<>();
+        int start = 0;
+        while (start < trimmed.length()) {
+            int end = Math.min(start + 45, trimmed.length());
+            if (end < trimmed.length()) {
+                int space = trimmed.lastIndexOf(' ', end);
+                if (space > start) {
+                    end = space;
+                }
+            }
+            lines.add(trimmed.substring(start, end).trim());
+            start = end;
+            while (start < trimmed.length() && trimmed.charAt(start) == ' ') {
+                start++;
+            }
+        }
+        return lines;
+    }
+
+    static AddressLines splitAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return new AddressLines("", "");
+        }
+        String trimmed = address.trim();
+        int newline = trimmed.indexOf('\n');
+        if (newline >= 0) {
+            return new AddressLines(
+                    trimmed.substring(0, newline).trim(),
+                    trimmed.substring(newline + 1).trim());
+        }
+        if (trimmed.length() <= 45) {
+            return new AddressLines(trimmed, "");
+        }
+        int split = trimmed.lastIndexOf(' ', 45);
+        if (split <= 0) {
+            split = 45;
+        }
+        return new AddressLines(trimmed.substring(0, split).trim(), trimmed.substring(split).trim());
+    }
+
+    record AddressLines(String line1, String line2) {
+    }
+
+    private String loadConfigSpiffsTemplate() {
+        if (configSpiffsTemplate != null) {
+            return configSpiffsTemplate;
+        }
+        synchronized (this) {
+            if (configSpiffsTemplate != null) {
+                return configSpiffsTemplate;
+            }
+            ClassPathResource resource = new ClassPathResource("fiscal/configSPIFFS.json");
+            try (InputStream input = resource.getInputStream()) {
+                configSpiffsTemplate = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+                return configSpiffsTemplate;
+            } catch (IOException ex) {
+                throw new EnajenacionProtocolException("Failed to load configSPIFFS template: " + ex.getMessage());
+            }
+        }
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new EnajenacionProtocolException("Failed to serialize MQTT payload: " + ex.getMessage());
+        }
+    }
+}
