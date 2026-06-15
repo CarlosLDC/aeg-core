@@ -30,8 +30,7 @@ import com.aeg.core.software.SoftwareRepository;
 
 @SpringBootTest(properties = {
         "app.mqtt.inbound.enabled=false",
-        "app.mqtt.enajenacion.enabled=true",
-        "app.mqtt.enajenacion.skip-registration-status=true"
+        "app.mqtt.enajenacion.enabled=true"
 })
 class EnajenacionMqttIT {
 
@@ -86,13 +85,14 @@ class EnajenacionMqttIT {
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
 
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
-        verify(mqttService, times(7)).publish(topicCaptor.capture(), payloadCaptor.capture());
+        verify(mqttService, times(8)).publish(topicCaptor.capture(), payloadCaptor.capture());
 
         List<String> topics = topicCaptor.getAllValues();
         List<String> payloads = payloadCaptor.getAllValues();
@@ -101,9 +101,10 @@ class EnajenacionMqttIT {
         assertThat(payloads.get(1)).contains("\"cmd\":\"fiscalAEG\"").contains("J-0000001");
         assertThat(payloads.get(2)).contains("paramFacSPIFF.json").contains("CONTRIBUYENTE ORDINARIO");
         assertThat(payloads.get(3)).contains("configSPIFFS.json");
-        assertThat(payloads.get(4)).contains("\"cmd\":\"proF\"");
-        assertThat(payloads.get(5)).contains("\"cmd\":\"nroFacNC\"");
-        assertThat(payloads.get(6)).contains("\"cmd\":\"genImpRepZ\"");
+        assertThat(payloads.get(4)).contains("\"cmd\":\"StaInf\"").contains("NroRegMa");
+        assertThat(payloads.get(5)).contains("\"cmd\":\"proF\"");
+        assertThat(payloads.get(6)).contains("\"cmd\":\"nroFacNC\"");
+        assertThat(payloads.get(7)).contains("\"cmd\":\"genImpRepZ\"");
 
         var updated = printerRepository.findById(fixture.printer().getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);

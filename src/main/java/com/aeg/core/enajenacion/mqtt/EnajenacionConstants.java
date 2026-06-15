@@ -12,6 +12,9 @@ public final class EnajenacionConstants {
     public static final String CMD_END_PO_NC = "endPoNC";
     public static final String CMD_END_NC = "endNC";
     public static final String CMD_GEN_IMP_REP_Z = "genImpRepZ";
+    public static final String CMD_STA_INF = "StaInf";
+
+    public static final String STA_INF_STATUS_NRO_REG_MA = "NroRegMa";
 
     public static final int DNF_END_OK = 7;
     public static final int INVOICE_END_OK = 8;

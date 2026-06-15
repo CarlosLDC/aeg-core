@@ -6,5 +6,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record FiscalMqttResponseItem(
         String cmd,
         Integer code,
-        Integer dataD) {
+        Integer dataD,
+        String dataS) {
+
+    public FiscalMqttResponseItem(String cmd, Integer code, Integer dataD) {
+        this(cmd, code, dataD, null);
+    }
 }

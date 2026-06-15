@@ -119,6 +119,13 @@ public class EnajenacionPayloadBuilder {
         return writeJson(Map.of("cmd", EnajenacionConstants.CMD_GEN_IMP_REP_Z, "data", 1));
     }
 
+    public String buildRegistrationStatusPayload() {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("cmd", EnajenacionConstants.CMD_STA_INF);
+        root.put("data", Map.of("status", EnajenacionConstants.STA_INF_STATUS_NRO_REG_MA));
+        return writeJson(root);
+    }
+
     private static Map<String, Object> productLine(String cmd, int imp) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("pre", 100);

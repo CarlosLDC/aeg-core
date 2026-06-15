@@ -34,4 +34,26 @@ class FiscalResponseValidatorTest {
         assertThatThrownBy(() -> validator.validateDnfResponse(items))
                 .isInstanceOf(EnajenacionProtocolException.class);
     }
+
+    @Test
+    void acceptsValidStaInfResponse() {
+        validator.validateStaInfResponse(
+                new FiscalMqttResponseItem(EnajenacionConstants.CMD_STA_INF, 0, null, "GRA0000017"),
+                "GRA0000017");
+    }
+
+    @Test
+    void acceptsStaInfWithTrimmedCmd() {
+        validator.validateStaInfResponse(
+                new FiscalMqttResponseItem(" StaInf ", 0, null, "GRA0000017"),
+                "GRA0000017");
+    }
+
+    @Test
+    void rejectsStaInfWithMismatchedDataS() {
+        assertThatThrownBy(() -> validator.validateStaInfResponse(
+                        new FiscalMqttResponseItem(EnajenacionConstants.CMD_STA_INF, 0, null, "GRA0000099"),
+                        "GRA0000017"))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
 }

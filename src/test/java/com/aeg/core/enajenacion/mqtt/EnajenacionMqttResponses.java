@@ -38,6 +38,10 @@ final class EnajenacionMqttResponses {
         return writeJson(new FiscalMqttResponseItem(EnajenacionConstants.CMD_W_FILE_SPIFF, 0, 0));
     }
 
+    static String staInfSuccess(String fiscalSerial) {
+        return writeJson(new FiscalMqttResponseItem(EnajenacionConstants.CMD_STA_INF, 0, null, fiscalSerial));
+    }
+
     static String invoiceSuccess() {
         List<FiscalMqttResponseItem> items = new ArrayList<>();
         IntStream.range(0, 5).forEach(i -> items.add(item("proF", 0)));

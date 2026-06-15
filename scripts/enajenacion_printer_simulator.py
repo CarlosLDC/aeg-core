@@ -134,17 +134,25 @@ def classify_command(payload: str) -> str:
             return "wfile:" + name
         if cmd == "genImpRepZ":
             return "report_z"
+        if cmd == "StaInf":
+            return "reg_status"
         return "object:" + cmd
     return "unknown"
 
 
-def build_response(kind: str) -> str:
+def sta_inf_success(fiscal_serial: str) -> dict:
+    return {"cmd": "StaInf", "code": 0, "dataS": fiscal_serial}
+
+
+def build_response(kind: str, fiscal_serial: str) -> str:
     if kind == "dnf":
         return json.dumps(dnf_success(), separators=(",", ":"))
     if kind == "fiscal_rif":
         return json.dumps(object_success("fiscalAEG"), separators=(",", ":"))
     if kind in ("header", "config"):
         return json.dumps(object_success("wFileSPIFF"), separators=(",", ":"))
+    if kind == "reg_status":
+        return json.dumps(sta_inf_success(fiscal_serial), separators=(",", ":"))
     if kind == "invoice":
         return json.dumps(invoice_success(), separators=(",", ":"))
     if kind == "credit_note":
@@ -217,7 +225,7 @@ def main() -> int:
         print(payload[:500] + ("..." if len(payload) > 500 else ""))
         try:
             kind = classify_command(payload)
-            response = build_response(kind)
+            response = build_response(kind, args.fiscal_serial)
             client.publish(cmd_server, response, qos=1)
             print(f">> Respuesta ({kind}) publicada en {cmd_server}")
         except Exception as ex:

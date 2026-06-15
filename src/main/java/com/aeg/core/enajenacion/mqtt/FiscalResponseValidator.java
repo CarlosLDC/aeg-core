@@ -24,11 +24,28 @@ public class FiscalResponseValidator {
     }
 
     public void validateObjectResponse(FiscalMqttResponseItem item, String expectedCmd) {
-        if (item == null || !expectedCmd.equals(item.cmd())) {
+        if (item == null || !cmdEquals(item.cmd(), expectedCmd)) {
             throw new EnajenacionProtocolException("Unexpected response cmd, expected " + expectedCmd);
         }
         assertSuccessCode(item);
         assertDataD(item, 0);
+    }
+
+    public void validateStaInfResponse(FiscalMqttResponseItem item, String expectedFiscalSerial) {
+        if (item == null || !cmdEquals(item.cmd(), EnajenacionConstants.CMD_STA_INF)) {
+            throw new EnajenacionProtocolException("Unexpected response cmd, expected StaInf");
+        }
+        assertSuccessCode(item);
+        if (item.dataS() == null || item.dataS().isBlank()) {
+            throw new EnajenacionProtocolException("StaInf response missing dataS");
+        }
+        if (!item.dataS().trim().equalsIgnoreCase(expectedFiscalSerial.trim())) {
+            throw new EnajenacionProtocolException(
+                    "StaInf dataS mismatch: expected "
+                            + expectedFiscalSerial
+                            + " but was "
+                            + item.dataS());
+        }
     }
 
     public void validateInvoiceResponse(List<FiscalMqttResponseItem> items) {
@@ -80,5 +97,14 @@ public class FiscalResponseValidator {
             throw new EnajenacionProtocolException(
                     "Command " + item.cmd() + " expected dataD=" + expected + " but was " + item.dataD());
         }
+    }
+
+    private static boolean cmdEquals(String actual, String expected) {
+        return normalizeCmd(actual) != null
+                && normalizeCmd(actual).equalsIgnoreCase(normalizeCmd(expected));
+    }
+
+    static String normalizeCmd(String cmd) {
+        return cmd == null ? null : cmd.trim();
     }
 }

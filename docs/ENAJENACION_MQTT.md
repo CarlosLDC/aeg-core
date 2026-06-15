@@ -208,7 +208,7 @@ Antes de iniciar el Paso 2, el servidor debe comprobar:
 | 3a | RIF + razón social | `fiscalAEG` | Objeto |
 | 3b | Encabezado / dirección | `wFileSPIFF` | Objeto |
 | 3c | Impuestos y formas de pago | `wFileSPIFF` | Objeto |
-| 4 | Estatus registro | *pendiente spec* | *pendiente* |
+| 4 | Estatus registro | `StaInf` | Objeto |
 | 5 | Factura de prueba | 8 comandos | Array |
 | 6 | Nota de crédito | 13 comandos | Array |
 | 7 | Reporte Z | `genImpRepZ` | Objeto |
@@ -420,19 +420,53 @@ Ver [Anexo — configSPIFFS.json](#193-paso-3c--configspiffsjson).
 
 ### Objetivo
 
-Consultar en la impresora el estatus del registro fiscal (`ptrReg`) tras cargar la configuración, antes de emitir documentos de prueba.
+Consultar en la impresora el número de registro fiscal (`ptrReg`) tras cargar la configuración, antes de emitir documentos de prueba.
 
-### Estado de la especificación
+### Comando (servidor → impresora)
 
-**Pendiente:** no se documentó aún el JSON exacto del comando ni la respuesta.
+Topic: `{mac}/AEG_Fiscal/Integracion/Comando`
 
-### Comportamiento esperado (inferido)
+```json
+{
+  "cmd": "StaInf",
+  "data": {
+    "status": "NroRegMa"
+  }
+}
+```
 
-- Topic salida: `{mac}/AEG_Fiscal/Integracion/Comando`
-- Probable uso de `ptrReg` y/o `macAddr` en `data`
-- Respuesta con `code === 0` si el registro está listo para continuar
+| Campo | Descripción |
+|-------|-------------|
+| `cmd` | `StaInf` — solicitud de información de estatus |
+| `data.status` | `NroRegMa` — número de registro de la máquina |
 
-Implementar cuando el equipo de firmware confirme el `cmd` exacto (ej. `ptrEstatus`, `getPtrReg`, etc.).
+### Respuesta (impresora → servidor)
+
+Topic: `{mac}/AEG_Fiscal/Integracion/CmdServer`
+
+```json
+{
+  "cmd": "StaInf",
+  "code": 0,
+  "dataS": "GRA0000017"
+}
+```
+
+| Campo | Descripción |
+|-------|-------------|
+| `code` | `0` = éxito |
+| `dataS` | Registro fiscal leído en la impresora; debe coincidir con `ptrReg` de la sesión |
+
+### Validación en AEG Core
+
+- `cmd` debe ser `StaInf` (se toleran espacios alrededor del nombre).
+- `code === 0`.
+- `dataS` no vacío y coincide con `Printer.fiscalSerial` / `ptrReg` del paso 1.
+
+### Configuración
+
+- `app.mqtt.enajenacion.skip-registration-status=false` (por defecto).
+- Timeout: `app.mqtt.enajenacion.timeout.reg-status-seconds=60`.
 
 ---
 
@@ -607,7 +641,7 @@ IDLE
   → HEADER_OK
   → CONFIG_SENT        (3c)
   → CONFIG_OK
-  → REG_STATUS_SENT    (4, pendiente)
+  → REG_STATUS_SENT    (4, StaInf)
   → REG_STATUS_OK
   → INVOICE_SENT       (5)
   → INVOICE_OK         (endFac dataD=8)
@@ -692,14 +726,13 @@ Permite reintentos, auditoría y diagnóstico sin depender solo de logs MQTT.
 
 ## 18. Pendientes y decisiones abiertas
 
-1. **Paso 4:** comando y respuesta exactos para estatus de registro.
-2. **Topic de respuestas:** ¿impresora responde en `CmdServer`, `Respuesta` u otro?
-3. **ACK Paso 1:** ¿el servidor debe responder algo a `ptrEnajenar` antes del DNF?
-4. **Código postal:** campo en BD o regla de formateo para `encFacFijo[2]`.
-5. **Número de factura:** ¿`nroFacNC` siempre `1` o viene en respuesta del Paso 5?
-6. **`subToF.dataD = 555`:** ¿valor fijo con la plantilla actual o calculado?
-7. **Re-enajenación:** comportamiento si la impresora reinicia a mitad de flujo.
-8. **Seguridad MQTT:** autenticación broker, ACL por MAC, TLS.
+1. **Topic de respuestas:** ¿impresora responde en `CmdServer`, `Respuesta` u otro?
+2. **ACK Paso 1:** ¿el servidor debe responder algo a `ptrEnajenar` antes del DNF?
+3. **Código postal:** campo en BD o regla de formateo para `encFacFijo[2]`.
+4. **Número de factura:** ¿`nroFacNC` siempre `1` o viene en respuesta del Paso 5?
+5. **`subToF.dataD = 555`:** ¿valor fijo con la plantilla actual o calculado?
+6. **Re-enajenación:** comportamiento si la impresora reinicia a mitad de flujo.
+7. **Seguridad MQTT:** autenticación broker, ACL por MAC, TLS.
 
 ---
 

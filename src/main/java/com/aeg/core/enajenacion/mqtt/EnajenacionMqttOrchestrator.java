@@ -176,6 +176,12 @@ public class EnajenacionMqttOrchestrator {
                 session.clearAwaiting();
                 afterConfigOk(session);
             }
+            case REG_STATUS_SENT -> {
+                responseValidator.validateStaInfResponse(item, session.context().fiscalSerial());
+                session.setState(EnajenacionSessionState.REG_STATUS_OK);
+                session.clearAwaiting();
+                publishInvoice(session);
+            }
             case REPORT_Z_SENT -> {
                 responseValidator.validateReportZResponse(item);
                 completionService.markEnajenada(session.printerId());
@@ -197,8 +203,7 @@ public class EnajenacionMqttOrchestrator {
             publishInvoice(session);
             return;
         }
-        session.setState(EnajenacionSessionState.REG_STATUS_OK);
-        publishInvoice(session);
+        publishRegistrationStatus(session);
     }
 
     private void publishDnf(EnajenacionSession session) {
@@ -219,6 +224,11 @@ public class EnajenacionMqttOrchestrator {
     private void publishConfigSpiffs(EnajenacionSession session) {
         publishAndAwait(session, EnajenacionSessionState.CONFIG_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildConfigSpiffsPayload(), settings.configTimeoutSeconds());
+    }
+
+    private void publishRegistrationStatus(EnajenacionSession session) {
+        publishAndAwait(session, EnajenacionSessionState.REG_STATUS_SENT, EnajenacionAwaitingKind.OBJECT,
+                payloadBuilder.buildRegistrationStatusPayload(), settings.regStatusTimeoutSeconds());
     }
 
     private void publishInvoice(EnajenacionSession session) {

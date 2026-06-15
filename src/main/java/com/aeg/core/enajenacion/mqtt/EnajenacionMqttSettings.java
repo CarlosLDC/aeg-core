@@ -12,8 +12,8 @@ public class EnajenacionMqttSettings {
     @Value("${app.mqtt.enajenacion.inbound-topic:+/AEG_Fiscal/Integracion/CmdServer}")
     private String inboundTopic = "+/AEG_Fiscal/Integracion/CmdServer";
 
-    @Value("${app.mqtt.enajenacion.skip-registration-status:true}")
-    private boolean skipRegistrationStatus = true;
+    @Value("${app.mqtt.enajenacion.skip-registration-status:false}")
+    private boolean skipRegistrationStatus = false;
 
     @Value("${app.mqtt.enajenacion.timeout.dnf-seconds:180}")
     private int dnfTimeoutSeconds;
@@ -23,6 +23,9 @@ public class EnajenacionMqttSettings {
 
     @Value("${app.mqtt.enajenacion.timeout.config-seconds:60}")
     private int configTimeoutSeconds;
+
+    @Value("${app.mqtt.enajenacion.timeout.reg-status-seconds:60}")
+    private int regStatusTimeoutSeconds;
 
     @Value("${app.mqtt.enajenacion.timeout.invoice-seconds:180}")
     private int invoiceTimeoutSeconds;
@@ -55,6 +58,10 @@ public class EnajenacionMqttSettings {
 
     public int configTimeoutSeconds() {
         return configTimeoutSeconds;
+    }
+
+    public int regStatusTimeoutSeconds() {
+        return regStatusTimeoutSeconds;
     }
 
     public int invoiceTimeoutSeconds() {
