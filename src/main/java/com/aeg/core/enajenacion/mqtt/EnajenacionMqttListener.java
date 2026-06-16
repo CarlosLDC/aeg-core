@@ -13,20 +13,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EnajenacionMqttListener implements ApplicationListener<MqttInboundReceivedEvent> {
 
-    private final EnajenacionMqttOrchestrator orchestrator;
-    private final EnajenacionMqttSettings settings;
+    private final EnajenacionMqttInboundProcessor inboundProcessor;
 
     @Override
     public void onApplicationEvent(MqttInboundReceivedEvent event) {
-        if (!settings.enabled()) {
-            return;
-        }
         String topic = event.message().topic();
         if (!FiscalMqttTopics.isFiscalInboundTopic(topic)) {
             return;
         }
         try {
-            orchestrator.handleInbound(topic, event.message().payload());
+            inboundProcessor.process(topic, event.message().payload());
         } catch (RuntimeException ex) {
             log.error("Unhandled enajenacion MQTT error topic={}: {}", topic, ex.getMessage(), ex);
         }

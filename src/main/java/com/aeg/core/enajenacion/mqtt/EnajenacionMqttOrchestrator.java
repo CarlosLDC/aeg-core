@@ -3,6 +3,7 @@ package com.aeg.core.enajenacion.mqtt;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -52,12 +53,19 @@ public class EnajenacionMqttOrchestrator {
     }
 
     public void handleInbound(String topic, String payload) {
+        handleInboundWithOutcome(topic, payload);
+    }
+
+    /**
+     * @return resultado solo cuando el payload es {@code ptrEnajenar}; vacío para respuestas del firmware.
+     */
+    public Optional<EnajenacionStartOutcome> handleInboundWithOutcome(String topic, String payload) {
         if (!settings.enabled()) {
-            return;
+            return Optional.empty();
         }
         String compactMac = FiscalMqttTopics.extractCompactMac(topic).orElse(null);
         if (compactMac == null) {
-            return;
+            return Optional.empty();
         }
 
         if (sessionRegistry.hasActiveSession(compactMac)) {
@@ -67,28 +75,29 @@ public class EnajenacionMqttOrchestrator {
             } else {
                 log.debug("Ignoring inbound for MAC {} while session state={}", compactMac, session.state());
             }
-            return;
+            return Optional.empty();
         }
 
-        handlePtrEnajenarRequest(compactMac, payload);
+        return Optional.of(handlePtrEnajenarRequest(compactMac, payload));
     }
 
-    private void handlePtrEnajenarRequest(String compactMac, String payload) {
+    private EnajenacionStartOutcome handlePtrEnajenarRequest(String compactMac, String payload) {
         PtrEnajenarMessage message;
         try {
             message = objectMapper.readValue(payload, PtrEnajenarMessage.class);
         } catch (IOException ex) {
             log.debug("Ignoring non-enajenacion payload on fiscal topic: {}", ex.getMessage());
-            return;
+            return EnajenacionStartOutcome.skipped();
         }
         if (!EnajenacionConstants.CMD_PTR_ENAJENAR.equals(message.cmd())) {
-            return;
+            return EnajenacionStartOutcome.skipped();
         }
         String ptrReg = message.ptrReg();
         String payloadMac = message.macAddr();
         if (ptrReg == null || ptrReg.isBlank() || payloadMac == null || payloadMac.isBlank()) {
+            String reason = "Invalid ptrEnajenar payload: missing ptrReg or macAddr";
             log.warn("Invalid ptrEnajenar payload for MAC {}: missing ptrReg or macAddr", compactMac);
-            return;
+            return EnajenacionStartOutcome.rejected(reason);
         }
 
         try {
@@ -105,10 +114,13 @@ public class EnajenacionMqttOrchestrator {
                     ptrReg,
                     compactMac);
             publishDnf(session);
+            return EnajenacionStartOutcome.started();
         } catch (EnajenacionAlreadyCompletedException ex) {
             log.info("Ignoring ptrEnajenar for already enajenada printer ptrReg={}", ptrReg);
+            return EnajenacionStartOutcome.alreadyCompleted();
         } catch (EnajenacionProtocolException ex) {
             log.warn("Enajenacion preconditions failed ptrReg={} mac={}: {}", ptrReg, compactMac, ex.getMessage());
+            return EnajenacionStartOutcome.rejected(ex.getMessage());
         }
     }
 

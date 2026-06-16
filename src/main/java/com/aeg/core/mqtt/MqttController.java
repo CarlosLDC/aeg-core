@@ -1,5 +1,8 @@
 package com.aeg.core.mqtt;
 
+import com.aeg.core.enajenacion.mqtt.EnajenacionMqttInboundProcessor;
+import com.aeg.core.enajenacion.mqtt.EnajenacionStartStatus;
+import com.aeg.core.mqtt.dto.MqttPublishEnajenacionResult;
 import com.aeg.core.mqtt.dto.MqttPublishRequest;
 import com.aeg.core.mqtt.dto.MqttPublishResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -33,6 +36,7 @@ public class MqttController {
     private final MqttMonitorStatusService mqttMonitorStatusService;
     private final MqttMessageHistory mqttMessageHistory;
     private final MqttSubscriptionManager mqttSubscriptionManager;
+    private final EnajenacionMqttInboundProcessor enajenacionInboundProcessor;
     private final ObjectMapper objectMapper;
 
     public MqttController(
@@ -41,12 +45,14 @@ public class MqttController {
             MqttMonitorStatusService mqttMonitorStatusService,
             MqttMessageHistory mqttMessageHistory,
             MqttSubscriptionManager mqttSubscriptionManager,
+            EnajenacionMqttInboundProcessor enajenacionInboundProcessor,
             @Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
         this.mqttService = mqttService;
         this.mqttConnectionProbeService = mqttConnectionProbeService;
         this.mqttMonitorStatusService = mqttMonitorStatusService;
         this.mqttMessageHistory = mqttMessageHistory;
         this.mqttSubscriptionManager = mqttSubscriptionManager;
+        this.enajenacionInboundProcessor = enajenacionInboundProcessor;
         this.objectMapper = objectMapper;
     }
 
@@ -82,11 +88,18 @@ public class MqttController {
 
         mqttService.publish(request.topic(), serializedPayload);
 
+        MqttPublishEnajenacionResult enajenacion = enajenacionInboundProcessor
+                .process(request.topic(), serializedPayload)
+                .filter(outcome -> outcome.status() != EnajenacionStartStatus.SKIPPED)
+                .map(outcome -> new MqttPublishEnajenacionResult(outcome.status(), outcome.message()))
+                .orElse(null);
+
         MqttPublishResponse response = new MqttPublishResponse(
             "sent",
             request.topic(),
             payload,
-            brokerUrl
+            brokerUrl,
+            enajenacion
         );
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
