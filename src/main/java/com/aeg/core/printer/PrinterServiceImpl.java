@@ -105,7 +105,13 @@ public class PrinterServiceImpl implements PrinterService {
             p.setSoftware(softwareRepository.findById(request.softwareId())
                 .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
         }
-        applyDistributor(p, resolveDistributorIdForWrite(request.distributorId()));
+        Long resolvedDistributorId = resolveDistributorIdForWrite(request.distributorId());
+        if (request.status() == PrinterStatus.SIN_ASIGNAR
+                || request.status() == PrinterStatus.DE_FABRICA) {
+            applyDistributor(p, null);
+        } else if (resolvedDistributorId != null) {
+            applyDistributor(p, resolvedDistributorId);
+        }
         if (request.clientId() != null) {
             var client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
