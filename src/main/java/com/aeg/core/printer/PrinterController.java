@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
 
@@ -47,6 +48,11 @@ public class PrinterController {
     @PutMapping("/{id}")
     public PrinterResponse update(@PathVariable Long id, @Valid @RequestBody PrinterRequest request) {
         return service.update(id, request);
+    }
+
+    @PostMapping("/{id}/enajenar")
+    public PrinterResponse dispose(@PathVariable Long id, @Valid @RequestBody PrinterDispositionRequest request) {
+        return service.dispose(id, request);
     }
 
     @DeleteMapping("/{id}")

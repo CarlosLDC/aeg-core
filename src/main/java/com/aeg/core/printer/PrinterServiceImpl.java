@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
 import com.aeg.core.security.Role;
@@ -135,6 +136,17 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     @Override
+    public PrinterResponse dispose(Long id, PrinterDispositionRequest request) {
+        Printer p = findEntityById(id);
+        securityScope.assertPrinterInScope(p);
+        Role role = currentUser().getRole();
+        if (role != Role.ADMIN && role != Role.DISTRIBUTOR) {
+            throw new AccessDeniedException("Cannot dispose printers");
+        }
+        return toResponse(applyDisposition(p, request.clientId(), request.installationDate()));
+    }
+
+    @Override
     public void delete(Long id) {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
@@ -177,13 +189,6 @@ public class PrinterServiceImpl implements PrinterService {
      * Distribuidor: única mutación permitida — enajenar impresora asignada a un cliente propio.
      */
     private Printer applyDistributorDisposition(Printer printer, PrinterRequest request) {
-        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
-            throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
-        }
-        if (!Boolean.TRUE.equals(printer.getPaid())) {
-            throw new IllegalArgumentException(
-                    "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
-        }
         if (request.status() != PrinterStatus.ENAJENADA) {
             throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
         }
@@ -192,14 +197,32 @@ public class PrinterServiceImpl implements PrinterService {
         }
         assertDispositionFieldsUnchanged(printer, request);
 
-        var client = clientRepository.findById(request.clientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
+        return applyDisposition(printer, request.clientId(), request.installationDate());
+    }
+
+    private Printer applyDisposition(
+            Printer printer,
+            Long clientId,
+            java.time.OffsetDateTime installationDate) {
+        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
+            throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
+        }
+        if (!Boolean.TRUE.equals(printer.getPaid())) {
+            throw new IllegalArgumentException(
+                    "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
+        }
+        if (clientId == null) {
+            throw new IllegalArgumentException("clientId is required to dispose a printer");
+        }
+
+        var client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + clientId));
         securityScope.assertClientInScope(client);
         printer.setClient(client);
         printer.setStatus(PrinterStatus.ENAJENADA);
         printer.setInstallationDate(
-                request.installationDate() != null
-                        ? request.installationDate()
+                installationDate != null
+                        ? installationDate
                         : java.time.OffsetDateTime.now());
         return repository.save(printer);
     }

@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,8 @@ import com.aeg.core.software.SoftwareRepository;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class PrinterControllerIT {
 
+    private static final AtomicInteger SERIAL_SEQUENCE = new AtomicInteger(2000000);
+
     @LocalServerPort
     int port;
 
@@ -45,6 +48,9 @@ public class PrinterControllerIT {
 
     @Autowired
     ClientRepository clientRepository;
+
+    @Autowired
+    PrinterRepository printerRepository;
 
     @Test
     void createAndGetPrinter() throws Exception {
@@ -126,9 +132,123 @@ public class PrinterControllerIT {
         assertThat(listRes.body()).contains("ABC1234567");
     }
 
+    @Test
+    void adminCanDisposeAssignedPaidPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        String body = "{\"clientId\":" + client.getId() + "}";
+        var res = postDispose(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"enajenada\"");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(updated.getClientId()).isEqualTo(client.getId());
+        assertThat(updated.getInstallationDate()).isNotNull();
+    }
+
+    @Test
+    void disposeRejectsUnpaidPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, false);
+
+        var res = postDispose(printer.getId(), "{\"clientId\":" + client.getId() + "}");
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.ASIGNADA);
+    }
+
+    @Test
+    void disposeRejectsPrinterThatIsNotAssigned() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.LABORATORIO, true);
+
+        var res = postDispose(printer.getId(), "{\"clientId\":" + client.getId() + "}");
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.LABORATORIO);
+    }
+
+    @Test
+    void disposeRejectsMissingClientId() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        var res = postDispose(printer.getId(), "{}");
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.ASIGNADA);
+    }
+
     private String basicAuthHeader() {
         String token = Base64.getEncoder()
                 .encodeToString("segar12345@gmail.com:aeg-r1".getBytes(StandardCharsets.UTF_8));
         return "Basic " + token;
+    }
+
+    private java.net.http.HttpResponse<String> postDispose(Long printerId, String body) throws Exception {
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printerId + "/enajenar"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    private Client createClient() {
+        Company company = new Company();
+        company.setBusinessName("Disposition IT Co " + SERIAL_SEQUENCE.incrementAndGet());
+        company.setRif("V" + SERIAL_SEQUENCE.get());
+        company.setContributorType(ContributorType.ORDINARIO);
+        company = companyRepository.save(company);
+
+        Branch branch = new Branch();
+        branch.setCompany(company);
+        branch.setCity("Caracas");
+        branch.setState("Distrito Capital");
+        branch.setAddress("Av. Principal");
+        branch = branchRepository.save(branch);
+
+        Client client = new Client();
+        client.setBranch(branch);
+        return clientRepository.save(client);
+    }
+
+    private Printer createPrinter(Client client, PrinterStatus status, boolean paid) {
+        PrinterModel model = new PrinterModel();
+        model.setBrand("DispBrand");
+        model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());
+        model.setPrice(new BigDecimal("0.00"));
+        model = modelRepository.save(model);
+
+        Printer printer = new Printer();
+        printer.setModel(model);
+        printer.setClient(client);
+        printer.setFiscalSerial(nextFiscalSerial());
+        printer.setFinalSalePrice(new BigDecimal("100.00"));
+        printer.setPaid(paid);
+        printer.setStatus(status);
+        printer.setDeviceType(DeviceType.INTERNO);
+        printer.setVersionFirmware("1.0.0");
+        printer.setMacAddress(nextMacAddress());
+        return printerRepository.save(printer);
+    }
+
+    private String nextFiscalSerial() {
+        return "TST" + String.format("%07d", SERIAL_SEQUENCE.incrementAndGet() % 10000000);
+    }
+
+    private String nextMacAddress() {
+        int value = SERIAL_SEQUENCE.incrementAndGet();
+        return String.format("AA:BB:CC:%02X:%02X:%02X",
+                (value >> 16) & 0xFF,
+                (value >> 8) & 0xFF,
+                value & 0xFF);
     }
 }
