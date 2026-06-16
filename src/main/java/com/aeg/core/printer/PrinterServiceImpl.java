@@ -117,13 +117,16 @@ public class PrinterServiceImpl implements PrinterService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
             securityScope.assertClientInScope(client);
             p.setClient(client);
-        } else {
+        } else if (request.status() == PrinterStatus.SIN_ASIGNAR
+                || request.status() == PrinterStatus.DE_FABRICA) {
             p.setClient(null);
         }
         p.setFiscalSerial(request.fiscalSerial());
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
-        p.setInstallationDate(request.installationDate());
+        if (request.installationDate() != null) {
+            p.setInstallationDate(request.installationDate());
+        }
         p.setVersionFirmware(request.versionFirmware());
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
