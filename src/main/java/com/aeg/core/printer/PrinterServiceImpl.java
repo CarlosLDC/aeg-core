@@ -171,6 +171,10 @@ public class PrinterServiceImpl implements PrinterService {
         if (printer.getStatus() != PrinterStatus.ASIGNADA) {
             throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
         }
+        if (!Boolean.TRUE.equals(printer.getPaid())) {
+            throw new IllegalArgumentException(
+                    "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
+        }
         if (request.status() != PrinterStatus.ENAJENADA) {
             throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
         }

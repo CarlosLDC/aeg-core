@@ -28,6 +28,10 @@ public class EnajenacionPreconditionValidator {
         if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
             throw new EnajenacionProtocolException("Printer status must be ASIGNADA or LABORATORIO");
         }
+        if (!Boolean.TRUE.equals(printer.getPaid())) {
+            throw new EnajenacionProtocolException(
+                    "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
+        }
         if (printer.getClient() == null) {
             throw new EnajenacionProtocolException("Printer has no assigned client");
         }
