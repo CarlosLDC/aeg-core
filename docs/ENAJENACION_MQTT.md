@@ -82,7 +82,7 @@ sequenceDiagram
 | Actor | Rol |
 |-------|-----|
 | **Impresora fiscal** | Inicia el flujo (Paso 1), ejecuta comandos, imprime DNF/factura/NC/Reporte Z, responde con `code` y `dataD`. |
-| **Broker MQTT** | Transporte pub/sub (en producción: red privada DO, ej. `tcp://10.116.0.4:1883`). |
+| **Broker MQTT** | Transporte pub/sub (producción: `tcp://206.189.231.128:1883`). |
 | **AEG Core** | Único cliente de suscripción “inteligente”; valida BD, orquesta pasos 2–7, persiste estado. |
 
 ### Topics
