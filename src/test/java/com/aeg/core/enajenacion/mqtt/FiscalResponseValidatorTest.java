@@ -2,8 +2,8 @@ package com.aeg.core.enajenacion.mqtt;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,21 +15,24 @@ class FiscalResponseValidatorTest {
 
     @Test
     void acceptsValidDnfResponse() {
-        List<FiscalMqttResponseItem> items = IntStream.range(0, 10)
-                .mapToObj(i -> new FiscalMqttResponseItem("efeNoDAnJuCeDNF", 0, 0))
-                .toList();
-        items = new java.util.ArrayList<>(items);
-        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, EnajenacionConstants.DNF_END_OK));
+        List<FiscalMqttResponseItem> items = validDnfResponse();
 
         validator.validateDnfResponse(items);
     }
 
     @Test
     void rejectsDnfWithWrongEndDataD() {
-        List<FiscalMqttResponseItem> items = IntStream.range(0, 10)
-                .mapToObj(i -> new FiscalMqttResponseItem("efeNoDAnJuCeDNF", 0, 0))
-                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
-        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, 0));
+        List<FiscalMqttResponseItem> items = validDnfResponse();
+        items.set(10, new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, 0));
+
+        assertThatThrownBy(() -> validator.validateDnfResponse(items))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void rejectsDnfWithWrongCommandOrder() {
+        List<FiscalMqttResponseItem> items = validDnfResponse();
+        items.set(1, new FiscalMqttResponseItem("efeNoDAnJuCeDNF", 0, 0));
 
         assertThatThrownBy(() -> validator.validateDnfResponse(items))
                 .isInstanceOf(EnajenacionProtocolException.class);
@@ -55,5 +58,102 @@ class FiscalResponseValidatorTest {
                         new FiscalMqttResponseItem(EnajenacionConstants.CMD_STA_INF, 0, null, "GRA0000099"),
                         "GRA0000017"))
                 .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void acceptsValidInvoiceResponse() {
+        validator.validateInvoiceResponse(validInvoiceResponse());
+    }
+
+    @Test
+    void rejectsInvoiceWithWrongCommandOrder() {
+        List<FiscalMqttResponseItem> items = validInvoiceResponse();
+        items.set(5, new FiscalMqttResponseItem("fpaF", 0, 0));
+
+        assertThatThrownBy(() -> validator.validateInvoiceResponse(items))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void rejectsInvoiceWithWrongSubtotalDataD() {
+        List<FiscalMqttResponseItem> items = validInvoiceResponse();
+        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_SUB_TO_F, 0, 0));
+
+        assertThatThrownBy(() -> validator.validateInvoiceResponse(items))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void acceptsValidCreditNoteResponse() {
+        validator.validateCreditNoteResponse(validCreditNoteResponse());
+    }
+
+    @Test
+    void rejectsCreditNoteWithWrongCommandOrder() {
+        List<FiscalMqttResponseItem> items = validCreditNoteResponse();
+        items.set(10, new FiscalMqttResponseItem("fpaNC", 0, 0));
+
+        assertThatThrownBy(() -> validator.validateCreditNoteResponse(items))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void rejectsCreditNoteWithWrongProdDataD() {
+        List<FiscalMqttResponseItem> items = validCreditNoteResponse();
+        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_PROD_NC, 0, 0));
+
+        assertThatThrownBy(() -> validator.validateCreditNoteResponse(items))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    @Test
+    void acceptsValidReportZResponse() {
+        validator.validateReportZResponse(
+                new FiscalMqttResponseItem(EnajenacionConstants.CMD_GEN_IMP_REP_Z, 0, 0));
+    }
+
+    @Test
+    void rejectsReportZWithWrongDataD() {
+        assertThatThrownBy(() -> validator.validateReportZResponse(
+                        new FiscalMqttResponseItem(EnajenacionConstants.CMD_GEN_IMP_REP_Z, 0, 1)))
+                .isInstanceOf(EnajenacionProtocolException.class);
+    }
+
+    private static List<FiscalMqttResponseItem> validDnfResponse() {
+        List<FiscalMqttResponseItem> items = new ArrayList<>();
+        items.add(new FiscalMqttResponseItem("aperDNF", 0, 0));
+        items.add(new FiscalMqttResponseItem("efeNeDAnJuCeDNF", 0, 0));
+        for (int i = 0; i < 8; i++) {
+            items.add(new FiscalMqttResponseItem("efeNoDAnJuCeDNF", 0, 0));
+        }
+        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, EnajenacionConstants.DNF_END_OK));
+        return items;
+    }
+
+    private static List<FiscalMqttResponseItem> validInvoiceResponse() {
+        List<FiscalMqttResponseItem> items = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            items.add(new FiscalMqttResponseItem("proF", 0, 0));
+        }
+        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_SUB_TO_F, 0, EnajenacionConstants.SUBTOTAL_DATA_D));
+        items.add(new FiscalMqttResponseItem("fpaF", 0, 0));
+        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_FAC, 0, EnajenacionConstants.INVOICE_END_OK));
+        return items;
+    }
+
+    private static List<FiscalMqttResponseItem> validCreditNoteResponse() {
+        List<FiscalMqttResponseItem> items = new ArrayList<>();
+        items.add(new FiscalMqttResponseItem("nroFacNC", 0, 0));
+        items.add(new FiscalMqttResponseItem("fechFacNC", 0, 0));
+        items.add(new FiscalMqttResponseItem("conSerNC", 0, 0));
+        items.add(new FiscalMqttResponseItem("rifCiNC", 0, 0));
+        items.add(new FiscalMqttResponseItem("razSocNC", 0, 0));
+        for (int i = 0; i < 5; i++) {
+            items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_PROD_NC, 0, EnajenacionConstants.PROD_NC_LINE_DATA_D));
+        }
+        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_PO_NC, 0, EnajenacionConstants.SUBTOTAL_DATA_D));
+        items.add(new FiscalMqttResponseItem("fpaNC", 0, 0));
+        items.add(new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_NC, 0, EnajenacionConstants.CREDIT_NOTE_END_OK));
+        return items;
     }
 }

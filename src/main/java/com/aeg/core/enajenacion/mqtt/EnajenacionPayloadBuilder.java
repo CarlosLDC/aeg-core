@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,10 +23,14 @@ public class EnajenacionPayloadBuilder {
     private static final DateTimeFormatter INVOICE_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final ObjectMapper objectMapper;
+    private final List<String> ticketFooterLines;
     private volatile String configSpiffsTemplate;
 
-    public EnajenacionPayloadBuilder(@Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
+    public EnajenacionPayloadBuilder(
+            @Qualifier("mqttObjectMapper") ObjectMapper objectMapper,
+            @Value("${app.mqtt.enajenacion.ticket-footer-lines:}") String ticketFooterLines) {
         this.objectMapper = objectMapper;
+        this.ticketFooterLines = parseTicketFooterLines(ticketFooterLines);
     }
 
     public String buildDnfAlertPayload() {
@@ -68,9 +73,13 @@ public class EnajenacionPayloadBuilder {
                 context.cityStateLine(),
                 context.contributorTypeLine());
 
-        Map<String, Object> contenido = Map.of("encFacFijo", encFacFijo);
+        Map<String, Object> contenido = new LinkedHashMap<>();
+        contenido.put("encFacFijo", encFacFijo);
+        if (!ticketFooterLines.isEmpty()) {
+            contenido.put("pieFacFijo", ticketFooterLines);
+        }
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("Access", "config");
+        data.put("Access", "AeG-1968-2024");
         data.put("nameFile", "paramFacSPIFF.json");
         data.put("contenido", contenido);
 
@@ -137,6 +146,16 @@ public class EnajenacionPayloadBuilder {
 
     private static Map<String, String> line(String cmd, String data) {
         return Map.of("cmd", cmd, "data", data);
+    }
+
+    static List<String> parseTicketFooterLines(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(raw.split("\\|", -1))
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .toList();
     }
 
     static List<String> splitBusinessName(String businessName) {

@@ -16,7 +16,7 @@ public final class FiscalMqttTopics {
     }
 
     public static String comandoTopic(String compactMac) {
-        return MacAddressNormalizer.toCompactForm(compactMac) + COMANDO_SUFFIX;
+        return "/" + MacAddressNormalizer.toCompactForm(compactMac) + COMANDO_SUFFIX;
     }
 
     public static Optional<String> extractCompactMac(String topic) {

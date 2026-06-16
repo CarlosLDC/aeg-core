@@ -1,5 +1,8 @@
 package com.aeg.core.config;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,6 +45,12 @@ public class MqttConfig {
 
     @Value("${app.mqtt.inbound.topic:aeg/telemetry/#}")
     private String inboundTopic;
+
+    @Value("${app.mqtt.enajenacion.enabled:true}")
+    private boolean enajenacionEnabled;
+
+    @Value("${app.mqtt.enajenacion.inbound-topic:+/AEG_Fiscal/Integracion/CmdServer}")
+    private String enajenacionInboundTopic;
 
     @Value("${app.mqtt.inbound.enabled:true}")
     private boolean inboundEnabled;
@@ -130,19 +139,44 @@ public class MqttConfig {
     @Bean
     @ConditionalOnProperty(name = "app.mqtt.inbound.enabled", havingValue = "true", matchIfMissing = true)
     public org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter mqttInbound() {
+        String[] topics = inboundTopics();
         org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter adapter =
                 new org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter(
                         MqttClientIds.clientId(clientIdBase) + "-in",
                         mqttClientFactory(),
-                        inboundTopic);
+                        topics);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new org.springframework.integration.mqtt.support.DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInboundChannel());
         // No bloquear el arranque HTTP (health checks en App Platform).
         adapter.setAutoStartup(false);
-        log.info("MQTT inbound enabled (topic={}, clientSuffix={})", inboundTopic, MqttClientIds.suffix());
+        log.info("MQTT inbound enabled (topics={}, clientSuffix={})", String.join(",", topics), MqttClientIds.suffix());
         return adapter;
+    }
+
+    String[] inboundTopics() {
+        Set<String> topics = new LinkedHashSet<>();
+        addTopic(topics, inboundTopic);
+        if (enajenacionEnabled) {
+            addFiscalTopicVariants(topics, enajenacionInboundTopic);
+        }
+        return topics.toArray(String[]::new);
+    }
+
+    private static void addTopic(Set<String> topics, String topic) {
+        if (topic != null && !topic.isBlank()) {
+            topics.add(topic.trim());
+        }
+    }
+
+    private static void addFiscalTopicVariants(Set<String> topics, String topic) {
+        if (topic == null || topic.isBlank()) {
+            return;
+        }
+        String normalized = topic.trim();
+        addTopic(topics, normalized);
+        addTopic(topics, normalized.startsWith("/") ? normalized.substring(1) : "/" + normalized);
     }
 
     @Bean

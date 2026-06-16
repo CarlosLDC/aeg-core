@@ -9,13 +9,61 @@ import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 @Component
 public class FiscalResponseValidator {
 
+    private static final List<String> DNF_RESPONSE_COMMANDS = List.of(
+            "aperDNF",
+            "efeNeDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            "efeNoDAnJuCeDNF",
+            EnajenacionConstants.CMD_END_DNF);
+
+    private static final List<String> INVOICE_RESPONSE_COMMANDS = List.of(
+            "proF",
+            "proF",
+            "proF",
+            "proF",
+            "proF",
+            EnajenacionConstants.CMD_SUB_TO_F,
+            "fpaF",
+            EnajenacionConstants.CMD_END_FAC);
+
+    private static final List<String> CREDIT_NOTE_RESPONSE_COMMANDS = List.of(
+            "nroFacNC",
+            "fechFacNC",
+            "conSerNC",
+            "rifCiNC",
+            "razSocNC",
+            EnajenacionConstants.CMD_PROD_NC,
+            EnajenacionConstants.CMD_PROD_NC,
+            EnajenacionConstants.CMD_PROD_NC,
+            EnajenacionConstants.CMD_PROD_NC,
+            EnajenacionConstants.CMD_PROD_NC,
+            EnajenacionConstants.CMD_END_PO_NC,
+            "fpaNC",
+            EnajenacionConstants.CMD_END_NC);
+
     public void validateDnfResponse(List<FiscalMqttResponseItem> items) {
-        if (items == null || items.size() != 11) {
-            throw new EnajenacionProtocolException("DNF response must contain 11 items");
+        if (items == null || items.size() != DNF_RESPONSE_COMMANDS.size()) {
+            throw new EnajenacionProtocolException(
+                    "DNF response must contain " + DNF_RESPONSE_COMMANDS.size() + " items");
         }
-        for (FiscalMqttResponseItem item : items) {
+        for (int i = 0; i < items.size(); i++) {
+            FiscalMqttResponseItem item = items.get(i);
+            String expectedCmd = DNF_RESPONSE_COMMANDS.get(i);
+            if (item == null) {
+                throw new EnajenacionProtocolException("DNF response item at index " + i + " is null");
+            }
+            if (!cmdEquals(item.cmd(), expectedCmd)) {
+                throw new EnajenacionProtocolException(
+                        "Unexpected DNF response cmd at index " + i + ", expected " + expectedCmd);
+            }
             assertSuccessCode(item);
-            if (EnajenacionConstants.CMD_END_DNF.equals(item.cmd())) {
+            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_DNF)) {
                 assertDataD(item, EnajenacionConstants.DNF_END_OK);
             } else {
                 assertDataD(item, 0);
@@ -49,14 +97,24 @@ public class FiscalResponseValidator {
     }
 
     public void validateInvoiceResponse(List<FiscalMqttResponseItem> items) {
-        if (items == null || items.size() != 8) {
-            throw new EnajenacionProtocolException("Invoice response must contain 8 items");
+        if (items == null || items.size() != INVOICE_RESPONSE_COMMANDS.size()) {
+            throw new EnajenacionProtocolException(
+                    "Invoice response must contain " + INVOICE_RESPONSE_COMMANDS.size() + " items");
         }
-        for (FiscalMqttResponseItem item : items) {
+        for (int i = 0; i < items.size(); i++) {
+            FiscalMqttResponseItem item = items.get(i);
+            String expectedCmd = INVOICE_RESPONSE_COMMANDS.get(i);
+            if (item == null) {
+                throw new EnajenacionProtocolException("Invoice response item at index " + i + " is null");
+            }
+            if (!cmdEquals(item.cmd(), expectedCmd)) {
+                throw new EnajenacionProtocolException(
+                        "Unexpected invoice response cmd at index " + i + ", expected " + expectedCmd);
+            }
             assertSuccessCode(item);
-            if (EnajenacionConstants.CMD_SUB_TO_F.equals(item.cmd())) {
+            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_SUB_TO_F)) {
                 assertDataD(item, EnajenacionConstants.SUBTOTAL_DATA_D);
-            } else if (EnajenacionConstants.CMD_END_FAC.equals(item.cmd())) {
+            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_FAC)) {
                 assertDataD(item, EnajenacionConstants.INVOICE_END_OK);
             } else {
                 assertDataD(item, 0);
@@ -65,16 +123,26 @@ public class FiscalResponseValidator {
     }
 
     public void validateCreditNoteResponse(List<FiscalMqttResponseItem> items) {
-        if (items == null || items.size() != 13) {
-            throw new EnajenacionProtocolException("Credit note response must contain 13 items");
+        if (items == null || items.size() != CREDIT_NOTE_RESPONSE_COMMANDS.size()) {
+            throw new EnajenacionProtocolException(
+                    "Credit note response must contain " + CREDIT_NOTE_RESPONSE_COMMANDS.size() + " items");
         }
-        for (FiscalMqttResponseItem item : items) {
+        for (int i = 0; i < items.size(); i++) {
+            FiscalMqttResponseItem item = items.get(i);
+            String expectedCmd = CREDIT_NOTE_RESPONSE_COMMANDS.get(i);
+            if (item == null) {
+                throw new EnajenacionProtocolException("Credit note response item at index " + i + " is null");
+            }
+            if (!cmdEquals(item.cmd(), expectedCmd)) {
+                throw new EnajenacionProtocolException(
+                        "Unexpected credit note response cmd at index " + i + ", expected " + expectedCmd);
+            }
             assertSuccessCode(item);
-            if (EnajenacionConstants.CMD_PROD_NC.equals(item.cmd())) {
+            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_PROD_NC)) {
                 assertDataD(item, EnajenacionConstants.PROD_NC_LINE_DATA_D);
-            } else if (EnajenacionConstants.CMD_END_PO_NC.equals(item.cmd())) {
+            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_PO_NC)) {
                 assertDataD(item, EnajenacionConstants.SUBTOTAL_DATA_D);
-            } else if (EnajenacionConstants.CMD_END_NC.equals(item.cmd())) {
+            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_NC)) {
                 assertDataD(item, EnajenacionConstants.CREDIT_NOTE_END_OK);
             } else {
                 assertDataD(item, 0);

@@ -17,7 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class EnajenacionMqttInboundProcessorTest {
 
-    private static final String TOPIC = "206EF1884C68/AEG_Fiscal/Integracion/CmdServer";
+    private static final String TOPIC = "/206EF1884C68/AEG_Fiscal/Integracion/CmdServer";
     private static final String PAYLOAD =
             "{\"cmd\":\"ptrEnajenar\",\"data\":{\"ptrReg\":\"GRA0000017\",\"macAddr\":\"20:6E:F1:88:4C:68\"}}";
 

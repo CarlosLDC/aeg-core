@@ -3,9 +3,9 @@
 Simulador de impresora fiscal AEG para pruebas del protocolo de enajenación MQTT.
 
 Responde automáticamente a los comandos publicados por AEG Core en
-  {mac}/AEG_Fiscal/Integracion/Comando
+  /{mac}/AEG_Fiscal/Integracion/Comando
 y envía respuestas (y opcionalmente ptrEnajenar) a
-  {mac}/AEG_Fiscal/Integracion/CmdServer
+  /{mac}/AEG_Fiscal/Integracion/CmdServer
 
 Requisitos:
   pip install -r scripts/requirements-mqtt-sim.txt
@@ -141,7 +141,7 @@ def classify_command(payload: str) -> str:
 
 
 def sta_inf_success(fiscal_serial: str) -> dict:
-    return {"cmd": "StaInf", "code": 0, "dataS": fiscal_serial}
+    return {"cmd": " StaInf ", "code": 0, "dataS": fiscal_serial}
 
 
 def build_response(kind: str, fiscal_serial: str) -> str:
@@ -199,8 +199,8 @@ def main() -> int:
         return 2
 
     mac_compact = compact_mac(args.mac)
-    cmd_server = f"{mac_compact}/AEG_Fiscal/Integracion/CmdServer"
-    comando = f"{mac_compact}/AEG_Fiscal/Integracion/Comando"
+    cmd_server = f"/{mac_compact}/AEG_Fiscal/Integracion/CmdServer"
+    comando = f"/{mac_compact}/AEG_Fiscal/Integracion/Comando"
     host, port = parse_broker(args.broker)
     client_id = args.client_id or f"aeg-printer-sim-{mac_compact.lower()}"
 

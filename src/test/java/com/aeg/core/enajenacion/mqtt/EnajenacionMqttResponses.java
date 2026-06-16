@@ -39,7 +39,7 @@ final class EnajenacionMqttResponses {
     }
 
     static String staInfSuccess(String fiscalSerial) {
-        return writeJson(new FiscalMqttResponseItem(EnajenacionConstants.CMD_STA_INF, 0, null, fiscalSerial));
+        return writeJson(new FiscalMqttResponseItem(" StaInf ", 0, null, fiscalSerial));
     }
 
     static String invoiceSuccess() {

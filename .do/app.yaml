@@ -50,3 +50,7 @@ services:
         value: "true"
       - key: MQTT_INBOUND_TOPIC
         value: "aeg/telemetry/#"
+      - key: MQTT_ENAJENACION_INBOUND_TOPIC
+        value: "+/AEG_Fiscal/Integracion/CmdServer"
+      - key: MQTT_ENAJENACION_TICKET_FOOTER_LINES
+        value: ""

@@ -91,22 +91,23 @@ Todos los topics usan la **MAC sin separadores** (12 caracteres hexadecimales en
 
 | Topic | Dirección | Uso |
 |-------|-----------|-----|
-| `{mac}/AEG_Fiscal/Integracion/CmdServer` | Impresora → Servidor | Paso 1: `ptrEnajenar`. Posible canal de respuestas (confirmar con firmware). |
-| `{mac}/AEG_Fiscal/Integracion/Comando` | Servidor → Impresora | Pasos 2–7: todos los comandos de enajenación. |
+| `/{mac}/AEG_Fiscal/Integracion/CmdServer` | Impresora → Servidor | Paso 1: `ptrEnajenar`. Posible canal de respuestas (confirmar con firmware). |
+| `/{mac}/AEG_Fiscal/Integracion/Comando` | Servidor → Impresora | Pasos 2–7: todos los comandos de enajenación. |
 
 **Ejemplo** (MAC `20:6E:F1:88:4C:68`):
 
 ```
-206EF1884C68/AEG_Fiscal/Integracion/CmdServer   ← impresora publica
-206EF1884C68/AEG_Fiscal/Integracion/Comando     ← servidor publica
+/206EF1884C68/AEG_Fiscal/Integracion/CmdServer   ← impresora publica
+/206EF1884C68/AEG_Fiscal/Integracion/Comando     ← servidor publica
 ```
 
-> **Nota:** Algunos documentos muestran un `/` inicial (`/206EF1884C68/...`). En MQTT el topic suele ser sin barra inicial; normalizar al publicar/suscribir.
+> **Nota:** el firmware fiscal usa `/` inicial (`/206EF1884C68/...`). El backend también acepta mensajes entrantes sin `/` para compatibilidad, pero publica comandos con `/`.
 
 ### Suscripción recomendada en AEG Core
 
 ```
 +/AEG_Fiscal/Integracion/CmdServer
+/+/AEG_Fiscal/Integracion/CmdServer
 ```
 
 Opcional (si las respuestas no llegan por CmdServer):
@@ -213,7 +214,7 @@ Antes de iniciar el Paso 2, el servidor debe comprobar:
 | 6 | Nota de crédito | 13 comandos | Array |
 | 7 | Reporte Z | `genImpRepZ` | Objeto |
 
-Todos los pasos 2–7 publican en **`{mac}/AEG_Fiscal/Integracion/Comando`**, salvo el Paso 1 que la impresora envía a **`CmdServer`**.
+Todos los pasos 2–7 publican en **`/{mac}/AEG_Fiscal/Integracion/Comando`**, salvo el Paso 1 que la impresora envía a **`CmdServer`**.
 
 ---
 
@@ -268,7 +269,7 @@ Imprimir un **Documento No Fiscal (DNF)** en la impresora advirtiendo que entrar
 ### Topic (servidor → impresora)
 
 ```text
-{mac}/AEG_Fiscal/Integracion/Comando
+/{mac}/AEG_Fiscal/Integracion/Comando
 ```
 
 ### Comando (array de 11 elementos)
@@ -365,7 +366,7 @@ Graba `paramFacSPIFF.json`.
 {
   "cmd": "wFileSPIFF",
   "data": {
-    "Access": "config",
+    "Access": "AeG-1968-2024",
     "nameFile": "paramFacSPIFF.json",
     "contenido": {
       "encFacFijo": [
@@ -373,6 +374,11 @@ Graba `paramFacSPIFF.json`.
         "PISO PB LOCAL -005-C URB. LA CANDELARIA",
         "CARACAS, DISTRITO CAPITAL ZONA POSTAL 1071",
         "CONTRIBUYENTE ORDINARIO"
+      ],
+      "pieFacFijo": [
+        "PIE DE TICKET 01",
+        "PIE DE TICKET 02",
+        "PIE DE TICKET 03"
       ]
     }
   }
@@ -385,6 +391,7 @@ Graba `paramFacSPIFF.json`.
 | `encFacFijo[1]` | Segunda parte de `Branch.address` (partir si excede longitud máxima del firmware) |
 | `encFacFijo[2]` | `{city}, {state}` + código postal si existe |
 | `encFacFijo[3]` | Texto derivado de `Company.contributorType` |
+| `pieFacFijo[]` | Configuración opcional `app.mqtt.enajenacion.ticket-footer-lines` separada por `|` |
 
 > **Gap BD:** no hay campo de código postal en `Branch`. Definir regla (campo nuevo, constante vacía, o omitir “ZONA POSTAL”).
 
@@ -424,7 +431,7 @@ Consultar en la impresora el número de registro fiscal (`ptrReg`) tras cargar l
 
 ### Comando (servidor → impresora)
 
-Topic: `{mac}/AEG_Fiscal/Integracion/Comando`
+Topic: `/{mac}/AEG_Fiscal/Integracion/Comando`
 
 ```json
 {
@@ -442,11 +449,11 @@ Topic: `{mac}/AEG_Fiscal/Integracion/Comando`
 
 ### Respuesta (impresora → servidor)
 
-Topic: `{mac}/AEG_Fiscal/Integracion/CmdServer`
+Topic: `/{mac}/AEG_Fiscal/Integracion/CmdServer`
 
 ```json
 {
-  "cmd": "StaInf",
+  "cmd": " StaInf ",
   "code": 0,
   "dataS": "GRA0000017"
 }

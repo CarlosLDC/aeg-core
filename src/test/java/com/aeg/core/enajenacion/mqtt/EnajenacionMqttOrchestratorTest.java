@@ -31,7 +31,7 @@ class EnajenacionMqttOrchestratorTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        EnajenacionPayloadBuilder payloadBuilder = new EnajenacionPayloadBuilder(objectMapper);
+        EnajenacionPayloadBuilder payloadBuilder = new EnajenacionPayloadBuilder(objectMapper, "");
         EnajenacionSessionRegistry registry = new EnajenacionSessionRegistry();
         FiscalResponseValidator responseValidator = new FiscalResponseValidator();
         EnajenacionMqttSettings settings = new EnajenacionMqttSettings();
@@ -61,6 +61,8 @@ class EnajenacionMqttOrchestratorTest {
 
     @Test
     void extractsMacFromFiscalTopic() {
+        assertThat(FiscalMqttTopics.extractCompactMac("/206EF1884C68/AEG_Fiscal/Integracion/CmdServer"))
+                .contains("206EF1884C68");
         assertThat(FiscalMqttTopics.extractCompactMac("206EF1884C68/AEG_Fiscal/Integracion/CmdServer"))
                 .contains("206EF1884C68");
     }
