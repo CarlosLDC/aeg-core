@@ -156,7 +156,7 @@ Solo debe haber **una sesión activa por MAC**. Si la impresora reenvía `ptrEna
 Printer
   ├── fiscalSerial     → ptrReg / conSerNC
   ├── macAddress       → macAddr / topic
-  ├── status           → debe ser ASIGNADA al iniciar
+  ├── status           → debe ser ASIGNADA o LABORATORIO al iniciar
   ├── clientId         → cliente destino de la enajenación
   └── distributorId
 
@@ -176,7 +176,7 @@ Antes de iniciar el Paso 2, el servidor debe comprobar:
 |-------|----------------|
 | Existe impresora con `fiscalSerial = ptrReg` | No encontrada |
 | `macAddress` coincide con payload y topic | MAC mismatch |
-| `status = ASIGNADA` | No apta para enajenación |
+| `status = ASIGNADA` o `LABORATORIO` | No apta para enajenación |
 | `clientId != null` | Sin cliente asignado |
 | Cliente → Company tiene `rif` y `businessName` | Datos fiscales incompletos |
 | Branch tiene `address`, `city`, `state` | Encabezado incompleto (Paso 3b) |
@@ -682,7 +682,7 @@ Timeout global de sesión: ~15–20 minutos.
 ### Antes del flujo (precondición)
 
 ```text
-Printer.status = ASIGNADA
+Printer.status = ASIGNADA o LABORATORIO
 Printer.clientId = <cliente destino>
 Printer.fiscalSerial = ptrReg
 Printer.macAddress = macAddr
@@ -794,7 +794,7 @@ Ver [sección 7](#7-paso-2a--dnf-de-alerta).
 |---------|-----------|
 | Monitor MQTT | [MQTT_MONITOR.md](./MQTT_MONITOR.md) |
 | Enajenación REST | `PrinterServiceImpl.applyDistributorDisposition` |
-| Estados impresora | `PrinterStatus.ENAJENADA`, `ASIGNADA` |
+| Estados impresora | `PrinterStatus.ENAJENADA`, `ASIGNADA`, `LABORATORIO` |
 | Config MQTT prod | `.do/app.yaml`, `application.properties` |
 
 ---

@@ -39,6 +39,7 @@ class EnajenacionMqttIT {
     private static final String MAC_3 = "AA:BB:CC:DD:EE:02";
     private static final String MAC_4 = "AA:BB:CC:DD:EE:03";
     private static final String MAC_5 = "AA:BB:CC:DD:EE:04";
+    private static final String MAC_6 = "AA:BB:CC:DD:EE:06";
 
     @Autowired
     ApplicationEventPublisher eventPublisher;
@@ -112,6 +113,36 @@ class EnajenacionMqttIT {
     }
 
     @Test
+    void fullEnajenacionFlowMarksLaboratorioPrinterEnajenada() {
+        var fixture = EnajenacionTestData.seedAssignedPrinter(
+                companyRepository,
+                branchRepository,
+                clientRepository,
+                modelRepository,
+                softwareRepository,
+                printerRepository,
+                "GRA0000007",
+                MAC_6,
+                PrinterStatus.LABORATORIO);
+
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
+
+        verify(mqttService, times(8)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
+
+        var updated = printerRepository.findById(fixture.printer().getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(updated.getInstallationDate()).isNotNull();
+    }
+
+    @Test
     void ptrEnajenarIgnoredWhenPrinterNotAssigned() {
         var fixture = EnajenacionTestData.seedAssignedPrinter(
                 companyRepository,
@@ -122,13 +153,13 @@ class EnajenacionMqttIT {
                 printerRepository,
                 "GRA0000002",
                 MAC_2,
-                PrinterStatus.LABORATORIO);
+                PrinterStatus.SIN_ASIGNAR);
 
         sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
 
         verifyNoInteractions(mqttService);
         assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
-                .isEqualTo(PrinterStatus.LABORATORIO);
+                .isEqualTo(PrinterStatus.SIN_ASIGNAR);
     }
 
     @Test

@@ -25,8 +25,8 @@ public class EnajenacionPreconditionValidator {
         if (printer.getStatus() == PrinterStatus.ENAJENADA) {
             throw new EnajenacionAlreadyCompletedException("Printer already enajenada");
         }
-        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
-            throw new EnajenacionProtocolException("Printer status must be ASIGNADA");
+        if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
+            throw new EnajenacionProtocolException("Printer status must be ASIGNADA or LABORATORIO");
         }
         if (printer.getClient() == null) {
             throw new EnajenacionProtocolException("Printer has no assigned client");

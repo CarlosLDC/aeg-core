@@ -24,7 +24,7 @@ public class EnajenacionCompletionService {
         if (printer.getStatus() == PrinterStatus.ENAJENADA) {
             return;
         }
-        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
+        if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
             throw new EnajenacionProtocolException("Cannot complete enajenacion from status " + printer.getStatus());
         }
         printer.setStatus(PrinterStatus.ENAJENADA);

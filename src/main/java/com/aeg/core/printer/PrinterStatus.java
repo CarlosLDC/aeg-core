@@ -22,6 +22,11 @@ public enum PrinterStatus {
         return value;
     }
 
+    /** Impresoras en campo o en laboratorio pueden iniciar enajenación MQTT. */
+    public boolean isEligibleForMqttEnajenacion() {
+        return this == ASIGNADA || this == LABORATORIO;
+    }
+
     @JsonCreator
     public static PrinterStatus fromValue(String v) {
         if (v == null) return null;
