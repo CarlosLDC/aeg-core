@@ -134,6 +134,21 @@ public class EnajenacionMqttOrchestrator {
             if (!session.isAwaitingResponse()) {
                 return;
             }
+            boolean arrayPayload = isJsonArrayPayload(payload);
+            if (session.awaitingKind() == EnajenacionAwaitingKind.ARRAY && !arrayPayload) {
+                log.debug(
+                        "Ignoring non-array device response mac={} state={}",
+                        session.compactMac(),
+                        session.state());
+                return;
+            }
+            if (session.awaitingKind() == EnajenacionAwaitingKind.OBJECT && arrayPayload) {
+                log.debug(
+                        "Ignoring array device response while awaiting object mac={} state={}",
+                        session.compactMac(),
+                        session.state());
+                return;
+            }
             try {
                 if (session.awaitingKind() == EnajenacionAwaitingKind.ARRAY) {
                     List<FiscalMqttResponseItem> items = parseArrayResponse(payload);
@@ -147,6 +162,14 @@ public class EnajenacionMqttOrchestrator {
                 failSession(session, ex.getMessage());
             }
         }
+    }
+
+    private static boolean isJsonArrayPayload(String payload) {
+        if (payload == null) {
+            return false;
+        }
+        String trimmed = payload.stripLeading();
+        return trimmed.startsWith("[");
     }
 
     private void advanceAfterArrayResponse(EnajenacionSession session, List<FiscalMqttResponseItem> items) {

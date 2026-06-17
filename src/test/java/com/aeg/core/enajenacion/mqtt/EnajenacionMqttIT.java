@@ -223,6 +223,27 @@ class EnajenacionMqttIT {
                 .isEqualTo(PrinterStatus.ASIGNADA);
     }
 
+    @Test
+    void duplicateDnfResponseAfterAdvanceDoesNotFailSession() {
+        var fixture = EnajenacionTestData.seedAssignedPrinter(
+                companyRepository,
+                branchRepository,
+                clientRepository,
+                modelRepository,
+                softwareRepository,
+                printerRepository,
+                "GRA0000008",
+                MAC_1,
+                PrinterStatus.ASIGNADA);
+
+        String dnfResponse = EnajenacionMqttResponses.dnfSuccess();
+        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendInbound(fixture.compactMac(), dnfResponse);
+        sendInbound(fixture.compactMac(), dnfResponse);
+
+        verify(mqttService, times(2)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
+    }
+
     private void sendInbound(String compactMac, String payload) {
         String topic = compactMac + "/AEG_Fiscal/Integracion/CmdServer";
         eventPublisher.publishEvent(new MqttInboundReceivedEvent(
