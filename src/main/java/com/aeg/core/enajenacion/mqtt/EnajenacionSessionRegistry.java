@@ -1,5 +1,6 @@
 package com.aeg.core.enajenacion.mqtt;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,6 +33,12 @@ public class EnajenacionSessionRegistry {
 
     public void remove(String compactMac) {
         byMac.remove(normalize(compactMac));
+    }
+
+    public List<EnajenacionSession> listActive() {
+        return byMac.values().stream()
+                .filter(session -> !session.isTerminal())
+                .toList();
     }
 
     private static String normalize(String compactMac) {

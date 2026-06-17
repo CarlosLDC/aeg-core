@@ -5,6 +5,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Component;
 
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityRecorder;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,6 +25,7 @@ public class EnajenacionMqttInboundProcessor {
     private final EnajenacionMqttOrchestrator orchestrator;
     private final EnajenacionMqttSettings settings;
     private final EnajenacionSessionRegistry sessionRegistry;
+    private final EnajenacionActivityRecorder activityRecorder;
     private final ConcurrentHashMap<String, Long> recentInbound = new ConcurrentHashMap<>();
 
     public Optional<EnajenacionStartOutcome> process(String topic, String payload) {
@@ -35,6 +39,16 @@ public class EnajenacionMqttInboundProcessor {
                         .isPresent();
         if (!awaitingDeviceResponse && isDuplicate(topic, payload)) {
             log.debug("Skipping duplicate enajenacion inbound topic={}", topic);
+            String mac = compactMac != null ? compactMac : "";
+            activityRecorder.recordInbound(
+                    topic,
+                    payload,
+                    mac,
+                    null,
+                    null,
+                    EnajenacionActivityResult.IGNORED,
+                    "Duplicate inbound within dedupe window",
+                    null);
             return Optional.empty();
         }
         return orchestrator.handleInboundWithOutcome(topic, payload);

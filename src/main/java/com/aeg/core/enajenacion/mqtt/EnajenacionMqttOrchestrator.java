@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityRecorder;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.enajenacion.mqtt.dto.PtrEnajenarMessage;
 import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
@@ -33,6 +35,7 @@ public class EnajenacionMqttOrchestrator {
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
     private final EnajenacionSseNotifier sseNotifier;
+    private final EnajenacionActivityRecorder activityRecorder;
 
     public EnajenacionMqttOrchestrator(
             EnajenacionPreconditionValidator preconditionValidator,
@@ -44,7 +47,8 @@ public class EnajenacionMqttOrchestrator {
             EnajenacionMqttSettings settings,
             @Qualifier("mqttObjectMapper") ObjectMapper objectMapper,
             @Qualifier("enajenacionTaskScheduler") TaskScheduler taskScheduler,
-            EnajenacionSseNotifier sseNotifier) {
+            EnajenacionSseNotifier sseNotifier,
+            EnajenacionActivityRecorder activityRecorder) {
         this.preconditionValidator = preconditionValidator;
         this.sessionRegistry = sessionRegistry;
         this.payloadBuilder = payloadBuilder;
@@ -55,6 +59,7 @@ public class EnajenacionMqttOrchestrator {
         this.objectMapper = objectMapper;
         this.taskScheduler = taskScheduler;
         this.sseNotifier = sseNotifier;
+        this.activityRecorder = activityRecorder;
     }
 
     public void handleInbound(String topic, String payload) {
@@ -76,21 +81,30 @@ public class EnajenacionMqttOrchestrator {
         if (sessionRegistry.hasActiveSession(compactMac)) {
             if (isPtrEnajenarPayload(payload)) {
                 sessionRegistry.find(compactMac).ifPresent(this::abandonSessionForRestart);
-                return Optional.of(handlePtrEnajenarRequest(compactMac, payload));
+                return Optional.of(handlePtrEnajenarRequest(topic, compactMac, payload));
             }
             EnajenacionSession session = sessionRegistry.find(compactMac).orElseThrow();
             if (session.isAwaitingResponse()) {
-                handleDeviceResponse(session, payload);
+                handleDeviceResponse(session, topic, payload);
             } else {
                 log.debug("Ignoring inbound for MAC {} while session state={}", compactMac, session.state());
+                activityRecorder.recordInbound(
+                        topic,
+                        payload,
+                        compactMac,
+                        session.printerId(),
+                        session.context().fiscalSerial(),
+                        EnajenacionActivityResult.IGNORED,
+                        "Session not awaiting response in state " + session.state(),
+                        session.state());
             }
             return Optional.empty();
         }
 
-        return Optional.of(handlePtrEnajenarRequest(compactMac, payload));
+        return Optional.of(handlePtrEnajenarRequest(topic, compactMac, payload));
     }
 
-    private EnajenacionStartOutcome handlePtrEnajenarRequest(String compactMac, String payload) {
+    private EnajenacionStartOutcome handlePtrEnajenarRequest(String topic, String compactMac, String payload) {
         PtrEnajenarMessage message;
         try {
             message = objectMapper.readValue(payload, PtrEnajenarMessage.class);
@@ -103,9 +117,27 @@ public class EnajenacionMqttOrchestrator {
         }
         String ptrReg = message.ptrReg();
         String payloadMac = message.macAddr();
+        activityRecorder.recordInbound(
+                topic,
+                payload,
+                compactMac,
+                null,
+                ptrReg,
+                EnajenacionActivityResult.RECEIVED,
+                "ptrEnajenar received",
+                null);
         if (ptrReg == null || ptrReg.isBlank() || payloadMac == null || payloadMac.isBlank()) {
             String reason = "Invalid ptrEnajenar payload: missing ptrReg or macAddr";
             log.warn("Invalid ptrEnajenar payload for MAC {}: missing ptrReg or macAddr", compactMac);
+            activityRecorder.recordInbound(
+                    topic,
+                    payload,
+                    compactMac,
+                    null,
+                    ptrReg,
+                    EnajenacionActivityResult.REJECTED,
+                    reason,
+                    null);
             return EnajenacionStartOutcome.rejected(reason);
         }
 
@@ -127,14 +159,32 @@ public class EnajenacionMqttOrchestrator {
             return EnajenacionStartOutcome.started();
         } catch (EnajenacionAlreadyCompletedException ex) {
             log.info("Ignoring ptrEnajenar for already enajenada printer ptrReg={}", ptrReg);
+            activityRecorder.recordInbound(
+                    topic,
+                    payload,
+                    compactMac,
+                    null,
+                    ptrReg,
+                    EnajenacionActivityResult.IGNORED,
+                    ex.getMessage(),
+                    null);
             return EnajenacionStartOutcome.alreadyCompleted();
         } catch (EnajenacionProtocolException ex) {
             log.warn("Enajenacion preconditions failed ptrReg={} mac={}: {}", ptrReg, compactMac, ex.getMessage());
+            activityRecorder.recordInbound(
+                    topic,
+                    payload,
+                    compactMac,
+                    null,
+                    ptrReg,
+                    EnajenacionActivityResult.REJECTED,
+                    ex.getMessage(),
+                    null);
             return EnajenacionStartOutcome.rejected(ex.getMessage());
         }
     }
 
-    private void handleDeviceResponse(EnajenacionSession session, String payload) {
+    private void handleDeviceResponse(EnajenacionSession session, String topic, String payload) {
         synchronized (session) {
             if (!session.isAwaitingResponse()) {
                 return;
@@ -145,6 +195,7 @@ public class EnajenacionMqttOrchestrator {
                         "Ignoring non-array device response mac={} state={}",
                         session.compactMac(),
                         session.state());
+                recordIgnoredDeviceResponse(session, topic, payload, "Expected array response");
                 return;
             }
             if (session.awaitingKind() == EnajenacionAwaitingKind.OBJECT && arrayPayload) {
@@ -152,6 +203,7 @@ public class EnajenacionMqttOrchestrator {
                         "Ignoring array device response while awaiting object mac={} state={}",
                         session.compactMac(),
                         session.state());
+                recordIgnoredDeviceResponse(session, topic, payload, "Expected object response");
                 return;
             }
             try {
@@ -162,6 +214,8 @@ public class EnajenacionMqttOrchestrator {
                                 "Ignoring mismatched or command-shaped array mac={} state={}",
                                 session.compactMac(),
                                 session.state());
+                        recordIgnoredDeviceResponse(
+                                session, topic, payload, "Mismatched or command-shaped array response");
                         return;
                     }
                     advanceAfterArrayResponse(session, items);
@@ -173,15 +227,42 @@ public class EnajenacionMqttOrchestrator {
                                 session.compactMac(),
                                 session.state(),
                                 item.cmd());
+                        recordIgnoredDeviceResponse(
+                                session,
+                                topic,
+                                payload,
+                                "Mismatched object response cmd=" + item.cmd());
                         return;
                     }
                     advanceAfterObjectResponse(session, item);
                 }
                 cancelTimeout(session);
+                activityRecorder.recordInbound(
+                        topic,
+                        payload,
+                        session.compactMac(),
+                        session.printerId(),
+                        session.context().fiscalSerial(),
+                        EnajenacionActivityResult.PROCESSED,
+                        "Device response accepted",
+                        session.state());
             } catch (RuntimeException ex) {
                 failSession(session, ex.getMessage());
             }
         }
+    }
+
+    private void recordIgnoredDeviceResponse(
+            EnajenacionSession session, String topic, String payload, String detail) {
+        activityRecorder.recordInbound(
+                topic,
+                payload,
+                session.compactMac(),
+                session.printerId(),
+                session.context().fiscalSerial(),
+                EnajenacionActivityResult.IGNORED,
+                detail,
+                session.state());
     }
 
     private void abandonSessionForRestart(EnajenacionSession session) {
@@ -341,6 +422,11 @@ public class EnajenacionMqttOrchestrator {
                         session.context().fiscalSerial(),
                         session.compactMac());
                 sseNotifier.notifySessionCompleted(session);
+                activityRecorder.recordSessionEvent(
+                        session,
+                        EnajenacionActivityResult.COMPLETED,
+                        "Enajenacion completed",
+                        EnajenacionSessionState.COMPLETED);
                 sessionRegistry.remove(session.compactMac());
             }
             default -> throw new EnajenacionProtocolException("Unexpected object response for state " + session.state());
@@ -410,6 +496,12 @@ public class EnajenacionMqttOrchestrator {
             session.setAwaiting(awaitingKind);
             scheduleTimeout(session, timeoutSeconds, sentState.name());
             log.info("Enajenacion step {} published mac={} topic={}", sentState, session.compactMac(), topic);
+            activityRecorder.recordOutbound(
+                    topic,
+                    payload,
+                    session,
+                    EnajenacionActivityResult.PUBLISHED,
+                    "Published " + sentState.name());
             return new PublishedMqttCommand(topic, payload);
         }
     }
@@ -442,6 +534,7 @@ public class EnajenacionMqttOrchestrator {
 
     private void failSession(EnajenacionSession session, String reason) {
         cancelTimeout(session);
+        EnajenacionSessionState failedAtState = session.state();
         session.setLastError(reason);
         session.setState(EnajenacionSessionState.FAILED);
         session.clearAwaiting();
@@ -451,6 +544,11 @@ public class EnajenacionMqttOrchestrator {
                 session.context().fiscalSerial(),
                 session.compactMac(),
                 reason);
+        activityRecorder.recordSessionEvent(
+                session,
+                EnajenacionActivityResult.FAILED,
+                reason,
+                failedAtState);
         sseNotifier.notifySessionFailed(session, reason);
         sessionRegistry.remove(session.compactMac());
     }

@@ -19,6 +19,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.TaskScheduler;
 
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityRecorder;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityStore;
 import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
 import com.aeg.core.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,12 +50,15 @@ class EnajenacionMqttOrchestratorTest {
 
     private EnajenacionMqttOrchestrator orchestrator;
     private EnajenacionSessionRegistry registry;
+    private EnajenacionActivityStore activityStore;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         EnajenacionPayloadBuilder payloadBuilder = new EnajenacionPayloadBuilder(objectMapper, "");
         registry = new EnajenacionSessionRegistry();
+        activityStore = new EnajenacionActivityStore(100);
+        EnajenacionActivityRecorder activityRecorder = new EnajenacionActivityRecorder(activityStore);
         FiscalResponseValidator responseValidator = new FiscalResponseValidator();
         EnajenacionMqttSettings settings = new EnajenacionMqttSettings();
         orchestrator = new EnajenacionMqttOrchestrator(
@@ -65,7 +71,8 @@ class EnajenacionMqttOrchestratorTest {
                 settings,
                 objectMapper,
                 taskScheduler,
-                sseNotifier);
+                sseNotifier,
+                activityRecorder);
     }
 
     @Test
@@ -97,6 +104,38 @@ class EnajenacionMqttOrchestratorTest {
         assertThat(payloadCaptor.getValue()).contains("\"cmd\":\"fiscalAEG\"");
         assertThat(registry.find(MAC)).isPresent();
         assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.FISCAL_RIF_SENT);
+    }
+
+    @Test
+    void dnfResponseRecordsProcessedInboundAndPublishedOutbound() {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.DNF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
+
+        orchestrator.handleInbound(CMD_SERVER, EnajenacionMqttResponses.dnfSuccess());
+
+        assertThat(activityStore.recent(20, MAC))
+                .anyMatch(entry -> entry.result() == EnajenacionActivityResult.PROCESSED
+                        && entry.direction() != null
+                        && entry.direction().name().equals("INBOUND"));
+        assertThat(activityStore.recent(20, MAC))
+                .anyMatch(entry -> entry.result() == EnajenacionActivityResult.PUBLISHED
+                        && entry.direction() != null
+                        && entry.direction().name().equals("OUTBOUND"));
     }
 
     @Test

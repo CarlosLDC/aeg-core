@@ -14,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityRecorder;
+
 @ExtendWith(MockitoExtension.class)
 class EnajenacionMqttInboundProcessorTest {
 
@@ -30,11 +32,15 @@ class EnajenacionMqttInboundProcessorTest {
     @Mock
     private EnajenacionSessionRegistry sessionRegistry;
 
+    @Mock
+    private EnajenacionActivityRecorder activityRecorder;
+
     private EnajenacionMqttInboundProcessor processor;
 
     @BeforeEach
     void setUp() {
-        processor = new EnajenacionMqttInboundProcessor(orchestrator, settings, sessionRegistry);
+        processor = new EnajenacionMqttInboundProcessor(
+                orchestrator, settings, sessionRegistry, activityRecorder);
         when(settings.enabled()).thenReturn(true);
     }
 
