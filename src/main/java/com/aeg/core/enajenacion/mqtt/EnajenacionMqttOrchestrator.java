@@ -14,6 +14,7 @@ import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.enajenacion.mqtt.dto.PtrEnajenarMessage;
 import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
 import com.aeg.core.mqtt.MqttService;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,10 @@ public class EnajenacionMqttOrchestrator {
         }
 
         if (sessionRegistry.hasActiveSession(compactMac)) {
+            if (isPtrEnajenarPayload(payload)) {
+                sessionRegistry.find(compactMac).ifPresent(this::abandonSessionForRestart);
+                return Optional.of(handlePtrEnajenarRequest(compactMac, payload));
+            }
             EnajenacionSession session = sessionRegistry.find(compactMac).orElseThrow();
             if (session.isAwaitingResponse()) {
                 handleDeviceResponse(session, payload);
@@ -152,9 +157,24 @@ public class EnajenacionMqttOrchestrator {
             try {
                 if (session.awaitingKind() == EnajenacionAwaitingKind.ARRAY) {
                     List<FiscalMqttResponseItem> items = parseArrayResponse(payload);
+                    if (shouldIgnoreArrayResponse(session, items)) {
+                        log.debug(
+                                "Ignoring mismatched or command-shaped array mac={} state={}",
+                                session.compactMac(),
+                                session.state());
+                        return;
+                    }
                     advanceAfterArrayResponse(session, items);
                 } else {
                     FiscalMqttResponseItem item = parseObjectResponse(payload);
+                    if (shouldIgnoreObjectResponse(session, item)) {
+                        log.debug(
+                                "Ignoring mismatched object response mac={} state={} cmd={}",
+                                session.compactMac(),
+                                session.state(),
+                                item.cmd());
+                        return;
+                    }
                     advanceAfterObjectResponse(session, item);
                 }
                 cancelTimeout(session);
@@ -162,6 +182,78 @@ public class EnajenacionMqttOrchestrator {
                 failSession(session, ex.getMessage());
             }
         }
+    }
+
+    private void abandonSessionForRestart(EnajenacionSession session) {
+        synchronized (session) {
+            cancelTimeout(session);
+            sessionRegistry.remove(session.compactMac());
+            log.info(
+                    "Enajenacion session replaced by new ptrEnajenar mac={} previousState={}",
+                    session.compactMac(),
+                    session.state());
+        }
+    }
+
+    private boolean isPtrEnajenarPayload(String payload) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            return node.isObject()
+                    && EnajenacionConstants.CMD_PTR_ENAJENAR.equals(node.path("cmd").asText(null));
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    private static boolean shouldIgnoreArrayResponse(
+            EnajenacionSession session, List<FiscalMqttResponseItem> items) {
+        if (items == null || items.isEmpty()) {
+            return true;
+        }
+        if (looksLikeComandoCommandArray(items)) {
+            return true;
+        }
+        FiscalMqttResponseItem first = items.get(0);
+        if (first == null || first.cmd() == null) {
+            return true;
+        }
+        String firstCmd = FiscalResponseValidator.normalizeCmd(first.cmd());
+        return switch (session.state()) {
+            case DNF_SENT -> false;
+            case INVOICE_SENT -> !"proF".equalsIgnoreCase(firstCmd);
+            case CREDIT_NOTE_SENT -> !"nroFacNC".equalsIgnoreCase(firstCmd);
+            default -> true;
+        };
+    }
+
+    private static boolean shouldIgnoreObjectResponse(
+            EnajenacionSession session, FiscalMqttResponseItem item) {
+        if (item == null || item.cmd() == null) {
+            return true;
+        }
+        if (item.code() == null && item.dataS() != null && !item.dataS().isBlank()) {
+            return true;
+        }
+        String cmd = FiscalResponseValidator.normalizeCmd(item.cmd());
+        return switch (session.state()) {
+            case FISCAL_RIF_SENT -> !EnajenacionConstants.CMD_FISCAL_AEG.equalsIgnoreCase(cmd);
+            case HEADER_SENT, CONFIG_SENT -> !EnajenacionConstants.CMD_W_FILE_SPIFF.equalsIgnoreCase(cmd);
+            case REG_STATUS_SENT -> !EnajenacionConstants.CMD_STA_INF.equalsIgnoreCase(cmd);
+            case REPORT_Z_SENT -> !EnajenacionConstants.CMD_GEN_IMP_REP_Z.equalsIgnoreCase(cmd);
+            default -> true;
+        };
+    }
+
+    private static boolean looksLikeComandoCommandArray(List<FiscalMqttResponseItem> items) {
+        for (FiscalMqttResponseItem item : items) {
+            if (item == null) {
+                continue;
+            }
+            if (item.code() == null && item.dataS() != null && !item.dataS().isBlank()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isJsonArrayPayload(String payload) {

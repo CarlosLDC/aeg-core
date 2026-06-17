@@ -100,6 +100,62 @@ class EnajenacionMqttOrchestratorTest {
     }
 
     @Test
+    void staleDnfResponseWhileAwaitingInvoiceDoesNotFailSession() {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.INVOICE_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
+
+        orchestrator.handleInbound(CMD_SERVER, EnajenacionMqttResponses.dnfSuccess());
+
+        assertThat(registry.find(MAC)).isPresent();
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.INVOICE_SENT);
+        verify(mqttService, org.mockito.Mockito.never()).publish(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void dnfComandoPayloadOnCmdServerIsIgnoredWhileAwaitingDnfResponse() {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.DNF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
+
+        String dnfCommand =
+                """
+                [{"cmd":"aperDNF","dataS":"DOCUMENTO NO FISCAL"},{"cmd":"endDNF","dataS":"WAIT"}]
+                """;
+        orchestrator.handleInbound(CMD_SERVER, dnfCommand);
+
+        assertThat(registry.find(MAC)).isPresent();
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.DNF_SENT);
+        verify(mqttService, org.mockito.Mockito.never()).publish(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void ignoresNonFiscalTopics() {
         orchestrator.handleInbound("aeg/telemetry/device-1", "{\"cmd\":\"ptrEnajenar\"}");
         verify(mqttService, org.mockito.Mockito.never()).publish(
