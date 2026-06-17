@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.enajenacion.mqtt.dto.PtrEnajenarMessage;
+import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
 import com.aeg.core.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,6 +31,7 @@ public class EnajenacionMqttOrchestrator {
     private final EnajenacionMqttSettings settings;
     private final ObjectMapper objectMapper;
     private final TaskScheduler taskScheduler;
+    private final EnajenacionSseNotifier sseNotifier;
 
     public EnajenacionMqttOrchestrator(
             EnajenacionPreconditionValidator preconditionValidator,
@@ -40,7 +42,8 @@ public class EnajenacionMqttOrchestrator {
             MqttService mqttService,
             EnajenacionMqttSettings settings,
             @Qualifier("mqttObjectMapper") ObjectMapper objectMapper,
-            @Qualifier("enajenacionTaskScheduler") TaskScheduler taskScheduler) {
+            @Qualifier("enajenacionTaskScheduler") TaskScheduler taskScheduler,
+            EnajenacionSseNotifier sseNotifier) {
         this.preconditionValidator = preconditionValidator;
         this.sessionRegistry = sessionRegistry;
         this.payloadBuilder = payloadBuilder;
@@ -50,6 +53,7 @@ public class EnajenacionMqttOrchestrator {
         this.settings = settings;
         this.objectMapper = objectMapper;
         this.taskScheduler = taskScheduler;
+        this.sseNotifier = sseNotifier;
     }
 
     public void handleInbound(String topic, String payload) {
@@ -113,7 +117,8 @@ public class EnajenacionMqttOrchestrator {
                     printerId,
                     ptrReg,
                     compactMac);
-            publishDnf(session);
+            PublishedMqttCommand dnfCommand = publishDnf(session);
+            sseNotifier.notifySessionStarted(session, dnfCommand.topic(), dnfCommand.payload());
             return EnajenacionStartOutcome.started();
         } catch (EnajenacionAlreadyCompletedException ex) {
             log.info("Ignoring ptrEnajenar for already enajenada printer ptrReg={}", ptrReg);
@@ -147,22 +152,28 @@ public class EnajenacionMqttOrchestrator {
     private void advanceAfterArrayResponse(EnajenacionSession session, List<FiscalMqttResponseItem> items) {
         switch (session.state()) {
             case DNF_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateDnfResponse(items);
                 session.setState(EnajenacionSessionState.DNF_OK);
                 session.clearAwaiting();
-                publishFiscalRif(session);
+                PublishedMqttCommand next = publishFiscalRif(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case INVOICE_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateInvoiceResponse(items);
                 session.setState(EnajenacionSessionState.INVOICE_OK);
                 session.clearAwaiting();
-                publishCreditNote(session);
+                PublishedMqttCommand next = publishCreditNote(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case CREDIT_NOTE_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateCreditNoteResponse(items);
                 session.setState(EnajenacionSessionState.CREDIT_NOTE_OK);
                 session.clearAwaiting();
-                publishReportZ(session);
+                PublishedMqttCommand next = publishReportZ(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             default -> throw new EnajenacionProtocolException("Unexpected array response for state " + session.state());
         }
@@ -171,31 +182,41 @@ public class EnajenacionMqttOrchestrator {
     private void advanceAfterObjectResponse(EnajenacionSession session, FiscalMqttResponseItem item) {
         switch (session.state()) {
             case FISCAL_RIF_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_FISCAL_AEG);
                 session.setState(EnajenacionSessionState.FISCAL_RIF_OK);
                 session.clearAwaiting();
-                publishHeader(session);
+                PublishedMqttCommand next = publishHeader(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case HEADER_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.HEADER_OK);
                 session.clearAwaiting();
-                publishConfigSpiffs(session);
+                PublishedMqttCommand next = publishConfigSpiffs(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case CONFIG_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.CONFIG_OK);
                 session.clearAwaiting();
-                afterConfigOk(session);
+                PublishedMqttCommand next = afterConfigOk(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case REG_STATUS_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateStaInfResponse(item, session.context().fiscalSerial());
                 session.setState(EnajenacionSessionState.REG_STATUS_OK);
                 session.clearAwaiting();
-                publishInvoice(session);
+                PublishedMqttCommand next = publishInvoice(session);
+                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
             case REPORT_Z_SENT -> {
+                EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateReportZResponse(item);
+                sseNotifier.notifyReportZAccepted(session);
                 completionService.markEnajenada(session.printerId());
                 session.setState(EnajenacionSessionState.COMPLETED);
                 session.clearAwaiting();
@@ -204,63 +225,63 @@ public class EnajenacionMqttOrchestrator {
                         session.printerId(),
                         session.context().fiscalSerial(),
                         session.compactMac());
+                sseNotifier.notifySessionCompleted(session);
                 sessionRegistry.remove(session.compactMac());
             }
             default -> throw new EnajenacionProtocolException("Unexpected object response for state " + session.state());
         }
     }
 
-    private void afterConfigOk(EnajenacionSession session) {
+    private PublishedMqttCommand afterConfigOk(EnajenacionSession session) {
         if (settings.skipRegistrationStatus()) {
-            publishInvoice(session);
-            return;
+            return publishInvoice(session);
         }
-        publishRegistrationStatus(session);
+        return publishRegistrationStatus(session);
     }
 
-    private void publishDnf(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.DNF_SENT, EnajenacionAwaitingKind.ARRAY,
+    private PublishedMqttCommand publishDnf(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.DNF_SENT, EnajenacionAwaitingKind.ARRAY,
                 payloadBuilder.buildDnfAlertPayload(), settings.dnfTimeoutSeconds());
     }
 
-    private void publishFiscalRif(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.FISCAL_RIF_SENT, EnajenacionAwaitingKind.OBJECT,
+    private PublishedMqttCommand publishFiscalRif(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.FISCAL_RIF_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildFiscalRifPayload(session.context()), settings.fiscalRifTimeoutSeconds());
     }
 
-    private void publishHeader(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.HEADER_SENT, EnajenacionAwaitingKind.OBJECT,
+    private PublishedMqttCommand publishHeader(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.HEADER_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildHeaderPayload(session.context()), settings.configTimeoutSeconds());
     }
 
-    private void publishConfigSpiffs(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.CONFIG_SENT, EnajenacionAwaitingKind.OBJECT,
+    private PublishedMqttCommand publishConfigSpiffs(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.CONFIG_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildConfigSpiffsPayload(), settings.configTimeoutSeconds());
     }
 
-    private void publishRegistrationStatus(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.REG_STATUS_SENT, EnajenacionAwaitingKind.OBJECT,
+    private PublishedMqttCommand publishRegistrationStatus(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.REG_STATUS_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildRegistrationStatusPayload(), settings.regStatusTimeoutSeconds());
     }
 
-    private void publishInvoice(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.INVOICE_SENT, EnajenacionAwaitingKind.ARRAY,
+    private PublishedMqttCommand publishInvoice(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.INVOICE_SENT, EnajenacionAwaitingKind.ARRAY,
                 payloadBuilder.buildInvoicePayload(), settings.invoiceTimeoutSeconds());
     }
 
-    private void publishCreditNote(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.CREDIT_NOTE_SENT, EnajenacionAwaitingKind.ARRAY,
+    private PublishedMqttCommand publishCreditNote(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.CREDIT_NOTE_SENT, EnajenacionAwaitingKind.ARRAY,
                 payloadBuilder.buildCreditNotePayload(
                         session.context(), session.invoiceNumber(), session.invoiceDate()),
                 settings.creditNoteTimeoutSeconds());
     }
 
-    private void publishReportZ(EnajenacionSession session) {
-        publishAndAwait(session, EnajenacionSessionState.REPORT_Z_SENT, EnajenacionAwaitingKind.OBJECT,
+    private PublishedMqttCommand publishReportZ(EnajenacionSession session) {
+        return publishAndAwait(session, EnajenacionSessionState.REPORT_Z_SENT, EnajenacionAwaitingKind.OBJECT,
                 payloadBuilder.buildReportZPayload(), settings.reportZTimeoutSeconds());
     }
 
-    private void publishAndAwait(
+    private PublishedMqttCommand publishAndAwait(
             EnajenacionSession session,
             EnajenacionSessionState sentState,
             EnajenacionAwaitingKind awaitingKind,
@@ -274,6 +295,7 @@ public class EnajenacionMqttOrchestrator {
             session.setAwaiting(awaitingKind);
             scheduleTimeout(session, timeoutSeconds, sentState.name());
             log.info("Enajenacion step {} published mac={} topic={}", sentState, session.compactMac(), topic);
+            return new PublishedMqttCommand(topic, payload);
         }
     }
 
@@ -314,6 +336,7 @@ public class EnajenacionMqttOrchestrator {
                 session.context().fiscalSerial(),
                 session.compactMac(),
                 reason);
+        sseNotifier.notifySessionFailed(session, reason);
         sessionRegistry.remove(session.compactMac());
     }
 

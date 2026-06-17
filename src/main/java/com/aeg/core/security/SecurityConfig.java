@@ -72,6 +72,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/client-modification-requests/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/approve", "/api/client-modification-requests/*/reject").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/cancel").hasRole("DISTRIBUTOR")
+				.requestMatchers("/api/mqtt/enajenacion/stream").permitAll()
 				.requestMatchers("/api/software/**", "/api/mqtt/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printer-models/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN")
 				.requestMatchers(HttpMethod.POST, "/api/printer-models/**").hasRole("ADMIN")

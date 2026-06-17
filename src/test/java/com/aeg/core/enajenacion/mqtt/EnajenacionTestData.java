@@ -77,7 +77,7 @@ final class EnajenacionTestData {
         printer.setMacAddress(colonMac);
         printer.setStatus(status);
         printer.setDeviceType(DeviceType.INTERNO);
-        printer.setPaid(false);
+        printer.setPaid(true);
         printer.setFinalSalePrice(BigDecimal.ZERO);
         printer = printerRepository.save(printer);
 

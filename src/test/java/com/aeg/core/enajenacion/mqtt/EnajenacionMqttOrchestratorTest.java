@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
+import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
 import com.aeg.core.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -25,6 +26,9 @@ class EnajenacionMqttOrchestratorTest {
 
     @Mock
     private MqttService mqttService;
+
+    @Mock
+    private EnajenacionSseNotifier sseNotifier;
 
     private EnajenacionMqttOrchestrator orchestrator;
 
@@ -48,7 +52,8 @@ class EnajenacionMqttOrchestratorTest {
                 mqttService,
                 settings,
                 objectMapper,
-                scheduler);
+                scheduler,
+                sseNotifier);
     }
 
     @Test

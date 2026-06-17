@@ -27,11 +27,14 @@ class EnajenacionMqttInboundProcessorTest {
     @Mock
     private EnajenacionMqttSettings settings;
 
+    @Mock
+    private EnajenacionSessionRegistry sessionRegistry;
+
     private EnajenacionMqttInboundProcessor processor;
 
     @BeforeEach
     void setUp() {
-        processor = new EnajenacionMqttInboundProcessor(orchestrator, settings);
+        processor = new EnajenacionMqttInboundProcessor(orchestrator, settings, sessionRegistry);
         when(settings.enabled()).thenReturn(true);
     }
 

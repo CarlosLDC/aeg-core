@@ -57,7 +57,8 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/auth/fiscal-book/login")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/error")
-                || path.startsWith("/ws/mqtt");
+                || path.startsWith("/ws/mqtt")
+                || path.startsWith("/api/mqtt/enajenacion/stream");
     }
 
     private boolean isFiscalPortalPath(String path) {

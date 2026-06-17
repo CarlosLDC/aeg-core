@@ -21,13 +21,19 @@ public class EnajenacionMqttInboundProcessor {
 
     private final EnajenacionMqttOrchestrator orchestrator;
     private final EnajenacionMqttSettings settings;
+    private final EnajenacionSessionRegistry sessionRegistry;
     private final ConcurrentHashMap<String, Long> recentInbound = new ConcurrentHashMap<>();
 
     public Optional<EnajenacionStartOutcome> process(String topic, String payload) {
         if (!settings.enabled() || !FiscalMqttTopics.isFiscalInboundTopic(topic)) {
             return Optional.empty();
         }
-        if (isDuplicate(topic, payload)) {
+        String compactMac = FiscalMqttTopics.extractCompactMac(topic).orElse(null);
+        boolean awaitingDeviceResponse = compactMac != null
+                && sessionRegistry.find(compactMac)
+                        .filter(EnajenacionSession::isAwaitingResponse)
+                        .isPresent();
+        if (!awaitingDeviceResponse && isDuplicate(topic, payload)) {
             log.debug("Skipping duplicate enajenacion inbound topic={}", topic);
             return Optional.empty();
         }
