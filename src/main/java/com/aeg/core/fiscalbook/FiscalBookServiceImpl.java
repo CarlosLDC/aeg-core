@@ -14,7 +14,6 @@ import com.aeg.core.client.Client;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.ContributorType;
 import com.aeg.core.distributor.Distributor;
-import com.aeg.core.employee.Employee;
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookAnnualInspectionResponse;
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookBranchResponse;
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookCompanyResponse;
@@ -34,12 +33,12 @@ import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.seal.Seal;
 import com.aeg.core.seal.SealRepository;
 import com.aeg.core.security.SecurityScopeService;
+import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.servicecenter.ServiceCenter;
 import com.aeg.core.software.Software;
 import com.aeg.core.technicalservice.TechnicalServiceVisit;
 import com.aeg.core.technicalservice.TechnicalServiceVisitRepository;
-import com.aeg.core.technician.Technician;
 
 @Service
 @Transactional(readOnly = true)
@@ -247,13 +246,13 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 	private FiscalBookTechnicalServiceResponse toTechnicalService(
 			TechnicalServiceVisit visit,
 			List<Seal> printerSeals) {
-		Technician technician = visit.getTechnician();
-		Employee employee = technician != null ? technician.getEmployee() : null;
-		Branch employeeBranch = employee != null ? employee.getBranch() : null;
-		Company employeeCompany = employeeBranch != null ? employeeBranch.getCompany() : null;
+		User reviewer = visit.getReviewedByUser();
+		Distributor distributor = visit.getDistributor();
+		Branch distributorBranch = distributor != null ? distributor.getBranch() : null;
+		Company distributorCompany = distributorBranch != null ? distributorBranch.getCompany() : null;
 
 		String serviceCenter = resolveServiceCenterLabel(visit);
-		String centerRif = employeeCompany != null ? employeeCompany.getRif() : null;
+		String centerRif = distributorCompany != null ? distributorCompany.getRif() : null;
 
 		Seal removed = visit.getRemovedSeal();
 		Seal installed = visit.getInstalledSeal();
@@ -276,8 +275,8 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				visit.getRequestDate(),
 				serviceCenter,
 				centerRif,
-				employee != null ? employee.getName() : null,
-				employee != null ? employee.getNationalId() : null,
+				reviewer != null ? reviewer.getName() : null,
+				reviewer != null ? reviewer.getNationalId() : null,
 				visit.getReportedFailure(),
 				visit.getStartAt(),
 				visit.getEndAt(),
@@ -307,8 +306,10 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 	}
 
 	private FiscalBookAnnualInspectionResponse toAnnualInspection(AnnualInspection inspection) {
-		Employee employee = inspection.getEmployee();
-		Branch branch = employee != null ? employee.getBranch() : null;
+		User inspector = inspection.getInspectorUser();
+		Printer printer = inspection.getPrinter();
+		Client client = printer != null ? printer.getClient() : null;
+		Branch branch = client != null ? client.getBranch() : null;
 		Company company = branch != null ? branch.getCompany() : null;
 		return new FiscalBookAnnualInspectionResponse(
 				inspection.getId(),
@@ -316,7 +317,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				inspection.getInspectionDate(),
 				company != null ? company.getBusinessName() : null,
 				company != null ? company.getRif() : null,
-				employee != null ? employee.getName() : null,
+				inspector != null ? inspector.getName() : null,
 				inspection.getSealTampered(),
 				inspection.getNotes(),
 				inspection.getPhotoUrls() == null ? List.of() : Arrays.asList(inspection.getPhotoUrls()));

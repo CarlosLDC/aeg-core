@@ -53,6 +53,9 @@ public class User implements UserDetails {
     @JoinColumn(name = "distributor_id", insertable = false, updatable = false)
     private com.aeg.core.distributor.Distributor distributor;
 
+    @Column(name = "national_id")
+    private String nationalId;
+
     @Builder.Default
     private boolean enabled = true;
 

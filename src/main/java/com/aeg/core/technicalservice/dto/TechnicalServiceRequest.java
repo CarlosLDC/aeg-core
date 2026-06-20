@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record TechnicalServiceRequest(
 		@NotNull Long printerId,
-		@NotNull Long technicianId,
+		@NotNull Long userId,
 		Long serviceCenterId,
 		@NotNull Boolean sealTampered,
 		String notes,

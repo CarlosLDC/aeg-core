@@ -8,7 +8,7 @@ import java.util.List;
 public record TechnicalServiceResponse(
 		Long id,
 		Long printerId,
-		Long technicianId,
+		Long userId,
 		Long serviceCenterId,
 		Boolean sealTampered,
 		String notes,

@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.dto.BranchRequest;
 import com.aeg.core.branch.dto.BranchResponse;
 import com.aeg.core.client.ClientRepository;
-import com.aeg.core.employee.EmployeeRepository;
 import com.aeg.core.security.BranchScope;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
@@ -24,7 +23,6 @@ public class BranchServiceImpl implements BranchService {
     private final com.aeg.core.company.CompanyRepository companyRepository;
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
-    private final EmployeeRepository employeeRepository;
     private final SecurityScopeService securityScope;
 
     public BranchServiceImpl(
@@ -32,13 +30,11 @@ public class BranchServiceImpl implements BranchService {
             com.aeg.core.company.CompanyRepository companyRepository,
             ClientRepository clientRepository,
             UserRepository userRepository,
-            EmployeeRepository employeeRepository,
             SecurityScopeService securityScope) {
         this.repository = repository;
         this.companyRepository = companyRepository;
         this.clientRepository = clientRepository;
         this.userRepository = userRepository;
-        this.employeeRepository = employeeRepository;
         this.securityScope = securityScope;
     }
 
@@ -101,7 +97,7 @@ public class BranchServiceImpl implements BranchService {
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
         securityScope.assertBranchReadable(b.getId());
-        if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR
+        if (securityScope.currentUser().getRole() == Role.TECHNICIAN
                 && clientRepository.existsByBranch_Id(b.getId())) {
             throw new IllegalArgumentException("client updates must be requested for review");
         }
@@ -125,9 +121,6 @@ public class BranchServiceImpl implements BranchService {
         securityScope.assertBranchReadable(b.getId());
         if (userRepository.existsByBranchId(id)) {
             throw new IllegalArgumentException("branch has linked users and cannot be deleted: " + id);
-        }
-        if (employeeRepository.existsByBranch_Id(id)) {
-            throw new IllegalArgumentException("branch has linked employees and cannot be deleted: " + id);
         }
         repository.delete(b);
     }

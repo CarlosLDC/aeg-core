@@ -7,11 +7,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import com.aeg.core.branch.Branch;
-import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
-import com.aeg.core.servicecenter.ServiceCenterRepository;
 
 import java.util.List;
 import java.net.URI;
@@ -25,9 +23,7 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserRepository userRepository;
-    private final BranchRepository branchRepository;
-    private final com.aeg.core.distributor.DistributorRepository distributorRepository;
-    private final ServiceCenterRepository serviceCenterRepository;
+    private final DistributorRepository distributorRepository;
     private final ModificationRequestRepository modificationRequestRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -49,35 +45,40 @@ public class UserController {
             return ResponseEntity.badRequest().build();
         }
 
-        Long branchId = request.getBranchId();
-        if (role != Role.ADMIN && role != Role.SENIAT && branchId == null) {
-            return ResponseEntity.badRequest().build();
-        }
+        String nationalId = normalizeNationalId(request.getNationalId());
+        Long distributorId = request.getDistributorId();
 
-        Branch branch = null;
-        if (branchId != null) {
-            branch = branchRepository.findById(branchId).orElse(null);
-            if (branch == null) {
+        if (role == Role.TECHNICIAN) {
+            if (nationalId == null || distributorId == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            if (userRepository.findByNationalId(nationalId).isPresent()) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
+            }
+            if (distributorRepository.findById(distributorId).isEmpty()) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
             }
-        }
-
-        RoleAssignment assignment;
-        try {
-            assignment = resolveRoleAssignment(role, branchId);
-        } catch (IllegalArgumentException e) {
+        } else if (role == Role.ADMIN || role == Role.SENIAT) {
+            nationalId = null;
+            distributorId = null;
+        } else {
             return ResponseEntity.badRequest().build();
         }
+
+        Distributor distributor = distributorId != null
+                ? distributorRepository.findById(distributorId).orElse(null)
+                : null;
 
         User user = User.builder()
                 .username(email)
                 .name(name)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
-                .branchId(branchId)
-                .branch(branch)
-                .distributorId(assignment.distributorId())
-                .distributor(assignment.distributor())
+                .branchId(null)
+                .branch(null)
+                .distributorId(distributorId)
+                .distributor(distributor)
+                .nationalId(nationalId)
                 .enabled(true)
                 .build();
 
@@ -115,7 +116,6 @@ public class UserController {
             if (email == null) {
                 return ResponseEntity.badRequest().build();
             }
-            // Check uniqueness (allow same username if it's the same user)
             var found = userRepository.findByUsername(email);
             if (found.isPresent() && !found.get().getId().equals(existing.getId())) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
@@ -134,30 +134,36 @@ public class UserController {
                 return ResponseEntity.badRequest().build();
             }
         }
-        Long branchId = existing.getBranchId();
-        if (request.getBranchId() != null) {
-            branchId = request.getBranchId();
-        }
-        if (role == Role.ADMIN || role == Role.SENIAT) {
-            existing.setBranch(null);
-            branchId = null;
-        } else if (branchId != null) {
-            Branch branch = branchRepository.findById(branchId).orElse(null);
-            if (branch == null) {
+
+        if (role == Role.TECHNICIAN) {
+            String nationalId = request.getNationalId() != null
+                    ? normalizeNationalId(request.getNationalId())
+                    : existing.getNationalId();
+            Long distributorId = request.getDistributorId() != null
+                    ? request.getDistributorId()
+                    : existing.getDistributorId();
+            if (nationalId == null || distributorId == null) {
+                return ResponseEntity.badRequest().build();
+            }
+            if (userRepository.existsByNationalIdAndIdNot(nationalId, existing.getId())) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
+            }
+            if (distributorRepository.findById(distributorId).isEmpty()) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
             }
-            existing.setBranch(branch);
-        } else {
-            return ResponseEntity.badRequest().build();
+            existing.setNationalId(nationalId);
+            existing.setDistributorId(distributorId);
+            existing.setDistributor(distributorRepository.findById(distributorId).orElse(null));
+            existing.setBranchId(null);
+            existing.setBranch(null);
+        } else if (role == Role.ADMIN || role == Role.SENIAT) {
+            existing.setNationalId(null);
+            existing.setDistributorId(null);
+            existing.setDistributor(null);
+            existing.setBranchId(null);
+            existing.setBranch(null);
         }
-        try {
-            RoleAssignment assignment = resolveRoleAssignment(role, branchId);
-            existing.setBranchId(branchId);
-            existing.setDistributorId(assignment.distributorId());
-            existing.setDistributor(assignment.distributor());
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
         }
@@ -182,7 +188,8 @@ public class UserController {
         private String email;
         private String password;
         private String role;
-        private Long branchId;
+        private Long distributorId;
+        private String nationalId;
     }
 
     @Data
@@ -191,7 +198,8 @@ public class UserController {
         private String email;
         private String password;
         private String role;
-        private Long branchId;
+        private Long distributorId;
+        private String nationalId;
         private Boolean enabled;
     }
 
@@ -202,14 +210,19 @@ public class UserController {
         private String email;
         private Role role;
         private Long branchId;
+        private Long distributorId;
+        private String nationalId;
         private Boolean enabled;
 
-        public UserResponse(Long id, String name, String email, Role role, Long branchId, Boolean enabled) {
+        public UserResponse(Long id, String name, String email, Role role, Long branchId,
+                Long distributorId, String nationalId, Boolean enabled) {
             this.id = id;
             this.name = name;
             this.email = email;
             this.role = role;
             this.branchId = branchId;
+            this.distributorId = distributorId;
+            this.nationalId = nationalId;
             this.enabled = enabled;
         }
     }
@@ -221,39 +234,9 @@ public class UserController {
                 u.getUsername(),
                 u.getRole(),
                 u.getBranchId(),
+                u.getDistributorId(),
+                u.getNationalId(),
                 u.isEnabled());
-    }
-
-    private record RoleAssignment(Long distributorId, Distributor distributor) {}
-
-    /**
-     * Reglas de elegibilidad por sucursal:
-     * - DISTRIBUTOR: la sucursal debe estar registrada como distribuidora.
-     * - TECHNICIAN/SERVICE_CENTER: la sucursal debe estar registrada como centro de servicio.
-     */
-    private RoleAssignment resolveRoleAssignment(Role role, Long branchId) {
-        if (role == Role.ADMIN || role == Role.SENIAT) {
-            return new RoleAssignment(null, null);
-        }
-        if (role != Role.DISTRIBUTOR) {
-            if (branchId == null) {
-                throw new IllegalArgumentException("branch is required");
-            }
-            if (role == Role.TECHNICIAN || role == Role.SERVICE_CENTER) {
-                boolean hasServiceCenter = serviceCenterRepository.findByBranch_Id(branchId).isPresent();
-                if (!hasServiceCenter) {
-                    throw new IllegalArgumentException("branch is not registered as service center");
-                }
-            }
-            return new RoleAssignment(null, null);
-        }
-        if (branchId == null) {
-            throw new IllegalArgumentException("Distributor role requires branch");
-        }
-        Distributor onBranch = distributorRepository.findByBranch_Id(branchId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "branch is not registered as distributor"));
-        return new RoleAssignment(onBranch.getId(), onBranch);
     }
 
     private String normalizeEmail(String rawEmail) {
@@ -267,5 +250,11 @@ public class UserController {
         if (rawName == null) return null;
         String name = rawName.trim();
         return name.isBlank() ? null : name;
+    }
+
+    private String normalizeNationalId(String rawNationalId) {
+        if (rawNationalId == null) return null;
+        String nationalId = rawNationalId.trim().replaceAll("\\s+", "");
+        return nationalId.isBlank() ? null : nationalId;
     }
 }

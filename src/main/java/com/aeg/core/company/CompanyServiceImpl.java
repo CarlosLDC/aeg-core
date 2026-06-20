@@ -47,7 +47,7 @@ public class CompanyServiceImpl implements CompanyService {
         if (currentUser.getRole() == Role.ADMIN) {
             return repository.findAll().stream().map(this::toResponse).toList();
         }
-        if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
+        if (currentUser.getRole() == Role.TECHNICIAN && currentUser.getDistributorId() != null) {
             return repository.findCompaniesByDistributorId(currentUser.getDistributorId()).stream()
                     .map(this::toResponse)
                     .toList();
@@ -78,7 +78,7 @@ public class CompanyServiceImpl implements CompanyService {
     @Transactional(readOnly = true)
     public Optional<CompanyResponse> resolveByRif(String rif) {
         User currentUser = securityScope.currentUser();
-        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.DISTRIBUTOR) {
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.TECHNICIAN) {
             return Optional.empty();
         }
         String normalized = normalizeRif(rif);
@@ -114,7 +114,7 @@ public class CompanyServiceImpl implements CompanyService {
     public CompanyResponse update(Long id, CompanyRequest request) {
         Company c = findEntityById(id);
         assertCompanyReadable(c.getId());
-        if (securityScope.currentUser().getRole() == Role.DISTRIBUTOR
+        if (securityScope.currentUser().getRole() == Role.TECHNICIAN
                 && clientRepository.existsByBranch_Company_Id(c.getId())) {
             throw new IllegalArgumentException("client updates must be requested for review");
         }
@@ -139,7 +139,7 @@ public class CompanyServiceImpl implements CompanyService {
         if (currentUser.getRole() == Role.ADMIN) {
             return;
         }
-        if (currentUser.getRole() == Role.DISTRIBUTOR && currentUser.getDistributorId() != null) {
+        if (currentUser.getRole() == Role.TECHNICIAN && currentUser.getDistributorId() != null) {
             boolean inScope = repository.findCompaniesByDistributorId(currentUser.getDistributorId())
                     .stream()
                     .anyMatch(c -> c.getId().equals(companyId));

@@ -30,8 +30,8 @@ public class AnnualInspection {
 	private com.aeg.core.printer.Printer printer;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_empleado", nullable = false)
-	private com.aeg.core.employee.Employee employee;
+	@JoinColumn(name = "id_usuario", nullable = false)
+	private com.aeg.core.security.User inspectorUser;
 
 	@Column(name = "precinto_violentado", nullable = false)
 	private Boolean sealTampered;
@@ -82,16 +82,16 @@ public class AnnualInspection {
 		return printer == null ? null : printer.getId();
 	}
 
-	public com.aeg.core.employee.Employee getEmployee() {
-		return employee;
+	public com.aeg.core.security.User getInspectorUser() {
+		return inspectorUser;
 	}
 
-	public void setEmployee(com.aeg.core.employee.Employee employee) {
-		this.employee = employee;
+	public void setInspectorUser(com.aeg.core.security.User inspectorUser) {
+		this.inspectorUser = inspectorUser;
 	}
 
-	public Long getEmployeeId() {
-		return employee == null ? null : employee.getId();
+	public Long getUserId() {
+		return inspectorUser == null ? null : inspectorUser.getId();
 	}
 
 	public Boolean getSealTampered() {

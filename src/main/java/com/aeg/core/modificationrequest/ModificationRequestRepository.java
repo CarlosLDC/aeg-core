@@ -20,28 +20,6 @@ public interface ModificationRequestRepository extends JpaRepository<Modificatio
 			ModificationRequestStatus status);
 
 	@Query("""
-			select mr
-			from ModificationRequest mr
-			where mr.targetType = com.aeg.core.modificationrequest.ModificationTargetType.EMPLOYEE
-			and mr.targetId = :employeeId
-			and mr.status = :status
-			order by mr.createdAt desc
-			""")
-	Optional<ModificationRequest> findFirstByEmployeeIdAndStatusOrderByCreatedAtDesc(
-			Long employeeId,
-			ModificationRequestStatus status);
-
-	@Query("""
-			select mr.id
-			from ModificationRequest mr
-			where mr.targetType = com.aeg.core.modificationrequest.ModificationTargetType.EMPLOYEE
-			and mr.targetId = :employeeId
-			and mr.status = com.aeg.core.modificationrequest.ModificationRequestStatus.PENDING
-			order by mr.createdAt desc
-			""")
-	List<Long> findPendingRequestIdsByEmployeeId(Long employeeId);
-
-	@Query("""
 			select mr.id
 			from ModificationRequest mr
 			where mr.targetType = :targetType

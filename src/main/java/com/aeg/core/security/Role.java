@@ -2,9 +2,8 @@ package com.aeg.core.security;
 
 public enum Role {
     ADMIN,
-    DISTRIBUTOR,
+    /** Usuario operativo de campo y panel por distribuidora. */
     TECHNICIAN,
-    SERVICE_CENTER,
     /** Auditor SENIAT: solo portal de libros fiscales, lectura global sin altas. */
     SENIAT
 }

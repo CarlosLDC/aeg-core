@@ -7,7 +7,7 @@ import java.util.List;
 public record AnnualInspectionResponse(
 		Long id,
 		Long printerId,
-		Long employeeId,
+		Long userId,
 		Boolean sealTampered,
 		String notes,
 		OffsetDateTime createdAt,

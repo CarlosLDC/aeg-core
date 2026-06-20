@@ -19,7 +19,6 @@ import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.seal.Seal;
 import com.aeg.core.seal.SealRepository;
-import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
 @Transactional(readOnly = true)
@@ -56,7 +55,6 @@ public class SecurityScopeService {
 		return currentUser().getRole() == Role.ADMIN;
 	}
 
-	/** Lectura sin restricción de alcance (administración y auditor SENIAT). */
 	public boolean isGlobalReader() {
 		Role role = currentUser().getRole();
 		return role == Role.ADMIN || role == Role.SENIAT;
@@ -76,23 +74,11 @@ public class SecurityScopeService {
 		User user = currentUser();
 		return switch (user.getRole()) {
 			case ADMIN, SENIAT -> BranchScope.all();
-			case DISTRIBUTOR -> {
+			case TECHNICIAN -> {
 				if (user.getDistributorId() == null) {
 					yield BranchScope.none();
 				}
 				Set<Long> ids = branchRepository.findBranchesByDistributorId(user.getDistributorId()).stream()
-						.map(Branch::getId)
-						.collect(Collectors.toSet());
-				yield BranchScope.scoped(ids);
-			}
-			case TECHNICIAN, SERVICE_CENTER -> {
-				if (user.getBranchId() == null) {
-					yield BranchScope.none();
-				}
-				Branch ownBranch = branchRepository.findById(user.getBranchId())
-						.orElseThrow(() -> new ResourceNotFoundException(
-								"Branch not found with id: " + user.getBranchId()));
-				Set<Long> ids = branchRepository.findByCompany_Id(ownBranch.getCompanyId()).stream()
 						.map(Branch::getId)
 						.collect(Collectors.toSet());
 				yield BranchScope.scoped(ids);
@@ -107,10 +93,9 @@ public class SecurityScopeService {
 		}
 	}
 
-	/** Sucursal de la propia distribuidora (personal interno), no sucursales de clientes. */
 	public Set<Long> resolveDistributorStaffBranchIds() {
 		User user = currentUser();
-		if (user.getRole() != Role.DISTRIBUTOR || user.getDistributorId() == null) {
+		if (user.getRole() != Role.TECHNICIAN || user.getDistributorId() == null) {
 			return Collections.emptySet();
 		}
 		return distributorRepository.findById(user.getDistributorId())
@@ -122,33 +107,18 @@ public class SecurityScopeService {
 		return resolveDistributorStaffBranchIds().contains(branchId);
 	}
 
-	public void assertDistributorStaffBranch(Long branchId) {
-		User user = currentUser();
-		if (user.getRole() == Role.ADMIN) {
-			return;
-		}
-		if (user.getRole() == Role.DISTRIBUTOR) {
-			if (isDistributorStaffBranch(branchId)) {
-				return;
-			}
-			throw new AccessDeniedException("Not allowed to manage employees on this branch");
-		}
-		assertBranchInScope(branchId);
-	}
-
-	/** Lectura de sucursal: clientes en alcance o sucursal propia de la distribuidora. */
 	public void assertBranchReadable(Long branchId) {
 		User user = currentUser();
 		if (isGlobalReader()) {
 			return;
 		}
-		if (user.getRole() == Role.DISTRIBUTOR) {
+		if (user.getRole() == Role.TECHNICIAN) {
 			if (isDistributorStaffBranch(branchId) || resolveBranchScope().allowsBranch(branchId)) {
 				return;
 			}
 			Long userDistributorId = user.getDistributorId();
 			if (userDistributorId == null) {
-				throw new AccessDeniedException("Distributor user has no distributor id");
+				throw new AccessDeniedException("Technician user has no distributor id");
 			}
 			var clientOnBranch = clientRepository.findByBranch_Id(branchId);
 			if (clientOnBranch.isEmpty()) {
@@ -168,10 +138,10 @@ public class SecurityScopeService {
 		if (user.getRole() == Role.ADMIN) {
 			return;
 		}
-		if (user.getRole() == Role.DISTRIBUTOR) {
+		if (user.getRole() == Role.TECHNICIAN) {
 			Long userDistributorId = user.getDistributorId();
 			if (userDistributorId == null) {
-				throw new AccessDeniedException("Distributor user has no distributor id");
+				throw new AccessDeniedException("Technician user has no distributor id");
 			}
 			if (distributorId == null || !userDistributorId.equals(distributorId)) {
 				throw new AccessDeniedException("Not allowed to create client for this distributor");
@@ -195,21 +165,11 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return;
 		}
-		if (user.getRole() == Role.DISTRIBUTOR) {
+		if (user.getRole() == Role.TECHNICIAN) {
 			Long distributorId = user.getDistributorId();
 			if (distributorId == null || !distributorId.equals(printer.getDistributorId())) {
 				throw new AccessDeniedException("Not allowed to access this printer");
 			}
-			return;
-		}
-		BranchScope scope = resolveBranchScope();
-		if (scope.visibility() == BranchScope.Visibility.NONE) {
-			throw new AccessDeniedException("Not allowed to access this printer");
-		}
-		if (scope.visibility() == BranchScope.Visibility.ALL) {
-			return;
-		}
-		if (isPrinterInBranches(printer, scope.branchIds())) {
 			return;
 		}
 		throw new AccessDeniedException("Not allowed to access this printer");
@@ -217,7 +177,7 @@ public class SecurityScopeService {
 
 	public void assertClientInScope(Client client) {
 		assertBranchInScope(client.getBranchId());
-		if (currentUser().getRole() == Role.DISTRIBUTOR) {
+		if (currentUser().getRole() == Role.TECHNICIAN) {
 			Long distributorId = currentUser().getDistributorId();
 			if (distributorId == null
 					|| client.getDistributorId() == null
@@ -225,6 +185,23 @@ public class SecurityScopeService {
 				throw new AccessDeniedException("Not allowed to access this client");
 			}
 		}
+	}
+
+	public void assertFieldUserInScope(User fieldUser) {
+		if (fieldUser == null || fieldUser.getRole() != Role.TECHNICIAN) {
+			throw new AccessDeniedException("Field user must be a technician");
+		}
+		User user = currentUser();
+		if (isAdmin()) {
+			return;
+		}
+		if (user.getRole() == Role.TECHNICIAN) {
+			if (!user.getId().equals(fieldUser.getId())) {
+				throw new AccessDeniedException("Technicians can only register visits as themselves");
+			}
+			return;
+		}
+		throw new AccessDeniedException("Not allowed to assign this field user");
 	}
 
 	public static boolean isPrinterInBranches(Printer printer, Set<Long> branchIds) {
@@ -246,17 +223,13 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return printerRepository.findAll();
 		}
-		if (user.getRole() == Role.DISTRIBUTOR) {
+		if (user.getRole() == Role.TECHNICIAN) {
 			if (user.getDistributorId() == null) {
 				return List.of();
 			}
 			return printerRepository.findByDistributor_Id(user.getDistributorId());
 		}
-		BranchScope scope = resolveBranchScope();
-		if (scope.visibility() != BranchScope.Visibility.SCOPED) {
-			return List.of();
-		}
-		return printerRepository.findByVisibleBranchIds(scope.branchIds());
+		return List.of();
 	}
 
 	public List<Seal> findVisibleSeals() {

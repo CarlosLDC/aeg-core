@@ -27,15 +27,15 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private static final String[] BOOK_READ_ROLES = {
-			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "SENIAT"
+			"ADMIN", "TECHNICIAN", "SENIAT"
 	};
 
 	private static final String[] BOOK_WRITE_ROLES = {
-			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
+			"ADMIN", "TECHNICIAN"
 	};
 
 	private static final String[] PANEL_ROLES = {
-			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
+			"ADMIN", "TECHNICIAN"
 	};
 
 	private final JwtAuthenticationFilter jwtAuthFilter;
@@ -66,33 +66,24 @@ public class SecurityConfig {
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
 				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
-				.requestMatchers(HttpMethod.PUT, "/api/companies/**", "/api/branches/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
+				.requestMatchers(HttpMethod.PUT, "/api/companies/**", "/api/branches/**").hasAnyRole("ADMIN", "TECHNICIAN")
 				.requestMatchers(HttpMethod.PUT, "/api/distributors/**", "/api/service-centers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/clients/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/employees/**").hasAnyRole(BOOK_READ_ROLES)
-				.requestMatchers(HttpMethod.POST, "/api/employees/**").hasAnyRole(PANEL_ROLES)
-				.requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/employee-modification-requests/update", "/api/employee-modification-requests/delete").hasRole("DISTRIBUTOR")
-				.requestMatchers(HttpMethod.GET, "/api/employee-modification-requests/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/employee-modification-requests/*/approve", "/api/employee-modification-requests/*/reject").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/employee-modification-requests/*/cancel").hasRole("DISTRIBUTOR")
-				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/update", "/api/client-modification-requests/delete").hasRole("DISTRIBUTOR")
+				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/update", "/api/client-modification-requests/delete").hasRole("TECHNICIAN")
 				.requestMatchers(HttpMethod.GET, "/api/client-modification-requests/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/approve", "/api/client-modification-requests/*/reject").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/cancel").hasRole("DISTRIBUTOR")
+				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/cancel").hasRole("TECHNICIAN")
 				.requestMatchers("/api/mqtt/enajenacion/stream").permitAll()
 				.requestMatchers("/api/software/**", "/api/mqtt/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/printer-models/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN")
+				.requestMatchers(HttpMethod.GET, "/api/printer-models/**").hasAnyRole("ADMIN", "TECHNICIAN")
 				.requestMatchers(HttpMethod.POST, "/api/printer-models/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/printer-models/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/printer-models/**").hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
-				.requestMatchers("/api/distributor-persons/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.GET, "/api/printers/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers(HttpMethod.POST, "/api/printers/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.PUT, "/api/printers/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
+				.requestMatchers(HttpMethod.PUT, "/api/printers/**").hasAnyRole("ADMIN", "TECHNICIAN")
 				.requestMatchers(HttpMethod.DELETE, "/api/printers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/seals/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers(HttpMethod.POST, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
@@ -107,7 +98,6 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
 				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
 				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**").hasAnyRole(BOOK_READ_ROLES)
-				.requestMatchers("/api/technicians/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

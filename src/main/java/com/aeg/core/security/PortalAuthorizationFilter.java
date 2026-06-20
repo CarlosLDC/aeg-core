@@ -62,8 +62,6 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/technical-services")
                 || path.startsWith("/api/annual-inspections")
                 || path.startsWith("/api/seals")
-                || path.startsWith("/api/technicians")
-                || path.startsWith("/api/employees")
                 || path.startsWith("/api/service-centers")
                 || path.startsWith("/api/printers");
     }

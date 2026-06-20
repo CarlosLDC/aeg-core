@@ -15,11 +15,11 @@ import com.aeg.core.seal.SealStatus;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
+import com.aeg.core.security.UserRepository;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
 import com.aeg.core.technicalservice.dto.TechnicalServiceRequest;
 import com.aeg.core.technicalservice.dto.TechnicalServiceResponse;
-import com.aeg.core.technician.TechnicianRepository;
 
 @Service
 @Transactional
@@ -27,7 +27,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 	private final TechnicalServiceVisitRepository repository;
 	private final PrinterRepository printerRepository;
-	private final TechnicianRepository technicianRepository;
+	private final UserRepository userRepository;
 	private final ServiceCenterRepository serviceCenterRepository;
 	private final SealRepository sealRepository;
 	private final DistributorRepository distributorRepository;
@@ -36,14 +36,14 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	public TechnicalServiceServiceImpl(
 			TechnicalServiceVisitRepository repository,
 			PrinterRepository printerRepository,
-			TechnicianRepository technicianRepository,
+			UserRepository userRepository,
 			ServiceCenterRepository serviceCenterRepository,
 			SealRepository sealRepository,
 			DistributorRepository distributorRepository,
 			SecurityScopeService securityScope) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
-		this.technicianRepository = technicianRepository;
+		this.userRepository = userRepository;
 		this.serviceCenterRepository = serviceCenterRepository;
 		this.sealRepository = sealRepository;
 		this.distributorRepository = distributorRepository;
@@ -62,7 +62,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		}
 		List<TechnicalServiceVisit> visits = repository.findByPrinter_IdIn(printerIds);
 		User user = securityScope.currentUser();
-		if (user.getRole() == Role.DISTRIBUTOR && user.getDistributorId() != null) {
+		if (user.getRole() == Role.TECHNICIAN && user.getDistributorId() != null) {
 			Long distributorId = user.getDistributorId();
 			visits = visits.stream()
 					.filter(v -> distributorId.equals(v.getDistributorId()) || v.getDistributorId() == null)
@@ -81,6 +81,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 	@Override
 	public TechnicalServiceResponse create(TechnicalServiceRequest request) {
+		securityScope.assertCanWriteOperationalData();
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
 		applyRequest(e, request);
 		applySealStatusChanges(e, request);
@@ -89,6 +90,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 	@Override
 	public TechnicalServiceResponse update(Long id, TechnicalServiceRequest request) {
+		securityScope.assertCanWriteOperationalData();
 		TechnicalServiceVisit e = findEntity(id);
 		assertVisitInScope(e);
 		applyRequest(e, request);
@@ -97,6 +99,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 	@Override
 	public void delete(Long id) {
+		securityScope.assertCanWriteOperationalData();
 		TechnicalServiceVisit visit = findEntity(id);
 		assertVisitInScope(visit);
 		repository.delete(visit);
@@ -120,8 +123,11 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + r.printerId()));
 		securityScope.assertPrinterInScope(printer);
 		e.setPrinter(printer);
-		e.setTechnician(technicianRepository.findById(r.technicianId())
-				.orElseThrow(() -> new ResourceNotFoundException("Technician not found with id: " + r.technicianId())));
+
+		User fieldUser = userRepository.findById(r.userId())
+				.orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + r.userId()));
+		securityScope.assertFieldUserInScope(fieldUser);
+		e.setReviewedByUser(fieldUser);
 
 		if (r.serviceCenterId() != null) {
 			var serviceCenter = serviceCenterRepository.findById(r.serviceCenterId())
@@ -207,7 +213,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		return new TechnicalServiceResponse(
 				e.getId(),
 				e.getPrinterId(),
-				e.getTechnicianId(),
+				e.getUserId(),
 				e.getServiceCenterId(),
 				e.getSealTampered(),
 				e.getNotes(),

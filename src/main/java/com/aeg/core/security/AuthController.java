@@ -52,6 +52,8 @@ public class AuthController {
         extraClaims.put("role", user.getRole().name());
         extraClaims.put("branchId", user.getBranchId());
         extraClaims.put("distributorId", user.getDistributorId());
+        extraClaims.put("nationalId", user.getNationalId());
+        extraClaims.put("userId", user.getId());
 
         String token = jwtService.generateToken(extraClaims, userDetails);
         return ResponseEntity.ok(new AuthResponse(token));
@@ -71,6 +73,7 @@ public class AuthController {
             user.getRole(),
             user.getBranchId(),
             user.getDistributorId(),
+            user.getNationalId(),
             user.isEnabled()
         ));
     }
@@ -106,6 +109,7 @@ public class AuthController {
         private final Role role;
         private final Long branchId;
         private final Long distributorId;
+        private final String nationalId;
         private final Boolean enabled;
     }
 }

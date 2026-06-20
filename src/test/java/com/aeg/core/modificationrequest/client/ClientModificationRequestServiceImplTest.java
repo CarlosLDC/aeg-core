@@ -73,7 +73,8 @@ class ClientModificationRequestServiceImplTest {
 		User requester = new User();
 		requester.setId(77L);
 		requester.setName("Distribuidor");
-		requester.setRole(Role.DISTRIBUTOR);
+		requester.setRole(Role.TECHNICIAN);
+		requester.setDistributorId(5L);
 		when(securityScope.currentUser()).thenReturn(requester);
 		when(modificationRequestRepository.save(any(ModificationRequest.class)))
 				.thenAnswer(invocation -> invocation.getArgument(0));

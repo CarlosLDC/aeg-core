@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record AnnualInspectionRequest(
 		@NotNull Long printerId,
-		@NotNull Long employeeId,
+		@NotNull Long userId,
 		@NotNull Boolean sealTampered,
 		String notes,
 		@NotNull List<String> photoUrls,

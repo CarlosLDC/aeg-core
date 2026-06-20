@@ -11,6 +11,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
 
+    Optional<User> findByNationalId(String nationalId);
+
+    boolean existsByNationalIdAndIdNot(String nationalId, Long id);
+
     @Query("""
             SELECT u FROM User u
             LEFT JOIN FETCH u.distributor

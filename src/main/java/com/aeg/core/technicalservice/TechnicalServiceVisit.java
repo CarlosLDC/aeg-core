@@ -11,7 +11,6 @@ import com.aeg.core.distributor.Distributor;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.seal.Seal;
 import com.aeg.core.servicecenter.ServiceCenter;
-import com.aeg.core.technician.Technician;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -37,8 +36,8 @@ public class TechnicalServiceVisit {
 	private Printer printer;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "id_tecnico", nullable = false)
-	private Technician technician;
+	@JoinColumn(name = "id_usuario", nullable = false)
+	private com.aeg.core.security.User reviewedByUser;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "id_centro_servicio")
@@ -126,16 +125,16 @@ public class TechnicalServiceVisit {
 		return printer == null ? null : printer.getId();
 	}
 
-	public Technician getTechnician() {
-		return technician;
+	public com.aeg.core.security.User getReviewedByUser() {
+		return reviewedByUser;
 	}
 
-	public void setTechnician(Technician technician) {
-		this.technician = technician;
+	public void setReviewedByUser(com.aeg.core.security.User reviewedByUser) {
+		this.reviewedByUser = reviewedByUser;
 	}
 
-	public Long getTechnicianId() {
-		return technician == null ? null : technician.getId();
+	public Long getUserId() {
+		return reviewedByUser == null ? null : reviewedByUser.getId();
 	}
 
 	public ServiceCenter getServiceCenter() {
