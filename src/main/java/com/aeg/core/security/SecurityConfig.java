@@ -34,6 +34,10 @@ public class SecurityConfig {
 			"ADMIN", "TECHNICIAN"
 	};
 
+	private static final String[] BOOK_ENTRY_WRITE_ROLES = {
+			"TECHNICIAN"
+	};
+
 	private static final String[] PANEL_ROLES = {
 			"ADMIN", "TECHNICIAN"
 	};
@@ -90,13 +94,13 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.PUT, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
 				.requestMatchers(HttpMethod.DELETE, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
 				.requestMatchers(HttpMethod.GET, "/api/technical-services/**").hasAnyRole(BOOK_READ_ROLES)
-				.requestMatchers(HttpMethod.POST, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
-				.requestMatchers(HttpMethod.PUT, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
-				.requestMatchers(HttpMethod.DELETE, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/technical-services/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
+				.requestMatchers(HttpMethod.PUT, "/api/technical-services/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
+				.requestMatchers(HttpMethod.DELETE, "/api/technical-services/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
 				.requestMatchers(HttpMethod.GET, "/api/annual-inspections/**").hasAnyRole(BOOK_READ_ROLES)
-				.requestMatchers(HttpMethod.POST, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
-				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
-				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/annual-inspections/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
+				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
+				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole(BOOK_ENTRY_WRITE_ROLES)
 				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
