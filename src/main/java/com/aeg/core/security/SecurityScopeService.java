@@ -2,6 +2,7 @@ package com.aeg.core.security;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,12 +60,29 @@ public class SecurityScopeService {
 		return user;
 	}
 
+	private Optional<FiscalBookUser> currentFiscalBookUser() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication != null && authentication.getPrincipal() instanceof FiscalBookUser fiscalUser) {
+			return Optional.of(fiscalUser);
+		}
+		return Optional.empty();
+	}
+
 	public boolean isAdmin() {
-		return currentUser().getRole() == Role.ADMIN;
+		return currentFiscalBookUser()
+				.map(user -> user.getRole() == FiscalBookRole.FISCAL_ADMIN)
+				.orElseGet(() -> currentUser().getRole() == Role.ADMIN);
 	}
 
 	/** Lectura sin restricción de alcance (administración y SENIAT). */
 	public boolean isGlobalReader() {
+		Optional<FiscalBookUser> fiscalUser = currentFiscalBookUser();
+		if (fiscalUser.isPresent()) {
+			return switch (fiscalUser.get().getRole()) {
+				case FISCAL_ADMIN, FISCAL_AUDITOR -> true;
+				case FISCAL_TECHNICIAN -> false;
+			};
+		}
 		Role role = currentUser().getRole();
 		return role == Role.ADMIN || role == Role.SENIAT;
 	}
@@ -98,6 +116,32 @@ public class SecurityScopeService {
 	}
 
 	public void assertBranchInScope(Long branchId) {
+		Optional<FiscalBookUser> fiscalUser = currentFiscalBookUser();
+		if (fiscalUser.isPresent()) {
+			if (isGlobalReader()) {
+				return;
+			}
+			FiscalBookUser user = fiscalUser.get();
+			Long distributorId = fiscalBookUserScopeService.resolveDistributorId(user.getEmployeeId());
+			if (distributorId != null) {
+				boolean onDistributorBranch = distributorRepository.findById(distributorId)
+						.map(d -> branchId.equals(d.getBranchId()))
+						.orElse(false);
+				if (onDistributorBranch) {
+					return;
+				}
+			}
+			if (user.getEmployee() != null && user.getEmployee().getBranch() != null) {
+				Long companyId = user.getEmployee().getBranch().getCompanyId();
+				Set<Long> branchIds = branchRepository.findByCompany_Id(companyId).stream()
+						.map(Branch::getId)
+						.collect(Collectors.toSet());
+				if (branchIds.contains(branchId)) {
+					return;
+				}
+			}
+			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
+		}
 		BranchScope scope = resolveBranchScope();
 		if (!scope.allowsBranch(branchId)) {
 			throw new AccessDeniedException("Not allowed to access branch id: " + branchId);
@@ -194,6 +238,15 @@ public class SecurityScopeService {
 	}
 
 	public void assertPrinterInScope(Printer printer) {
+		Optional<FiscalBookUser> fiscalUser = currentFiscalBookUser();
+		if (fiscalUser.isPresent()) {
+			boolean visible = findVisiblePrintersForFiscalUser(fiscalUser.get()).stream()
+					.anyMatch(p -> p.getId().equals(printer.getId()));
+			if (!visible) {
+				throw new AccessDeniedException("Not allowed to access this printer");
+			}
+			return;
+		}
 		User user = currentUser();
 		if (isGlobalReader()) {
 			return;

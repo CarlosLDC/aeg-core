@@ -63,7 +63,13 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
 
     private boolean isFiscalPortalPath(String path) {
         return path.startsWith("/api/auth/fiscal-book/")
-                || path.startsWith("/api/fiscal-books/");
+                || path.startsWith("/api/fiscal-books/")
+                || path.startsWith("/api/technical-services")
+                || path.startsWith("/api/annual-inspections")
+                || path.startsWith("/api/seals")
+                || path.startsWith("/api/technicians")
+                || path.startsWith("/api/employees")
+                || path.startsWith("/api/service-centers");
     }
 
     private boolean isFiscalOnlyAuthPath(String path) {
