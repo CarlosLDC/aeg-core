@@ -5,6 +5,6 @@ public enum Role {
     DISTRIBUTOR,
     TECHNICIAN,
     SERVICE_CENTER,
-    /** Solo lectura global (libro fiscal / auditoría SENIAT). */
+    /** Auditor SENIAT: solo portal de libros fiscales, lectura global sin altas. */
     SENIAT
 }

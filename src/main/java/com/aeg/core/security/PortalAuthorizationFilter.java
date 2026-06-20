@@ -1,6 +1,5 @@
 package com.aeg.core.security;
 
-import com.aeg.core.fiscalbookuser.FiscalBookUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,8 +16,6 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class PortalAuthorizationFilter extends OncePerRequestFilter {
-
-    private final JwtService jwtService;
 
     @Override
     protected void doFilterInternal(
@@ -38,15 +35,11 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String portal = resolvePortal(request, authentication);
-        if (Portal.FISCAL_BOOK.equals(portal)) {
-            if (!isFiscalPortalPath(path)) {
+        if (authentication.getPrincipal() instanceof User user && user.getRole() == Role.SENIAT) {
+            if (!isFiscalPortalPath(path) && !isAuthProfilePath(path)) {
                 response.sendError(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
-        } else if (isFiscalOnlyAuthPath(path)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
         }
 
         filterChain.doFilter(request, response);
@@ -54,39 +47,24 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
 
     private boolean shouldSkip(String path) {
         return path.startsWith("/api/auth/login")
-                || path.startsWith("/api/auth/fiscal-book/login")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/error")
                 || path.startsWith("/ws/mqtt")
                 || path.startsWith("/api/mqtt/enajenacion/stream");
     }
 
+    private boolean isAuthProfilePath(String path) {
+        return "/api/auth/me".equals(path);
+    }
+
     private boolean isFiscalPortalPath(String path) {
-        return path.startsWith("/api/auth/fiscal-book/")
-                || path.startsWith("/api/fiscal-books/")
+        return path.startsWith("/api/fiscal-books/")
                 || path.startsWith("/api/technical-services")
                 || path.startsWith("/api/annual-inspections")
                 || path.startsWith("/api/seals")
                 || path.startsWith("/api/technicians")
                 || path.startsWith("/api/employees")
-                || path.startsWith("/api/service-centers");
-    }
-
-    private boolean isFiscalOnlyAuthPath(String path) {
-        return path.startsWith("/api/auth/fiscal-book/");
-    }
-
-    private String resolvePortal(HttpServletRequest request, Authentication authentication) {
-        if (authentication.getPrincipal() instanceof FiscalBookUser) {
-            return Portal.FISCAL_BOOK;
-        }
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String portal = jwtService.extractPortal(authHeader.substring(7));
-            if (portal != null) {
-                return portal;
-            }
-        }
-        return Portal.CORE_ADMIN;
+                || path.startsWith("/api/service-centers")
+                || path.startsWith("/api/printers");
     }
 }

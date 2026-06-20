@@ -26,6 +26,18 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+	private static final String[] BOOK_READ_ROLES = {
+			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "SENIAT"
+	};
+
+	private static final String[] BOOK_WRITE_ROLES = {
+			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
+	};
+
+	private static final String[] PANEL_ROLES = {
+			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
+	};
+
 	private final JwtAuthenticationFilter jwtAuthFilter;
 	private final PortalAuthorizationFilter portalAuthorizationFilter;
 	private final AppCorsProperties corsProperties;
@@ -44,9 +56,7 @@ public class SecurityConfig {
 				authorize
 				.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				.requestMatchers("/api/auth/login").permitAll()
-				.requestMatchers("/api/auth/fiscal-book/login").permitAll()
-				.requestMatchers("/api/auth/me").authenticated()
-				.requestMatchers("/api/auth/fiscal-book/me").authenticated();
+				.requestMatchers("/api/auth/me").authenticated();
 				if (swaggerEnabled) {
 					authorize.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
 				} else {
@@ -54,14 +64,14 @@ public class SecurityConfig {
 				}
 				authorize
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").authenticated()
-				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").authenticated()
+				.requestMatchers(HttpMethod.GET, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
 				.requestMatchers(HttpMethod.PUT, "/api/companies/**", "/api/branches/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.PUT, "/api/distributors/**", "/api/service-centers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/clients/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/employees/**").authenticated()
-				.requestMatchers(HttpMethod.POST, "/api/employees/**").authenticated()
+				.requestMatchers(HttpMethod.GET, "/api/employees/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/employees/**").hasAnyRole(PANEL_ROLES)
 				.requestMatchers(HttpMethod.PUT, "/api/employees/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/employees/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/employee-modification-requests/update", "/api/employee-modification-requests/delete").hasRole("DISTRIBUTOR")
@@ -80,27 +90,24 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.DELETE, "/api/printer-models/**").hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers("/api/distributor-persons/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
-				.requestMatchers(HttpMethod.GET, "/api/printers/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SENIAT")
+				.requestMatchers(HttpMethod.GET, "/api/printers/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers(HttpMethod.POST, "/api/printers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/printers/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.DELETE, "/api/printers/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.GET, "/api/seals/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER", "SENIAT", "FISCAL_TECHNICIAN")
-				.requestMatchers(HttpMethod.POST, "/api/seals/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.PUT, "/api/seals/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.DELETE, "/api/seals/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.GET, "/api/technical-services/**")
-					.hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "SENIAT")
-				.requestMatchers(HttpMethod.POST, "/api/technical-services/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER", "FISCAL_TECHNICIAN")
-				.requestMatchers(HttpMethod.PUT, "/api/technical-services/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.DELETE, "/api/technical-services/**").hasAnyRole("ADMIN", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.GET, "/api/annual-inspections/**")
-					.hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "SENIAT")
-				.requestMatchers(HttpMethod.POST, "/api/annual-inspections/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "FISCAL_TECHNICIAN")
-				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER")
-				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**")
-					.hasAnyRole("FISCAL_ADMIN", "FISCAL_TECHNICIAN", "FISCAL_AUDITOR")
-				.requestMatchers("/api/technicians/**").hasAnyRole("ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER", "FISCAL_TECHNICIAN")
+				.requestMatchers(HttpMethod.GET, "/api/seals/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.PUT, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.DELETE, "/api/seals/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.GET, "/api/technical-services/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.PUT, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.DELETE, "/api/technical-services/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.GET, "/api/annual-inspections/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole(BOOK_WRITE_ROLES)
+				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers("/api/technicians/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

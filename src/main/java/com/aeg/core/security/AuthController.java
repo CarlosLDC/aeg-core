@@ -2,6 +2,7 @@ package com.aeg.core.security;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,19 +39,29 @@ public class AuthController {
         );
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
         User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
-        
+
+        String loginPortal = normalizeLoginPortal(request.getPortal());
+        if (user.getRole() == Role.SENIAT && Portal.CORE_ADMIN.equals(loginPortal)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Esta cuenta solo puede acceder al portal de libros fiscales.");
+        }
+
         Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("portal", Portal.CORE_ADMIN);
+        extraClaims.put("portal", loginPortal);
         extraClaims.put("role", user.getRole().name());
         extraClaims.put("branchId", user.getBranchId());
         extraClaims.put("distributorId", user.getDistributorId());
-        
+
         String token = jwtService.generateToken(extraClaims, userDetails);
         return ResponseEntity.ok(new AuthResponse(token));
     }
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> me(@AuthenticationPrincipal UserDetails userDetails) {
+        if (!(userDetails instanceof User)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         User user = userRepository.findByUsernameWithRelations(userDetails.getUsername()).orElseThrow();
         return ResponseEntity.ok(new UserProfileResponse(
             user.getId(),
@@ -63,10 +75,19 @@ public class AuthController {
         ));
     }
 
+    private static String normalizeLoginPortal(String portal) {
+        if (portal == null || portal.isBlank()) {
+            return Portal.CORE_ADMIN;
+        }
+        return portal.trim().toUpperCase();
+    }
+
     @Data
     public static class LoginRequest {
         private String username;
         private String password;
+        /** {@code CORE_ADMIN} (panel) o {@code FISCAL_BOOK} (libro fiscal). */
+        private String portal;
     }
 
     @Data

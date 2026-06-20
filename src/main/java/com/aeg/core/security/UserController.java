@@ -38,16 +38,8 @@ public class UserController {
         if (name == null || email == null || request.getPassword() == null || request.getPassword().isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        if (request.getBranchId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
         if (userRepository.findByUsername(email).isPresent()) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
-        }
-        Branch branch = branchRepository.findById(request.getBranchId())
-                .orElse(null);
-        if (branch == null) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
         }
 
         Role role;
@@ -56,9 +48,23 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
+
+        Long branchId = request.getBranchId();
+        if (role != Role.ADMIN && role != Role.SENIAT && branchId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Branch branch = null;
+        if (branchId != null) {
+            branch = branchRepository.findById(branchId).orElse(null);
+            if (branch == null) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
+            }
+        }
+
         RoleAssignment assignment;
         try {
-            assignment = resolveRoleAssignment(role, request.getBranchId());
+            assignment = resolveRoleAssignment(role, branchId);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
@@ -68,7 +74,7 @@ public class UserController {
                 .name(name)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
-                .branchId(request.getBranchId())
+                .branchId(branchId)
                 .branch(branch)
                 .distributorId(assignment.distributorId())
                 .distributor(assignment.distributor())
@@ -130,16 +136,23 @@ public class UserController {
         }
         Long branchId = existing.getBranchId();
         if (request.getBranchId() != null) {
-            Branch branch = branchRepository.findById(request.getBranchId())
-                    .orElse(null);
+            branchId = request.getBranchId();
+        }
+        if (role == Role.ADMIN || role == Role.SENIAT) {
+            existing.setBranch(null);
+            branchId = null;
+        } else if (branchId != null) {
+            Branch branch = branchRepository.findById(branchId).orElse(null);
             if (branch == null) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
             }
             existing.setBranch(branch);
-            branchId = branch.getId();
+        } else {
+            return ResponseEntity.badRequest().build();
         }
         try {
             RoleAssignment assignment = resolveRoleAssignment(role, branchId);
+            existing.setBranchId(branchId);
             existing.setDistributorId(assignment.distributorId());
             existing.setDistributor(assignment.distributor());
         } catch (IllegalArgumentException e) {
@@ -219,7 +232,7 @@ public class UserController {
      * - TECHNICIAN/SERVICE_CENTER: la sucursal debe estar registrada como centro de servicio.
      */
     private RoleAssignment resolveRoleAssignment(Role role, Long branchId) {
-        if (role == Role.ADMIN) {
+        if (role == Role.ADMIN || role == Role.SENIAT) {
             return new RoleAssignment(null, null);
         }
         if (role != Role.DISTRIBUTOR) {
