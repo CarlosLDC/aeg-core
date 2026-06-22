@@ -81,15 +81,15 @@ class EnajenacionMqttIT {
                 MAC_1,
                 PrinterStatus.ASIGNADA);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
 
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
@@ -125,15 +125,15 @@ class EnajenacionMqttIT {
                 MAC_6,
                 PrinterStatus.LABORATORIO);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.fiscalRifSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.wFileSpiffSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.staInfSuccess(fixture.fiscalSerial()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.invoiceSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.creditNoteSuccess());
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.reportZSuccess());
 
         verify(mqttService, times(8)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
 
@@ -155,7 +155,7 @@ class EnajenacionMqttIT {
                 MAC_2,
                 PrinterStatus.SIN_ASIGNAR);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
 
         verifyNoInteractions(mqttService);
         assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
@@ -175,7 +175,7 @@ class EnajenacionMqttIT {
                 MAC_3,
                 PrinterStatus.ENAJENADA);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
 
         verifyNoInteractions(mqttService);
     }
@@ -193,7 +193,7 @@ class EnajenacionMqttIT {
                 MAC_4,
                 PrinterStatus.ASIGNADA);
 
-        sendInbound(
+        sendPtrEnajenar(
                 fixture.compactMac(),
                 EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), "FF:FF:FF:FF:FF:FF"));
 
@@ -215,8 +215,8 @@ class EnajenacionMqttIT {
                 MAC_5,
                 PrinterStatus.ASIGNADA);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.dnfFailure());
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.dnfFailure());
 
         verify(mqttService, times(1)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
         assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
@@ -237,15 +237,21 @@ class EnajenacionMqttIT {
                 PrinterStatus.ASIGNADA);
 
         String dnfResponse = EnajenacionMqttResponses.dnfSuccess();
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
-        sendInbound(fixture.compactMac(), dnfResponse);
-        sendInbound(fixture.compactMac(), dnfResponse);
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendDeviceResponse(fixture.compactMac(), dnfResponse);
+        sendDeviceResponse(fixture.compactMac(), dnfResponse);
 
         verify(mqttService, times(2)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
     }
 
-    private void sendInbound(String compactMac, String payload) {
-        String topic = compactMac + "/AEG_Fiscal/Integracion/CmdServer";
+    private void sendPtrEnajenar(String compactMac, String payload) {
+        String topic = "/" + compactMac + "/AEG_Fiscal/Integracion/CmdServer";
+        eventPublisher.publishEvent(new MqttInboundReceivedEvent(
+                this, new MqttInboundMessage(topic, payload, Instant.now(), 1)));
+    }
+
+    private void sendDeviceResponse(String compactMac, String payload) {
+        String topic = "/" + compactMac + "/AEG_Fiscal/Integracion/Respuesta";
         eventPublisher.publishEvent(new MqttInboundReceivedEvent(
                 this, new MqttInboundMessage(topic, payload, Instant.now(), 1)));
     }

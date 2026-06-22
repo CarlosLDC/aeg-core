@@ -105,6 +105,19 @@ public class EnajenacionMqttOrchestrator {
     }
 
     private EnajenacionStartOutcome handlePtrEnajenarRequest(String topic, String compactMac, String payload) {
+        if (!FiscalMqttTopics.isCmdServerTopic(topic)) {
+            log.debug("Ignoring ptrEnajenar on non-CmdServer topic {}", topic);
+            activityRecorder.recordInbound(
+                    topic,
+                    payload,
+                    compactMac,
+                    null,
+                    null,
+                    EnajenacionActivityResult.IGNORED,
+                    "ptrEnajenar must arrive on CmdServer topic",
+                    null);
+            return EnajenacionStartOutcome.skipped();
+        }
         PtrEnajenarMessage message;
         try {
             message = objectMapper.readValue(payload, PtrEnajenarMessage.class);
@@ -185,6 +198,15 @@ public class EnajenacionMqttOrchestrator {
     }
 
     private void handleDeviceResponse(EnajenacionSession session, String topic, String payload) {
+        if (!FiscalMqttTopics.isRespuestaTopic(topic)) {
+            log.debug(
+                    "Ignoring device response on non-Respuesta topic mac={} topic={}",
+                    session.compactMac(),
+                    topic);
+            recordIgnoredDeviceResponse(
+                    session, topic, payload, "Device responses must arrive on Respuesta topic");
+            return;
+        }
         synchronized (session) {
             if (!session.isAwaitingResponse()) {
                 return;

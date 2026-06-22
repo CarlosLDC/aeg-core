@@ -65,7 +65,7 @@ sequenceDiagram
     loop Pasos 2–7 (Comando)
         S->>B: Publicar comando(s)
         B->>P: Ejecutar en impresora
-        P->>B: Respuesta
+        P->>B: Respuesta (Respuesta)
         B->>S: Entrega respuesta
         S->>S: Validar code / dataD
     end
@@ -91,14 +91,16 @@ Todos los topics usan la **MAC sin separadores** (12 caracteres hexadecimales en
 
 | Topic | Dirección | Uso |
 |-------|-----------|-----|
-| `/{mac}/AEG_Fiscal/Integracion/CmdServer` | Impresora → Servidor | Paso 1: `ptrEnajenar`. Posible canal de respuestas (confirmar con firmware). |
+| `/{mac}/AEG_Fiscal/Integracion/CmdServer` | Impresora → Servidor | Paso 1: `ptrEnajenar` (único mensaje en este tópico). |
+| `/{mac}/AEG_Fiscal/Integracion/Respuesta` | Impresora → Servidor | Pasos 2–7: respuestas del firmware (`code`, `dataD`, `dataS`). |
 | `/{mac}/AEG_Fiscal/Integracion/Comando` | Servidor → Impresora | Pasos 2–7: todos los comandos de enajenación. |
 
 **Ejemplo** (MAC `20:6E:F1:88:4C:68`):
 
 ```
-/206EF1884C68/AEG_Fiscal/Integracion/CmdServer   ← impresora publica
-/206EF1884C68/AEG_Fiscal/Integracion/Comando     ← servidor publica
+/206EF1884C68/AEG_Fiscal/Integracion/CmdServer   ← impresora: ptrEnajenar
+/206EF1884C68/AEG_Fiscal/Integracion/Respuesta   ← impresora: respuestas fiscales
+/206EF1884C68/AEG_Fiscal/Integracion/Comando     ← servidor: comandos
 ```
 
 > **Nota:** el firmware fiscal usa `/` inicial (`/206EF1884C68/...`). El backend también acepta mensajes entrantes sin `/` para compatibilidad, pero publica comandos con `/`.
@@ -108,12 +110,8 @@ Todos los topics usan la **MAC sin separadores** (12 caracteres hexadecimales en
 ```
 +/AEG_Fiscal/Integracion/CmdServer
 /+/AEG_Fiscal/Integracion/CmdServer
-```
-
-Opcional (si las respuestas no llegan por CmdServer):
-
-```
 +/AEG_Fiscal/Integracion/Respuesta
+/+/AEG_Fiscal/Integracion/Respuesta
 ```
 
 Hoy el servidor suscribe por defecto `aeg/telemetry/#` (`MQTT_INBOUND_TOPIC`). Para este protocolo hay que ampliar o reemplazar la suscripción.
@@ -449,7 +447,7 @@ Topic: `/{mac}/AEG_Fiscal/Integracion/Comando`
 
 ### Respuesta (impresora → servidor)
 
-Topic: `/{mac}/AEG_Fiscal/Integracion/CmdServer`
+Topic: `/{mac}/AEG_Fiscal/Integracion/Respuesta`
 
 ```json
 {
@@ -733,7 +731,7 @@ Permite reintentos, auditoría y diagnóstico sin depender solo de logs MQTT.
 
 ## 18. Pendientes y decisiones abiertas
 
-1. **Topic de respuestas:** ¿impresora responde en `CmdServer`, `Respuesta` u otro?
+1. **Topic de respuestas:** impresora responde en `Respuesta`; `ptrEnajenar` solo en `CmdServer`.
 2. **ACK Paso 1:** ¿el servidor debe responder algo a `ptrEnajenar` antes del DNF?
 3. **Código postal:** campo en BD o regla de formateo para `encFacFijo[2]`.
 4. **Número de factura:** ¿`nroFacNC` siempre `1` o viene en respuesta del Paso 5?

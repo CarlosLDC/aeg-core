@@ -32,6 +32,7 @@ class EnajenacionMqttOrchestratorTest {
 
     private static final String MAC = "206EF1884C68";
     private static final String CMD_SERVER = "/" + MAC + "/AEG_Fiscal/Integracion/CmdServer";
+    private static final String RESPUESTA = "/" + MAC + "/AEG_Fiscal/Integracion/Respuesta";
 
     @Mock
     private EnajenacionPreconditionValidator preconditionValidator;
@@ -96,8 +97,8 @@ class EnajenacionMqttOrchestratorTest {
         session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
 
         String dnfResponse = EnajenacionMqttResponses.dnfSuccess();
-        orchestrator.handleInbound(CMD_SERVER, dnfResponse);
-        orchestrator.handleInbound(CMD_SERVER, dnfResponse);
+        orchestrator.handleInbound(RESPUESTA, dnfResponse);
+        orchestrator.handleInbound(RESPUESTA, dnfResponse);
 
         ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(mqttService, times(1)).publish(eq("/" + MAC + "/AEG_Fiscal/Integracion/Comando"), payloadCaptor.capture());
@@ -126,7 +127,7 @@ class EnajenacionMqttOrchestratorTest {
         session.setState(EnajenacionSessionState.DNF_SENT);
         session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
 
-        orchestrator.handleInbound(CMD_SERVER, EnajenacionMqttResponses.dnfSuccess());
+        orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.dnfSuccess());
 
         assertThat(activityStore.recent(20, MAC))
                 .anyMatch(entry -> entry.result() == EnajenacionActivityResult.PROCESSED
@@ -155,7 +156,7 @@ class EnajenacionMqttOrchestratorTest {
         session.setState(EnajenacionSessionState.INVOICE_SENT);
         session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
 
-        orchestrator.handleInbound(CMD_SERVER, EnajenacionMqttResponses.dnfSuccess());
+        orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.dnfSuccess());
 
         assertThat(registry.find(MAC)).isPresent();
         assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.INVOICE_SENT);
@@ -208,5 +209,34 @@ class EnajenacionMqttOrchestratorTest {
                 .contains("206EF1884C68");
         assertThat(FiscalMqttTopics.extractCompactMac("206EF1884C68/AEG_Fiscal/Integracion/CmdServer"))
                 .contains("206EF1884C68");
+        assertThat(FiscalMqttTopics.extractCompactMac("/206EF1884C68/AEG_Fiscal/Integracion/Respuesta"))
+                .contains("206EF1884C68");
+        assertThat(FiscalMqttTopics.respuestaTopic(MAC)).isEqualTo(RESPUESTA);
+    }
+
+    @Test
+    void dnfResponseOnCmdServerIsIgnoredWhileAwaitingDnf() {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.DNF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
+
+        orchestrator.handleInbound(CMD_SERVER, EnajenacionMqttResponses.dnfSuccess());
+
+        assertThat(registry.find(MAC)).isPresent();
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.DNF_SENT);
+        verify(mqttService, org.mockito.Mockito.never()).publish(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 }

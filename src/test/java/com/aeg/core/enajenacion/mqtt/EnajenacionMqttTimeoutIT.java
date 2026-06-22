@@ -84,7 +84,7 @@ class EnajenacionMqttTimeoutIT {
                 MAC,
                 PrinterStatus.ASIGNADA);
 
-        sendInbound(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
 
         verify(mqttService, times(1)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
         assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isTrue();
@@ -97,8 +97,8 @@ class EnajenacionMqttTimeoutIT {
         verifyNoMoreInteractions(mqttService);
     }
 
-    private void sendInbound(String compactMac, String payload) {
-        String topic = compactMac + "/AEG_Fiscal/Integracion/CmdServer";
+    private void sendPtrEnajenar(String compactMac, String payload) {
+        String topic = "/" + compactMac + "/AEG_Fiscal/Integracion/CmdServer";
         eventPublisher.publishEvent(new MqttInboundReceivedEvent(
                 this, new MqttInboundMessage(topic, payload, Instant.now(), 1)));
     }

@@ -4,8 +4,9 @@ Simulador de impresora fiscal AEG para pruebas del protocolo de enajenación MQT
 
 Responde automáticamente a los comandos publicados por AEG Core en
   /{mac}/AEG_Fiscal/Integracion/Comando
-y envía respuestas (y opcionalmente ptrEnajenar) a
-  /{mac}/AEG_Fiscal/Integracion/CmdServer
+y envía respuestas a
+  /{mac}/AEG_Fiscal/Integracion/Respuesta
+(solo ptrEnajenar va a CmdServer)
 
 Requisitos:
   pip install -r scripts/requirements-mqtt-sim.txt
@@ -200,13 +201,14 @@ def main() -> int:
 
     mac_compact = compact_mac(args.mac)
     cmd_server = f"/{mac_compact}/AEG_Fiscal/Integracion/CmdServer"
+    respuesta = f"/{mac_compact}/AEG_Fiscal/Integracion/Respuesta"
     comando = f"/{mac_compact}/AEG_Fiscal/Integracion/Comando"
     host, port = parse_broker(args.broker)
     client_id = args.client_id or f"aeg-printer-sim-{mac_compact.lower()}"
 
     print(f"Broker: {host}:{port}")
     print(f"Suscribiendo: {comando}")
-    print(f"Respuestas en: {cmd_server}")
+    print(f"Respuestas en: {respuesta}")
 
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc != 0:
@@ -226,8 +228,8 @@ def main() -> int:
         try:
             kind = classify_command(payload)
             response = build_response(kind, args.fiscal_serial)
-            client.publish(cmd_server, response, qos=1)
-            print(f">> Respuesta ({kind}) publicada en {cmd_server}")
+            client.publish(respuesta, response, qos=1)
+            print(f">> Respuesta ({kind}) publicada en {respuesta}")
         except Exception as ex:
             print(f"Error procesando comando: {ex}", file=sys.stderr)
 

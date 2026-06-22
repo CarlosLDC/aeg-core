@@ -8,6 +8,7 @@ public final class FiscalMqttTopics {
 
     public static final String CMD_SERVER_SUFFIX = "/AEG_Fiscal/Integracion/CmdServer";
     public static final String COMANDO_SUFFIX = "/AEG_Fiscal/Integracion/Comando";
+    public static final String RESPUESTA_SUFFIX = "/AEG_Fiscal/Integracion/Respuesta";
 
     private static final Pattern INBOUND_TOPIC = Pattern.compile(
             "^/?([0-9A-Fa-f]{12})/AEG_Fiscal/Integracion/(CmdServer|Respuesta)$");
@@ -17,6 +18,18 @@ public final class FiscalMqttTopics {
 
     public static String comandoTopic(String compactMac) {
         return "/" + MacAddressNormalizer.toCompactForm(compactMac) + COMANDO_SUFFIX;
+    }
+
+    public static String respuestaTopic(String compactMac) {
+        return "/" + MacAddressNormalizer.toCompactForm(compactMac) + RESPUESTA_SUFFIX;
+    }
+
+    public static boolean isCmdServerTopic(String topic) {
+        return topic != null && topic.trim().endsWith(CMD_SERVER_SUFFIX);
+    }
+
+    public static boolean isRespuestaTopic(String topic) {
+        return topic != null && topic.trim().endsWith(RESPUESTA_SUFFIX);
     }
 
     public static Optional<String> extractCompactMac(String topic) {

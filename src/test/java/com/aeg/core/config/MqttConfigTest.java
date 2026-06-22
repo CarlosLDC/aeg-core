@@ -8,7 +8,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class MqttConfigTest {
 
     @Test
-    void inboundTopicsIncludeFiscalCmdServerWhenEnajenacionIsEnabled() {
+    void inboundTopicsIncludeFiscalCmdServerAndRespuestaWhenEnajenacionIsEnabled() {
         MqttConfig config = new MqttConfig(null);
         ReflectionTestUtils.setField(config, "inboundTopic", "aeg/telemetry/#");
         ReflectionTestUtils.setField(config, "enajenacionEnabled", true);
@@ -18,7 +18,9 @@ class MqttConfigTest {
                 .containsExactly(
                         "aeg/telemetry/#",
                         "+/AEG_Fiscal/Integracion/CmdServer",
-                        "/+/AEG_Fiscal/Integracion/CmdServer");
+                        "/+/AEG_Fiscal/Integracion/CmdServer",
+                        "+/AEG_Fiscal/Integracion/Respuesta",
+                        "/+/AEG_Fiscal/Integracion/Respuesta");
     }
 
     @Test
@@ -31,6 +33,8 @@ class MqttConfigTest {
         assertThat(config.inboundTopics())
                 .containsExactly(
                         "+/AEG_Fiscal/Integracion/CmdServer",
-                        "/+/AEG_Fiscal/Integracion/CmdServer");
+                        "/+/AEG_Fiscal/Integracion/CmdServer",
+                        "+/AEG_Fiscal/Integracion/Respuesta",
+                        "/+/AEG_Fiscal/Integracion/Respuesta");
     }
 }
