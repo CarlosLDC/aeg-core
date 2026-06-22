@@ -63,11 +63,6 @@ public class FiscalResponseValidator {
                         "Unexpected DNF response cmd at index " + i + ", expected " + expectedCmd);
             }
             assertSuccessCode(item);
-            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_DNF)) {
-                assertDataD(item, EnajenacionConstants.DNF_END_OK);
-            } else {
-                assertDataD(item, 0);
-            }
         }
     }
 
@@ -76,7 +71,6 @@ public class FiscalResponseValidator {
             throw new EnajenacionProtocolException("Unexpected response cmd, expected " + expectedCmd);
         }
         assertSuccessCode(item);
-        assertDataD(item, 0);
     }
 
     public void validateStaInfResponse(FiscalMqttResponseItem item, String expectedFiscalSerial) {
@@ -112,13 +106,6 @@ public class FiscalResponseValidator {
                         "Unexpected invoice response cmd at index " + i + ", expected " + expectedCmd);
             }
             assertSuccessCode(item);
-            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_SUB_TO_F)) {
-                assertDataD(item, EnajenacionConstants.SUBTOTAL_DATA_D);
-            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_FAC)) {
-                assertDataD(item, EnajenacionConstants.INVOICE_END_OK);
-            } else {
-                assertDataD(item, 0);
-            }
         }
     }
 
@@ -138,15 +125,6 @@ public class FiscalResponseValidator {
                         "Unexpected credit note response cmd at index " + i + ", expected " + expectedCmd);
             }
             assertSuccessCode(item);
-            if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_PROD_NC)) {
-                assertDataD(item, EnajenacionConstants.PROD_NC_LINE_DATA_D);
-            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_PO_NC)) {
-                assertDataD(item, EnajenacionConstants.SUBTOTAL_DATA_D);
-            } else if (cmdEquals(item.cmd(), EnajenacionConstants.CMD_END_NC)) {
-                assertDataD(item, EnajenacionConstants.CREDIT_NOTE_END_OK);
-            } else {
-                assertDataD(item, 0);
-            }
         }
     }
 
@@ -157,13 +135,6 @@ public class FiscalResponseValidator {
     private static void assertSuccessCode(FiscalMqttResponseItem item) {
         if (item.code() == null || item.code() != 0) {
             throw new EnajenacionProtocolException("Command " + item.cmd() + " failed with code " + item.code());
-        }
-    }
-
-    private static void assertDataD(FiscalMqttResponseItem item, int expected) {
-        if (item.dataD() == null || item.dataD() != expected) {
-            throw new EnajenacionProtocolException(
-                    "Command " + item.cmd() + " expected dataD=" + expected + " but was " + item.dataD());
         }
     }
 

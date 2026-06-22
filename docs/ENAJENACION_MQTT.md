@@ -67,7 +67,7 @@ sequenceDiagram
         B->>P: Ejecutar en impresora
         P->>B: Respuesta (Respuesta)
         B->>S: Entrega respuesta
-        S->>S: Validar code / dataD
+        S->>S: Validar code
     end
 
     S->>S: Marcar ENAJENADA en BD
@@ -310,7 +310,7 @@ Excepto el último:
 
 - 11 respuestas en el mismo orden de `cmd`.
 - Todos `code === 0`.
-- Todos `dataD === 0` excepto `endDNF` con `dataD === 7`.
+- `dataD` es dinámico (lo envía el firmware); el servidor **no** valida su valor numérico.
 
 ### Timeout
 
@@ -618,18 +618,24 @@ Imprimir el **Reporte Z** fiscal. Cierra el proceso en la impresora (como anunci
 
 ---
 
-## 13. Constantes de éxito
+## 13. Criterio de éxito en respuestas
 
-| Constante | Valor | Paso / cmd |
-|-----------|-------|------------|
-| `DNF_END_OK` | 7 | `endDNF` |
-| `INVOICE_END_OK` | 8 | `endFac` |
-| `CREDIT_NOTE_END_OK` | 10 | `endNC` |
-| `REPORT_Z_OK` | 0 | `genImpRepZ` dataD |
-| `SUBTOTAL_DATA_D` | 555 | `subToF`, `endPoNC` |
-| `PROD_NC_LINE_DATA_D` | 9 | cada `prodNC` |
+| Campo | Validación |
+|-------|------------|
+| `code` | Debe ser `0` en cada ítem. Cualquier `code !== 0` aborta el flujo. |
+| `dataD` | Dinámico (firmware). El servidor **no** compara el valor recibido. |
+| `dataS` | Solo en `StaInf`: debe coincidir con el serial fiscal (`ptrReg`). |
 
-Cualquier `code !== 0` en cualquier paso → abortar flujo, estado sesión `FAILED`, **no** marcar `ENAJENADA` en BD.
+Valores típicos que devuelve el firmware (referencia para simulación, no regla de validación):
+
+| cmd / contexto | `dataD` habitual |
+|----------------|------------------|
+| `endDNF` | 7 |
+| `endFac` | 8 |
+| `endNC` | 10 |
+| `subToF`, `endPoNC` | 555 |
+| `prodNC` (cada línea) | 9 |
+| `genImpRepZ` | 0 |
 
 ---
 
@@ -639,7 +645,7 @@ Cualquier `code !== 0` en cualquier paso → abortar flujo, estado sesión `FAIL
 IDLE
   → VALIDATED          (Paso 1 OK)
   → DNF_SENT           (publicó Paso 2a)
-  → DNF_OK             (endDNF dataD=7)
+  → DNF_OK             (endDNF code=0)
   → FISCAL_RIF_SENT    (3a)
   → FISCAL_RIF_OK
   → HEADER_SENT        (3b)
@@ -649,9 +655,9 @@ IDLE
   → REG_STATUS_SENT    (4, StaInf)
   → REG_STATUS_OK
   → INVOICE_SENT       (5)
-  → INVOICE_OK         (endFac dataD=8)
+  → INVOICE_OK         (endFac code=0)
   → CREDIT_NOTE_SENT   (6)
-  → CREDIT_NOTE_OK     (endNC dataD=10)
+  → CREDIT_NOTE_OK     (endNC code=0)
   → REPORT_Z_SENT      (7)
   → COMPLETED          (genImpRepZ OK + BD actualizada)
 
@@ -735,7 +741,7 @@ Permite reintentos, auditoría y diagnóstico sin depender solo de logs MQTT.
 2. **ACK Paso 1:** ¿el servidor debe responder algo a `ptrEnajenar` antes del DNF?
 3. **Código postal:** campo en BD o regla de formateo para `encFacFijo[2]`.
 4. **Número de factura:** ¿`nroFacNC` siempre `1` o viene en respuesta del Paso 5?
-5. **`subToF.dataD = 555`:** ¿valor fijo con la plantilla actual o calculado?
+5. **Valores `dataD` del firmware:** dinámicos; el servidor solo exige `code = 0`.
 6. **Re-enajenación:** comportamiento si la impresora reinicia a mitad de flujo.
 7. **Seguridad MQTT:** autenticación broker, ACL por MAC, TLS.
 

@@ -21,12 +21,11 @@ class FiscalResponseValidatorTest {
     }
 
     @Test
-    void rejectsDnfWithWrongEndDataD() {
+    void acceptsDnfWithArbitraryDataD() {
         List<FiscalMqttResponseItem> items = validDnfResponse();
-        items.set(10, new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, 0));
+        items.set(10, new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_DNF, 0, 42));
 
-        assertThatThrownBy(() -> validator.validateDnfResponse(items))
-                .isInstanceOf(EnajenacionProtocolException.class);
+        validator.validateDnfResponse(items);
     }
 
     @Test
@@ -75,12 +74,12 @@ class FiscalResponseValidatorTest {
     }
 
     @Test
-    void rejectsInvoiceWithWrongSubtotalDataD() {
+    void acceptsInvoiceWithArbitraryDataD() {
         List<FiscalMqttResponseItem> items = validInvoiceResponse();
-        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_SUB_TO_F, 0, 0));
+        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_SUB_TO_F, 0, 123));
+        items.set(7, new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_FAC, 0, 999));
 
-        assertThatThrownBy(() -> validator.validateInvoiceResponse(items))
-                .isInstanceOf(EnajenacionProtocolException.class);
+        validator.validateInvoiceResponse(items);
     }
 
     @Test
@@ -98,12 +97,12 @@ class FiscalResponseValidatorTest {
     }
 
     @Test
-    void rejectsCreditNoteWithWrongProdDataD() {
+    void acceptsCreditNoteWithArbitraryDataD() {
         List<FiscalMqttResponseItem> items = validCreditNoteResponse();
-        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_PROD_NC, 0, 0));
+        items.set(5, new FiscalMqttResponseItem(EnajenacionConstants.CMD_PROD_NC, 0, 1));
+        items.set(12, new FiscalMqttResponseItem(EnajenacionConstants.CMD_END_NC, 0, 77));
 
-        assertThatThrownBy(() -> validator.validateCreditNoteResponse(items))
-                .isInstanceOf(EnajenacionProtocolException.class);
+        validator.validateCreditNoteResponse(items);
     }
 
     @Test
@@ -113,10 +112,9 @@ class FiscalResponseValidatorTest {
     }
 
     @Test
-    void rejectsReportZWithWrongDataD() {
-        assertThatThrownBy(() -> validator.validateReportZResponse(
-                        new FiscalMqttResponseItem(EnajenacionConstants.CMD_GEN_IMP_REP_Z, 0, 1)))
-                .isInstanceOf(EnajenacionProtocolException.class);
+    void acceptsReportZWithArbitraryDataD() {
+        validator.validateReportZResponse(
+                new FiscalMqttResponseItem(EnajenacionConstants.CMD_GEN_IMP_REP_Z, 0, 99));
     }
 
     private static List<FiscalMqttResponseItem> validDnfResponse() {
