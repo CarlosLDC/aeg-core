@@ -16,6 +16,8 @@ public class EnajenacionMqttTopicSubscriber {
 
     private static final int SUBSCRIPTION_QOS = 1;
 
+    private static final String RESPUESTA_TOPIC = "+/AEG_Fiscal/Integracion/Respuesta";
+
     private final EnajenacionMqttSettings settings;
     private final ObjectProvider<MqttPahoMessageDrivenChannelAdapter> inboundAdapter;
 
@@ -45,7 +47,11 @@ public class EnajenacionMqttTopicSubscriber {
         for (int attempt = 0; attempt < 30; attempt++) {
             if (adapter.isRunning()) {
                 adapter.addTopic(settings.inboundTopic(), SUBSCRIPTION_QOS);
-                log.info("Enajenacion MQTT subscribed to topic {}", settings.inboundTopic());
+                adapter.addTopic(RESPUESTA_TOPIC, SUBSCRIPTION_QOS);
+                log.info(
+                        "Enajenacion MQTT subscribed to topics {} and {}",
+                        settings.inboundTopic(),
+                        RESPUESTA_TOPIC);
                 return;
             }
             try {

@@ -3,13 +3,17 @@ package com.aeg.core.enajenacion.mqtt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +78,83 @@ class EnajenacionMqttOrchestratorTest {
                 taskScheduler,
                 sseNotifier,
                 activityRecorder);
+    }
+
+    @Test
+    void fiscalRifResponseOnRespuestaPublishesHeader() {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.OBJECT);
+
+        orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.fiscalRifSuccess());
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService, times(1)).publish(eq("/" + MAC + "/AEG_Fiscal/Integracion/Comando"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("\"cmd\":\"wFileSPIFF\"");
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.HEADER_SENT);
+    }
+
+    @Test
+    void fiscalRifResponseWaitsForSessionLockDuringDnfTransition() throws Exception {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        CountDownLatch holdDuringFiscalPublish = new CountDownLatch(1);
+        CountDownLatch releasePublish = new CountDownLatch(1);
+        AtomicInteger publishCount = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (publishCount.incrementAndGet() == 1) {
+                holdDuringFiscalPublish.countDown();
+                releasePublish.await(5, TimeUnit.SECONDS);
+            }
+            return null;
+        }).when(mqttService).publish(any(String.class), any(String.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.DNF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.ARRAY);
+
+        Thread dnfThread = new Thread(() -> orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.dnfSuccess()));
+        dnfThread.start();
+        assertThat(holdDuringFiscalPublish.await(5, TimeUnit.SECONDS)).isTrue();
+
+        Thread fiscalResponseThread = new Thread(
+                () -> orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.fiscalRifSuccess()));
+        fiscalResponseThread.start();
+        releasePublish.countDown();
+        dnfThread.join(5_000);
+        fiscalResponseThread.join(5_000);
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService, times(2)).publish(eq("/" + MAC + "/AEG_Fiscal/Integracion/Comando"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getAllValues().get(0)).contains("\"cmd\":\"fiscalAEG\"");
+        assertThat(payloadCaptor.getAllValues().get(1)).contains("\"cmd\":\"wFileSPIFF\"");
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.HEADER_SENT);
     }
 
     @Test

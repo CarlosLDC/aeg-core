@@ -84,20 +84,7 @@ public class EnajenacionMqttOrchestrator {
                 return Optional.of(handlePtrEnajenarRequest(topic, compactMac, payload));
             }
             EnajenacionSession session = sessionRegistry.find(compactMac).orElseThrow();
-            if (session.isAwaitingResponse()) {
-                handleDeviceResponse(session, topic, payload);
-            } else {
-                log.debug("Ignoring inbound for MAC {} while session state={}", compactMac, session.state());
-                activityRecorder.recordInbound(
-                        topic,
-                        payload,
-                        compactMac,
-                        session.printerId(),
-                        session.context().fiscalSerial(),
-                        EnajenacionActivityResult.IGNORED,
-                        "Session not awaiting response in state " + session.state(),
-                        session.state());
-            }
+            handleDeviceResponse(session, topic, payload);
             return Optional.empty();
         }
 
@@ -209,6 +196,11 @@ public class EnajenacionMqttOrchestrator {
         }
         synchronized (session) {
             if (!session.isAwaitingResponse()) {
+                recordIgnoredDeviceResponse(
+                        session,
+                        topic,
+                        payload,
+                        "Session not awaiting response in state " + session.state());
                 return;
             }
             boolean arrayPayload = isJsonArrayPayload(payload);
@@ -373,7 +365,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateDnfResponse(items);
                 session.setState(EnajenacionSessionState.DNF_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishFiscalRif(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -381,7 +372,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateInvoiceResponse(items);
                 session.setState(EnajenacionSessionState.INVOICE_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishCreditNote(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -389,7 +379,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateCreditNoteResponse(items);
                 session.setState(EnajenacionSessionState.CREDIT_NOTE_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishReportZ(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -403,7 +392,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_FISCAL_AEG);
                 session.setState(EnajenacionSessionState.FISCAL_RIF_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishHeader(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -411,7 +399,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.HEADER_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishConfigSpiffs(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -419,7 +406,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.CONFIG_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = afterConfigOk(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -427,7 +413,6 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateStaInfResponse(item, session.context().fiscalSerial());
                 session.setState(EnajenacionSessionState.REG_STATUS_OK);
-                session.clearAwaiting();
                 PublishedMqttCommand next = publishInvoice(session);
                 sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
             }
@@ -437,7 +422,6 @@ public class EnajenacionMqttOrchestrator {
                 sseNotifier.notifyReportZAccepted(session);
                 completionService.markEnajenada(session.printerId());
                 session.setState(EnajenacionSessionState.COMPLETED);
-                session.clearAwaiting();
                 log.info(
                         "Enajenacion completed printerId={} ptrReg={} mac={}",
                         session.printerId(),
