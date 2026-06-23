@@ -118,8 +118,10 @@ public class PrinterServiceImpl implements PrinterService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
             securityScope.assertClientInScope(client);
             p.setClient(client);
-        } else if (request.status() == PrinterStatus.SIN_ASIGNAR
-                || request.status() == PrinterStatus.DE_FABRICA) {
+        } else {
+            if (p.getStatus() == PrinterStatus.ENAJENADA) {
+                throw new IllegalArgumentException("Cannot unassign client from an enajenada printer");
+            }
             p.setClient(null);
         }
         p.setFiscalSerial(request.fiscalSerial());
@@ -132,6 +134,9 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
+        if (p.getClient() == null && p.getStatus() == PrinterStatus.ASIGNADA) {
+            p.setStatus(PrinterStatus.SIN_ASIGNAR);
+        }
         return toResponse(repository.save(p));
     }
 

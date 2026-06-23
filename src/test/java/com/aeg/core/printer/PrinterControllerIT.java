@@ -184,6 +184,40 @@ public class PrinterControllerIT {
                 .isEqualTo(PrinterStatus.ASIGNADA);
     }
 
+    @Test
+    void adminCanUnassignClientFromAssignedPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":" + printer.getPaid() + ","
+                + "\"status\":\"asignada\","
+                + "\"deviceType\":\"interno\","
+                + "\"clientId\":null"
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"clientId\":null");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getClientId()).isNull();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.SIN_ASIGNAR);
+    }
+
+    private java.net.http.HttpResponse<String> putPrinter(Long printerId, String body) throws Exception {
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printerId))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .PUT(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
     private String basicAuthHeader() {
         String token = Base64.getEncoder()
                 .encodeToString("segar12345@gmail.com:aeg-r1".getBytes(StandardCharsets.UTF_8));
