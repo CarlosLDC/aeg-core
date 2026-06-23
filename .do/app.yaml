@@ -54,3 +54,6 @@ services:
         value: "+/AEG_Fiscal/Integracion/CmdServer"
       - key: MQTT_ENAJENACION_TICKET_FOOTER_LINES
         value: ""
+      # Paso 3a (fiscalAEG / SPIFFS): impresoras reales pueden tardar varios minutos.
+      - key: MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF
+        value: "300"

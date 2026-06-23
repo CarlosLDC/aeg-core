@@ -18,6 +18,12 @@ Ejemplo (broker local sin auth):
     --broker tcp://localhost:1883 \\
     --initiate
 
+Reproducir latencia en paso 3a (timeout con default 120 s en core):
+  python3 scripts/enajenacion_printer_simulator.py ... --delay-fiscal-rif-ms 150000
+
+Éxito tardío con timeout ampliado (p. ej. MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF=300):
+  python3 scripts/enajenacion_printer_simulator.py ... --delay-fiscal-rif-ms 90000
+
 Variables de entorno (alternativa a flags): MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASS
 """
 from __future__ import annotations
@@ -191,7 +197,24 @@ def main() -> int:
         help="Publica ptrEnajenar al conectar (simula arranque de impresora)",
     )
     parser.add_argument("--client-id", default=None, help="Client ID MQTT (default auto)")
+    parser.add_argument(
+        "--delay-ms",
+        type=int,
+        default=0,
+        help="Retraso global (ms) antes de publicar cada respuesta simulada",
+    )
+    parser.add_argument(
+        "--delay-fiscal-rif-ms",
+        type=int,
+        default=None,
+        help="Retraso (ms) solo para fiscalAEG (paso 3a); por defecto usa --delay-ms",
+    )
     args = parser.parse_args()
+
+    def response_delay_seconds(kind: str) -> float:
+        if kind == "fiscal_rif" and args.delay_fiscal_rif_ms is not None:
+            return max(0, args.delay_fiscal_rif_ms) / 1000.0
+        return max(0, args.delay_ms) / 1000.0
 
     try:
         import paho.mqtt.client as mqtt
@@ -227,6 +250,10 @@ def main() -> int:
         print(payload[:500] + ("..." if len(payload) > 500 else ""))
         try:
             kind = classify_command(payload)
+            delay_s = response_delay_seconds(kind)
+            if delay_s > 0:
+                print(f"… esperando {delay_s:.1f}s antes de responder ({kind})")
+                time.sleep(delay_s)
             response = build_response(kind, args.fiscal_serial)
             client.publish(respuesta, response, qos=1)
             print(f">> Respuesta ({kind}) publicada en {respuesta}")

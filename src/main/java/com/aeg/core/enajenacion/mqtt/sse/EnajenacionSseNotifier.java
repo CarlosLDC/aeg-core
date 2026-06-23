@@ -74,8 +74,10 @@ public class EnajenacionSseNotifier {
                         session.context().fiscalSerial()));
     }
 
-    public void notifySessionFailed(EnajenacionSession session, String reason) {
-        EnajenacionSessionState failedAt = session.state();
+    public void notifySessionFailed(
+            EnajenacionSession session,
+            String reason,
+            EnajenacionSessionState failedAtState) {
         broadcaster.broadcast(
                 session.compactMac(),
                 EnajenacionSseEvent.sessionFailed(
@@ -83,6 +85,6 @@ public class EnajenacionSseNotifier {
                         session.printerId(),
                         session.context().fiscalSerial(),
                         reason,
-                        failedAt));
+                        failedAtState));
     }
 }

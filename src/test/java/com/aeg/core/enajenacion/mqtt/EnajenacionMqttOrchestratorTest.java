@@ -320,4 +320,30 @@ class EnajenacionMqttOrchestratorTest {
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString());
     }
+
+    @Test
+    void mismatchedFiscalRifResponseIsIgnoredWhileAwaitingFiscalRif() {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.OBJECT);
+
+        orchestrator.handleInbound(RESPUESTA, "{\"cmd\":\"wFileSPIFF\",\"code\":0,\"dataD\":0}");
+
+        assertThat(registry.find(MAC)).isPresent();
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.FISCAL_RIF_SENT);
+        verify(mqttService, org.mockito.Mockito.never()).publish(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
 }

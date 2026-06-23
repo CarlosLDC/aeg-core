@@ -1,6 +1,7 @@
 package com.aeg.core.enajenacion.mqtt;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -250,7 +251,9 @@ public class EnajenacionMqttOrchestrator {
                     }
                     advanceAfterObjectResponse(session, item);
                 }
-                cancelTimeout(session);
+                if (!session.isAwaitingResponse()) {
+                    cancelTimeout(session);
+                }
                 activityRecorder.recordInbound(
                         topic,
                         payload,
@@ -268,6 +271,21 @@ public class EnajenacionMqttOrchestrator {
 
     private void recordIgnoredDeviceResponse(
             EnajenacionSession session, String topic, String payload, String detail) {
+        if (session.isAwaitingResponse()) {
+            log.warn(
+                    "Enajenacion ignored device response mac={} state={} topic={} detail={} payloadSnippet={}",
+                    session.compactMac(),
+                    session.state(),
+                    topic,
+                    detail,
+                    payloadSnippet(payload));
+        } else {
+            log.debug(
+                    "Enajenacion ignored device response mac={} state={} detail={}",
+                    session.compactMac(),
+                    session.state(),
+                    detail);
+        }
         activityRecorder.recordInbound(
                 topic,
                 payload,
@@ -500,6 +518,8 @@ public class EnajenacionMqttOrchestrator {
             mqttService.publish(topic, payload);
             session.setState(sentState);
             session.setAwaiting(awaitingKind);
+            session.setAwaitingSince(java.time.Instant.now());
+            session.setAwaitingTimeoutSeconds(timeoutSeconds);
             scheduleTimeout(session, timeoutSeconds, sentState.name());
             log.info("Enajenacion step {} published mac={} topic={}", sentState, session.compactMac(), topic);
             activityRecorder.recordOutbound(
@@ -541,22 +561,33 @@ public class EnajenacionMqttOrchestrator {
     private void failSession(EnajenacionSession session, String reason) {
         cancelTimeout(session);
         EnajenacionSessionState failedAtState = session.state();
+        long elapsedMs = Duration.between(session.startedAt(), java.time.Instant.now()).toMillis();
         session.setLastError(reason);
         session.setState(EnajenacionSessionState.FAILED);
         session.clearAwaiting();
         log.warn(
-                "Enajenacion failed printerId={} ptrReg={} mac={}: {}",
+                "Enajenacion failed printerId={} ptrReg={} mac={} failedAt={} elapsedMs={}: {}",
                 session.printerId(),
                 session.context().fiscalSerial(),
                 session.compactMac(),
+                failedAtState,
+                elapsedMs,
                 reason);
         activityRecorder.recordSessionEvent(
                 session,
                 EnajenacionActivityResult.FAILED,
                 reason,
                 failedAtState);
-        sseNotifier.notifySessionFailed(session, reason);
+        sseNotifier.notifySessionFailed(session, reason, failedAtState);
         sessionRegistry.remove(session.compactMac());
+    }
+
+    private static String payloadSnippet(String payload) {
+        if (payload == null) {
+            return "";
+        }
+        String trimmed = payload.strip();
+        return trimmed.length() <= 200 ? trimmed : trimmed.substring(0, 200) + "...";
     }
 
     private List<FiscalMqttResponseItem> parseArrayResponse(String payload) {

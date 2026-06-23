@@ -12,7 +12,9 @@ public record EnajenacionActiveSessionResponse(
         EnajenacionSessionState state,
         Instant startedAt,
         String lastError,
-        boolean awaitingResponse) {
+        boolean awaitingResponse,
+        Instant awaitingSince,
+        Integer timeoutSeconds) {
 
     public static EnajenacionActiveSessionResponse from(EnajenacionSession session) {
         return new EnajenacionActiveSessionResponse(
@@ -22,6 +24,8 @@ public record EnajenacionActiveSessionResponse(
                 session.state(),
                 session.startedAt(),
                 session.lastError(),
-                session.isAwaitingResponse());
+                session.isAwaitingResponse(),
+                session.awaitingSince(),
+                session.awaitingTimeoutSeconds());
     }
 }

@@ -722,6 +722,54 @@ Permite reintentos, auditoría y diagnóstico sin depender solo de logs MQTT.
 
 ---
 
+## 16.1 Diagnóstico — atasco en paso 3a (`fiscalAEG`)
+
+Si el panel queda en el paso **3a** sin avanzar ni mostrar error:
+
+1. Abre **MQTT → Actividad** y filtra por MAC de la impresora.
+2. En otra terminal, ejecuta el script de monitoreo (sustituye API y MAC):
+
+   ```bash
+   chmod +x scripts/enajenacion_diag_step3a.sh
+   ./scripts/enajenacion_diag_step3a.sh \
+     --api https://tu-core.example.com \
+     --token "$JWT" \
+     --mac 20:6E:F1:88:4C:68
+   ```
+
+3. En paralelo, suscríbete al broker en el topic de respuestas:
+
+   ```bash
+   mosquitto_sub -h "$MQTT_HOST" -u "$MQTT_USER" -P "$MQTT_PASS" \
+     -t "/206EF1884C68/AEG_Fiscal/Integracion/Respuesta" -v
+   ```
+
+**Interpretación:**
+
+| Señal | Causa probable |
+|-------|----------------|
+| `/sessions` con `state=FISCAL_RIF_SENT`, `awaitingResponse=true` | Backend sigue esperando; la impresora no publicó o el mensaje no llegó al core |
+| Actividad `IGNORED` con *Mismatched object response* | Respuesta con `cmd` distinto de `fiscalAEG` o formato array/objeto incorrecto |
+| Sin inbound en actividad; `mosquitto_sub` tampoco ve mensaje | Firmware no responde o topic/MAC incorrecto |
+| `FAILED` con timeout tras ~120–300 s; respuesta aparece después en broker | Aumentar `MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF` (prod: 300 s en `.do/app.yaml`) |
+| `/sessions` vacío con `FAILED` en actividad pero panel atascado | Desincronización SSE; el panel hace polling de `/sessions` para detectar el fallo |
+
+**Causa corregida en core:** tras aceptar la respuesta DNF, el orquestador cancelaba el timeout recién programado para el paso 3a; la sesión quedaba sin límite de tiempo aunque el panel siguiera en espera. Ahora solo se cancela el timeout cuando la sesión deja de esperar respuesta.
+
+Respuesta esperada en paso 3a:
+
+```json
+{ "cmd": "fiscalAEG", "code": 0, "dataD": 0 }
+```
+
+Reproducir latencia localmente con el simulador:
+
+```bash
+python3 scripts/enajenacion_printer_simulator.py ... --delay-fiscal-rif-ms 150000
+```
+
+---
+
 ## 17. Estado actual en AEG Core
 
 | Capacidad | Estado |

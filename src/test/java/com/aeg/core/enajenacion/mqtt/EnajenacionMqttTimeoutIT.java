@@ -17,6 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.CompanyRepository;
+import com.aeg.core.enajenacion.mqtt.EnajenacionSessionState;
 import com.aeg.core.mqtt.MqttConnectionProbeService;
 import com.aeg.core.mqtt.MqttInboundMessage;
 import com.aeg.core.mqtt.MqttInboundReceivedEvent;
@@ -95,6 +96,40 @@ class EnajenacionMqttTimeoutIT {
         assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
                 .isEqualTo(PrinterStatus.ASIGNADA);
         verifyNoMoreInteractions(mqttService);
+    }
+
+    @Test
+    void fiscalRifTimeoutAbortsSessionWithoutMarkingEnajenada() throws InterruptedException {
+        var fixture = EnajenacionTestData.seedAssignedPrinter(
+                companyRepository,
+                branchRepository,
+                clientRepository,
+                modelRepository,
+                softwareRepository,
+                printerRepository,
+                "GRA0000007",
+                MAC,
+                PrinterStatus.ASIGNADA);
+
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+        sendDeviceResponse(fixture.compactMac(), EnajenacionMqttResponses.dnfSuccess());
+
+        verify(mqttService, times(2)).publish(eq(fixture.comandoTopic()), org.mockito.ArgumentMatchers.anyString());
+        assertThat(sessionRegistry.find(fixture.compactMac()).orElseThrow().state())
+                .isEqualTo(EnajenacionSessionState.FISCAL_RIF_SENT);
+
+        Thread.sleep(2_500L);
+
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
+        assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.ASIGNADA);
+        verifyNoMoreInteractions(mqttService);
+    }
+
+    private void sendDeviceResponse(String compactMac, String payload) {
+        String topic = FiscalMqttTopics.respuestaTopic(compactMac);
+        eventPublisher.publishEvent(new MqttInboundReceivedEvent(
+                this, new MqttInboundMessage(topic, payload, Instant.now(), 1)));
     }
 
     private void sendPtrEnajenar(String compactMac, String payload) {

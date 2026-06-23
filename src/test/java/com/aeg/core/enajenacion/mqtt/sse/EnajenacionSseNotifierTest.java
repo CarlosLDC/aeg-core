@@ -61,6 +61,22 @@ class EnajenacionSseNotifierTest {
         emitter.complete();
     }
 
+    @Test
+    void notifySessionFailedUsesFailedAtState() {
+        EnajenacionSession session = sampleSession();
+        notifier.notifySessionFailed(
+                session,
+                "Timeout waiting for response at step FISCAL_RIF_SENT",
+                EnajenacionSessionState.FISCAL_RIF_SENT);
+
+        ArgumentCaptor<EnajenacionSseEvent> captor = ArgumentCaptor.forClass(EnajenacionSseEvent.class);
+        verify(broadcaster).broadcast(eq(MAC), captor.capture());
+        EnajenacionSseEvent event = captor.getValue();
+        assertThat(event.type()).isEqualTo(EnajenacionSseEventType.SESSION_FAILED);
+        assertThat(event.failedAtState()).isEqualTo(EnajenacionSessionState.FISCAL_RIF_SENT);
+        assertThat(event.sessionState()).isEqualTo(EnajenacionSessionState.FAILED);
+    }
+
     private static EnajenacionSession sampleSession() {
         EnajenacionContext context = new EnajenacionContext(
                 "GRA0000017",

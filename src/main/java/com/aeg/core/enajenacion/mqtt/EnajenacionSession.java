@@ -13,6 +13,8 @@ public final class EnajenacionSession {
 
     private volatile EnajenacionSessionState state = EnajenacionSessionState.VALIDATED;
     private volatile EnajenacionAwaitingKind awaitingKind;
+    private volatile Instant awaitingSince;
+    private volatile Integer awaitingTimeoutSeconds;
     private volatile ScheduledFuture<?> timeoutTask;
     private volatile String lastError;
     private volatile int invoiceNumber = 1;
@@ -57,8 +59,26 @@ public final class EnajenacionSession {
         this.awaitingKind = kind;
     }
 
+    public Instant awaitingSince() {
+        return awaitingSince;
+    }
+
+    public void setAwaitingSince(Instant awaitingSince) {
+        this.awaitingSince = awaitingSince;
+    }
+
+    public Integer awaitingTimeoutSeconds() {
+        return awaitingTimeoutSeconds;
+    }
+
+    public void setAwaitingTimeoutSeconds(Integer awaitingTimeoutSeconds) {
+        this.awaitingTimeoutSeconds = awaitingTimeoutSeconds;
+    }
+
     public void clearAwaiting() {
         this.awaitingKind = null;
+        this.awaitingSince = null;
+        this.awaitingTimeoutSeconds = null;
     }
 
     public ScheduledFuture<?> timeoutTask() {
