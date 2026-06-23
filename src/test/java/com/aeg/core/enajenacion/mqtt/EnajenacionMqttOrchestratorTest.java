@@ -81,6 +81,68 @@ class EnajenacionMqttOrchestratorTest {
     }
 
     @Test
+    void bareNumericFirmwarePayloadIsIgnoredWhileAwaitingFiscalRif() {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.OBJECT);
+
+        orchestrator.handleInbound(RESPUESTA, "-1");
+
+        assertThat(registry.find(MAC)).isPresent();
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.FISCAL_RIF_SENT);
+        verify(mqttService, org.mockito.Mockito.never()).publish(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+        assertThat(activityStore.recent(20, MAC))
+                .anyMatch(entry -> entry.result() == EnajenacionActivityResult.IGNORED
+                        && entry.detail() != null
+                        && entry.detail().contains("Unrecognized JSON object response"));
+    }
+
+    @Test
+    void validFiscalRifResponseAfterIgnoredNumericPayload() {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC");
+        EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
+        registry.register(session);
+        session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
+        session.setAwaiting(EnajenacionAwaitingKind.OBJECT);
+
+        orchestrator.handleInbound(RESPUESTA, "-1");
+        orchestrator.handleInbound(RESPUESTA, EnajenacionMqttResponses.fiscalRifSuccess());
+
+        ArgumentCaptor<String> payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService, times(1)).publish(eq("/" + MAC + "/AEG_Fiscal/Integracion/Comando"), payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue()).contains("\"cmd\":\"wFileSPIFF\"");
+        assertThat(registry.find(MAC).orElseThrow().state()).isEqualTo(EnajenacionSessionState.HEADER_SENT);
+    }
+
+    @Test
     void fiscalRifResponseOnRespuestaPublishesHeader() {
         when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
                 .thenReturn(mock(ScheduledFuture.class));

@@ -749,6 +749,7 @@ Si el panel queda en el paso **3a** sin avanzar ni mostrar error:
 | Señal | Causa probable |
 |-------|----------------|
 | `/sessions` con `state=FISCAL_RIF_SENT`, `awaitingResponse=true` | Backend sigue esperando; la impresora no publicó o el mensaje no llegó al core |
+| Actividad `IGNORED` con *Unrecognized JSON object response* | Payload intermedio del firmware (p. ej. `-1`) que no es el objeto `{ cmd, code, … }`; se ignora y se sigue esperando |
 | Actividad `IGNORED` con *Mismatched object response* | Respuesta con `cmd` distinto de `fiscalAEG` o formato array/objeto incorrecto |
 | Sin inbound en actividad; `mosquitto_sub` tampoco ve mensaje | Firmware no responde o topic/MAC incorrecto |
 | `FAILED` con timeout tras ~120–300 s; respuesta aparece después en broker | Aumentar `MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF` (prod: 300 s en `.do/app.yaml`) |

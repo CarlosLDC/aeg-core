@@ -223,8 +223,13 @@ public class EnajenacionMqttOrchestrator {
             }
             try {
                 if (session.awaitingKind() == EnajenacionAwaitingKind.ARRAY) {
-                    List<FiscalMqttResponseItem> items = parseArrayResponse(payload);
-                    if (shouldIgnoreArrayResponse(session, items)) {
+                    Optional<List<FiscalMqttResponseItem>> items = tryParseArrayResponse(payload);
+                    if (items.isEmpty()) {
+                        recordIgnoredDeviceResponse(
+                                session, topic, payload, "Unrecognized JSON array response");
+                        return;
+                    }
+                    if (shouldIgnoreArrayResponse(session, items.get())) {
                         log.debug(
                                 "Ignoring mismatched or command-shaped array mac={} state={}",
                                 session.compactMac(),
@@ -233,23 +238,28 @@ public class EnajenacionMqttOrchestrator {
                                 session, topic, payload, "Mismatched or command-shaped array response");
                         return;
                     }
-                    advanceAfterArrayResponse(session, items);
+                    advanceAfterArrayResponse(session, items.get());
                 } else {
-                    FiscalMqttResponseItem item = parseObjectResponse(payload);
-                    if (shouldIgnoreObjectResponse(session, item)) {
+                    Optional<FiscalMqttResponseItem> item = tryParseObjectResponse(payload);
+                    if (item.isEmpty()) {
+                        recordIgnoredDeviceResponse(
+                                session, topic, payload, "Unrecognized JSON object response");
+                        return;
+                    }
+                    if (shouldIgnoreObjectResponse(session, item.get())) {
                         log.debug(
                                 "Ignoring mismatched object response mac={} state={} cmd={}",
                                 session.compactMac(),
                                 session.state(),
-                                item.cmd());
+                                item.get().cmd());
                         recordIgnoredDeviceResponse(
                                 session,
                                 topic,
                                 payload,
-                                "Mismatched object response cmd=" + item.cmd());
+                                "Mismatched object response cmd=" + item.get().cmd());
                         return;
                     }
-                    advanceAfterObjectResponse(session, item);
+                    advanceAfterObjectResponse(session, item.get());
                 }
                 if (!session.isAwaitingResponse()) {
                     cancelTimeout(session);
@@ -590,20 +600,28 @@ public class EnajenacionMqttOrchestrator {
         return trimmed.length() <= 200 ? trimmed : trimmed.substring(0, 200) + "...";
     }
 
-    private List<FiscalMqttResponseItem> parseArrayResponse(String payload) {
+    private Optional<List<FiscalMqttResponseItem>> tryParseArrayResponse(String payload) {
         try {
-            FiscalMqttResponseItem[] items = objectMapper.readValue(payload, FiscalMqttResponseItem[].class);
-            return Arrays.asList(items);
+            JsonNode node = objectMapper.readTree(payload);
+            if (!node.isArray()) {
+                return Optional.empty();
+            }
+            FiscalMqttResponseItem[] items = objectMapper.treeToValue(node, FiscalMqttResponseItem[].class);
+            return Optional.of(Arrays.asList(items));
         } catch (IOException ex) {
-            throw new EnajenacionProtocolException("Invalid array response: " + ex.getMessage());
+            return Optional.empty();
         }
     }
 
-    private FiscalMqttResponseItem parseObjectResponse(String payload) {
+    private Optional<FiscalMqttResponseItem> tryParseObjectResponse(String payload) {
         try {
-            return objectMapper.readValue(payload, FiscalMqttResponseItem.class);
+            JsonNode node = objectMapper.readTree(payload);
+            if (!node.isObject()) {
+                return Optional.empty();
+            }
+            return Optional.of(objectMapper.treeToValue(node, FiscalMqttResponseItem.class));
         } catch (IOException ex) {
-            throw new EnajenacionProtocolException("Invalid object response: " + ex.getMessage());
+            return Optional.empty();
         }
     }
 }
