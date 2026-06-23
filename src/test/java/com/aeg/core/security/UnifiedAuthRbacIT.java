@@ -61,9 +61,10 @@ class UnifiedAuthRbacIT {
     }
 
     @Test
-    void seniatCannotLoginToPanelPortal() throws Exception {
+    void seniatCanLoginFromPanelPortalWithFiscalBookToken() throws Exception {
         var response = login(SENIAT_USER, SENIAT_PASS, "CORE_ADMIN");
-        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"token\"");
     }
 
     @Test

@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,10 +40,8 @@ public class AuthController {
         User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
 
         String loginPortal = normalizeLoginPortal(request.getPortal());
-        if (user.getRole() == Role.SENIAT && Portal.CORE_ADMIN.equals(loginPortal)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Esta cuenta solo puede acceder al portal de libros fiscales.");
+        if (user.getRole() == Role.SENIAT) {
+            loginPortal = Portal.FISCAL_BOOK;
         }
 
         Map<String, Object> extraClaims = new HashMap<>();
