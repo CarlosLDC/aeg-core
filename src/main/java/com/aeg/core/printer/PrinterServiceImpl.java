@@ -120,7 +120,8 @@ public class PrinterServiceImpl implements PrinterService {
             p.setClient(client);
         } else {
             if (p.getStatus() == PrinterStatus.ENAJENADA) {
-                throw new IllegalArgumentException("Cannot unassign client from an enajenada printer");
+                throw new IllegalArgumentException(
+                        "No se puede quitar el cliente de una impresora enajenada.");
             }
             p.setClient(null);
         }
@@ -134,9 +135,6 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
-        if (p.getClient() == null && p.getStatus() == PrinterStatus.ASIGNADA) {
-            p.setStatus(PrinterStatus.SIN_ASIGNAR);
-        }
         return toResponse(repository.save(p));
     }
 

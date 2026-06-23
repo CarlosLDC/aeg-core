@@ -185,7 +185,7 @@ public class PrinterControllerIT {
     }
 
     @Test
-    void adminCanUnassignClientFromAssignedPrinter() throws Exception {
+    void adminCanClearClientWithoutChangingDistributorAssignmentStatus() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
 
@@ -204,7 +204,7 @@ public class PrinterControllerIT {
         assertThat(res.body()).contains("\"clientId\":null");
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(updated.getClientId()).isNull();
-        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.SIN_ASIGNAR);
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
     }
 
     private java.net.http.HttpResponse<String> putPrinter(Long printerId, String body) throws Exception {
