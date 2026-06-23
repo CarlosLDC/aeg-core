@@ -34,6 +34,8 @@ public class EnajenacionSseNotifier {
     public void notifyStepTransition(
             EnajenacionSession session,
             EnajenacionSessionState acceptedFromState,
+            String acceptedRespuestaTopic,
+            String acceptedRespuestaPayload,
             String comandoTopic,
             String comandoPayload) {
         String acceptedStepId = EnajenacionFlowStepIds.acceptedStepId(acceptedFromState).orElse(null);
@@ -46,12 +48,15 @@ public class EnajenacionSseNotifier {
                         session.context().fiscalSerial(),
                         acceptedStepId,
                         publishedStepId,
+                        acceptedRespuestaTopic,
+                        acceptedRespuestaPayload,
                         comandoTopic,
                         comandoPayload,
                         session.state()));
     }
 
-    public void notifyReportZAccepted(EnajenacionSession session) {
+    public void notifyReportZAccepted(
+            EnajenacionSession session, String acceptedRespuestaTopic, String acceptedRespuestaPayload) {
         broadcaster.broadcast(
                 session.compactMac(),
                 EnajenacionSseEvent.stepTransition(
@@ -60,6 +65,8 @@ public class EnajenacionSseNotifier {
                         session.context().fiscalSerial(),
                         EnajenacionFlowStepIds.REPORT_Z,
                         null,
+                        acceptedRespuestaTopic,
+                        acceptedRespuestaPayload,
                         null,
                         null,
                         EnajenacionSessionState.COMPLETED));

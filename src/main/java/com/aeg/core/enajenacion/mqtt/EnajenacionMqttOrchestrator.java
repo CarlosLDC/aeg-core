@@ -238,7 +238,16 @@ public class EnajenacionMqttOrchestrator {
                                 session, topic, payload, "Mismatched or command-shaped array response");
                         return;
                     }
-                    advanceAfterArrayResponse(session, items.get());
+                    activityRecorder.recordInbound(
+                            topic,
+                            payload,
+                            session.compactMac(),
+                            session.printerId(),
+                            session.context().fiscalSerial(),
+                            EnajenacionActivityResult.PROCESSED,
+                            "Device response accepted",
+                            session.state());
+                    advanceAfterArrayResponse(session, items.get(), topic, payload);
                 } else {
                     Optional<FiscalMqttResponseItem> item = tryParseObjectResponse(payload);
                     if (item.isEmpty()) {
@@ -259,20 +268,20 @@ public class EnajenacionMqttOrchestrator {
                                 "Mismatched object response cmd=" + item.get().cmd());
                         return;
                     }
-                    advanceAfterObjectResponse(session, item.get());
+                    activityRecorder.recordInbound(
+                            topic,
+                            payload,
+                            session.compactMac(),
+                            session.printerId(),
+                            session.context().fiscalSerial(),
+                            EnajenacionActivityResult.PROCESSED,
+                            "Device response accepted",
+                            session.state());
+                    advanceAfterObjectResponse(session, item.get(), topic, payload);
                 }
                 if (!session.isAwaitingResponse()) {
                     cancelTimeout(session);
                 }
-                activityRecorder.recordInbound(
-                        topic,
-                        payload,
-                        session.compactMac(),
-                        session.printerId(),
-                        session.context().fiscalSerial(),
-                        EnajenacionActivityResult.PROCESSED,
-                        "Device response accepted",
-                        session.state());
             } catch (RuntimeException ex) {
                 failSession(session, ex.getMessage());
             }
@@ -387,67 +396,82 @@ public class EnajenacionMqttOrchestrator {
         return trimmed.startsWith("[");
     }
 
-    private void advanceAfterArrayResponse(EnajenacionSession session, List<FiscalMqttResponseItem> items) {
+    private void advanceAfterArrayResponse(
+            EnajenacionSession session,
+            List<FiscalMqttResponseItem> items,
+            String respuestaTopic,
+            String respuestaPayload) {
         switch (session.state()) {
             case DNF_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateDnfResponse(items);
                 session.setState(EnajenacionSessionState.DNF_OK);
                 PublishedMqttCommand next = publishFiscalRif(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case INVOICE_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateInvoiceResponse(items);
                 session.setState(EnajenacionSessionState.INVOICE_OK);
                 PublishedMqttCommand next = publishCreditNote(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case CREDIT_NOTE_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateCreditNoteResponse(items);
                 session.setState(EnajenacionSessionState.CREDIT_NOTE_OK);
                 PublishedMqttCommand next = publishReportZ(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             default -> throw new EnajenacionProtocolException("Unexpected array response for state " + session.state());
         }
     }
 
-    private void advanceAfterObjectResponse(EnajenacionSession session, FiscalMqttResponseItem item) {
+    private void advanceAfterObjectResponse(
+            EnajenacionSession session,
+            FiscalMqttResponseItem item,
+            String respuestaTopic,
+            String respuestaPayload) {
         switch (session.state()) {
             case FISCAL_RIF_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_FISCAL_AEG);
                 session.setState(EnajenacionSessionState.FISCAL_RIF_OK);
                 PublishedMqttCommand next = publishHeader(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case HEADER_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.HEADER_OK);
                 PublishedMqttCommand next = publishConfigSpiffs(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case CONFIG_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateObjectResponse(item, EnajenacionConstants.CMD_W_FILE_SPIFF);
                 session.setState(EnajenacionSessionState.CONFIG_OK);
                 PublishedMqttCommand next = afterConfigOk(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case REG_STATUS_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateStaInfResponse(item, session.context().fiscalSerial());
                 session.setState(EnajenacionSessionState.REG_STATUS_OK);
                 PublishedMqttCommand next = publishInvoice(session);
-                sseNotifier.notifyStepTransition(session, acceptedFrom, next.topic(), next.payload());
+                sseNotifier.notifyStepTransition(
+                        session, acceptedFrom, respuestaTopic, respuestaPayload, next.topic(), next.payload());
             }
             case REPORT_Z_SENT -> {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateReportZResponse(item);
-                sseNotifier.notifyReportZAccepted(session);
+                sseNotifier.notifyReportZAccepted(session, respuestaTopic, respuestaPayload);
                 completionService.markEnajenada(session.printerId());
                 session.setState(EnajenacionSessionState.COMPLETED);
                 log.info(

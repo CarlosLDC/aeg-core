@@ -39,6 +39,8 @@ class EnajenacionSseNotifierTest {
         notifier.notifyStepTransition(
                 session,
                 EnajenacionSessionState.DNF_SENT,
+                "/206EF1884C68/AEG_Fiscal/Integracion/Respuesta",
+                "[{\"cmd\":\"endDNF\",\"code\":0}]",
                 "/206EF1884C68/AEG_Fiscal/Integracion/Comando",
                 "{\"cmd\":\"fiscalAEG\"}");
 
@@ -47,6 +49,7 @@ class EnajenacionSseNotifierTest {
         EnajenacionSseEvent event = captor.getValue();
         assertThat(event.type()).isEqualTo(EnajenacionSseEventType.STEP_TRANSITION);
         assertThat(event.acceptedStepId()).isEqualTo("dnf");
+        assertThat(event.acceptedRespuestaPayload()).contains("endDNF");
         assertThat(event.publishedStepId()).isEqualTo("fiscal-rif");
     }
 
