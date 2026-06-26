@@ -99,9 +99,10 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	}
 
 	private void assertPrinterEligibleForInspection(Printer printer) {
-		if (printer.getStatus() != PrinterStatus.ASIGNADA) {
+		if (printer.getStatus() != PrinterStatus.ASIGNADA
+				&& printer.getStatus() != PrinterStatus.ENAJENADA) {
 			throw new IllegalArgumentException(
-					"Only assigned printers can have annual inspections");
+					"Only assigned or enajenada printers can have annual inspections");
 		}
 	}
 
@@ -128,6 +129,17 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		if (request.inspectionDate() != null) {
 			e.setInspectionDate(request.inspectionDate());
 		}
+		e.setMqttRegistroImpresora(normalizeOptionalText(request.mqttRegistroImpresora()));
+		e.setMqttSetDateRevOAt(request.mqttSetDateRevOAt());
+		e.setMqttNumeroFacturaPrueba(request.mqttNumeroFacturaPrueba());
+	}
+
+	private static String normalizeOptionalText(String value) {
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
 	}
 
 	private AnnualInspectionResponse toResponse(AnnualInspection e) {
@@ -139,6 +151,9 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 				e.getNotes(),
 				e.getCreatedAt(),
 				e.getPhotoUrls() == null ? List.of() : Arrays.asList(e.getPhotoUrls()),
-				e.getInspectionDate());
+				e.getInspectionDate(),
+				e.getMqttRegistroImpresora(),
+				e.getMqttSetDateRevOAt(),
+				e.getMqttNumeroFacturaPrueba());
 	}
 }

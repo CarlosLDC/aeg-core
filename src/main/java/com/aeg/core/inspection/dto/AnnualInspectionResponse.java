@@ -12,5 +12,8 @@ public record AnnualInspectionResponse(
 		String notes,
 		OffsetDateTime createdAt,
 		List<String> photoUrls,
-		LocalDate inspectionDate) {
+		LocalDate inspectionDate,
+		String mqttRegistroImpresora,
+		Long mqttSetDateRevOAt,
+		Integer mqttNumeroFacturaPrueba) {
 }

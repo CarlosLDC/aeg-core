@@ -141,6 +141,9 @@ public final class FiscalBookDtos {
 			String inspector,
 			Boolean sealTampered,
 			String notes,
-			List<String> photoUrls) {
+			List<String> photoUrls,
+			String mqttRegistroImpresora,
+			Long mqttSetDateRevOAt,
+			Integer mqttNumeroFacturaPrueba) {
 	}
 }

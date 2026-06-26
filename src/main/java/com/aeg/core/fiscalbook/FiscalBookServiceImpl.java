@@ -320,7 +320,10 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				inspector != null ? inspector.getName() : null,
 				inspection.getSealTampered(),
 				inspection.getNotes(),
-				inspection.getPhotoUrls() == null ? List.of() : Arrays.asList(inspection.getPhotoUrls()));
+				inspection.getPhotoUrls() == null ? List.of() : Arrays.asList(inspection.getPhotoUrls()),
+				inspection.getMqttRegistroImpresora(),
+				inspection.getMqttSetDateRevOAt(),
+				inspection.getMqttNumeroFacturaPrueba());
 	}
 
 	private static String statusValue(PrinterStatus status) {

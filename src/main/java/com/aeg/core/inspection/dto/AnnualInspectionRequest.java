@@ -11,5 +11,8 @@ public record AnnualInspectionRequest(
 		@NotNull Boolean sealTampered,
 		String notes,
 		@NotNull List<String> photoUrls,
-		LocalDate inspectionDate) {
+		LocalDate inspectionDate,
+		String mqttRegistroImpresora,
+		Long mqttSetDateRevOAt,
+		Integer mqttNumeroFacturaPrueba) {
 }

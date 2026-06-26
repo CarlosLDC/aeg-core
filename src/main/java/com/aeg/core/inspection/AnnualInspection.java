@@ -49,6 +49,15 @@ public class AnnualInspection {
 	@Column(name = "fecha", nullable = false)
 	private LocalDate inspectionDate;
 
+	@Column(name = "mqtt_registro_impresora")
+	private String mqttRegistroImpresora;
+
+	@Column(name = "mqtt_set_date_rev_o_at")
+	private Long mqttSetDateRevOAt;
+
+	@Column(name = "mqtt_numero_factura_prueba")
+	private Integer mqttNumeroFacturaPrueba;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
@@ -132,5 +141,29 @@ public class AnnualInspection {
 
 	public void setInspectionDate(LocalDate inspectionDate) {
 		this.inspectionDate = inspectionDate;
+	}
+
+	public String getMqttRegistroImpresora() {
+		return mqttRegistroImpresora;
+	}
+
+	public void setMqttRegistroImpresora(String mqttRegistroImpresora) {
+		this.mqttRegistroImpresora = mqttRegistroImpresora;
+	}
+
+	public Long getMqttSetDateRevOAt() {
+		return mqttSetDateRevOAt;
+	}
+
+	public void setMqttSetDateRevOAt(Long mqttSetDateRevOAt) {
+		this.mqttSetDateRevOAt = mqttSetDateRevOAt;
+	}
+
+	public Integer getMqttNumeroFacturaPrueba() {
+		return mqttNumeroFacturaPrueba;
+	}
+
+	public void setMqttNumeroFacturaPrueba(Integer mqttNumeroFacturaPrueba) {
+		this.mqttNumeroFacturaPrueba = mqttNumeroFacturaPrueba;
 	}
 }
