@@ -86,6 +86,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.DELETE, "/api/printer-models/**").hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printers/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/printers/*/enajenar").hasAnyRole("ADMIN", "TECHNICIAN")
 				.requestMatchers(HttpMethod.POST, "/api/printers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/printers/**").hasAnyRole("ADMIN", "TECHNICIAN")
 				.requestMatchers(HttpMethod.DELETE, "/api/printers/**").hasRole("ADMIN")
