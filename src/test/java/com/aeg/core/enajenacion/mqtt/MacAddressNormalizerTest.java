@@ -21,4 +21,13 @@ class MacAddressNormalizerTest {
     void comparesMacIgnoringSeparatorsAndCase() {
         assertThat(MacAddressNormalizer.sameMac("206ef1884c68", "20:6E:F1:88:4C:68")).isTrue();
     }
+
+    @Test
+    void requireCompactFormRejectsInvalidMac() {
+        assertThatThrownBy(() -> MacAddressNormalizer.requireCompactForm("not-a-mac"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("MAC");
+        assertThat(MacAddressNormalizer.requireCompactForm("20:6E:F1:88:4C:68"))
+                .isEqualTo("206EF1884C68");
+    }
 }

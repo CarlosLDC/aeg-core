@@ -83,9 +83,6 @@ class EnajenacionMqttOrchestratorTest {
 
     @Test
     void bareNumericFirmwarePayloadIsIgnoredWhileAwaitingFiscalRif() {
-        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
-                .thenReturn(mock(ScheduledFuture.class));
-
         EnajenacionContext context = new EnajenacionContext(
                 "GRA0000017",
                 "20:6E:F1:88:4C:68",

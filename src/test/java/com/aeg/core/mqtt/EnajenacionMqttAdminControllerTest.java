@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionContext;
 import com.aeg.core.enajenacion.mqtt.EnajenacionPreconditionValidator;
+import com.aeg.core.enajenacion.mqtt.EnajenacionTestInvoiceService;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSession;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSessionRegistry;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSessionState;
@@ -30,6 +31,9 @@ class EnajenacionMqttAdminControllerTest {
     @Mock
     private EnajenacionPreconditionValidator preconditionValidator;
 
+    @Mock
+    private EnajenacionTestInvoiceService testInvoiceService;
+
     private EnajenacionActivityStore activityStore;
     private EnajenacionSessionRegistry sessionRegistry;
     private EnajenacionMqttAdminController controller;
@@ -39,7 +43,7 @@ class EnajenacionMqttAdminControllerTest {
         activityStore = new EnajenacionActivityStore(new InMemoryEnajenacionActivityPersistence());
         sessionRegistry = new EnajenacionSessionRegistry();
         controller = new EnajenacionMqttAdminController(
-                preconditionValidator, activityStore, sessionRegistry);
+                preconditionValidator, activityStore, sessionRegistry, testInvoiceService);
     }
 
     @Test

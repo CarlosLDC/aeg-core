@@ -26,7 +26,7 @@ import com.aeg.core.mqtt.dto.EnajenacionTestInvoiceResponse;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
-import com.aeg.core.shared.ResourceNotFoundException;
+import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -103,6 +103,27 @@ class EnajenacionTestInvoiceServiceTest {
                 eq("GRA0000017"),
                 eq(EnajenacionActivityResult.PUBLISHED),
                 eq("Admin test invoice"));
+    }
+
+    @Test
+    void stillReturnsResponseWhenActivityLogFails() {
+        Printer printer = printer(PrinterStatus.ENAJENADA);
+        when(printerRepository.findById(1L)).thenReturn(Optional.of(printer));
+        org.mockito.Mockito.doThrow(new RuntimeException("relation does not exist"))
+                .when(activityRecorder)
+                .recordAdminOutbound(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any());
+
+        EnajenacionTestInvoiceResponse response = service.sendTestInvoice(1L, "Producto");
+
+        assertThat(response.topic()).isEqualTo(FiscalMqttTopics.comandoTopic(COMPACT_MAC));
+        verify(mqttService).publish(any(), any());
     }
 
     private static Printer printer(PrinterStatus status) {

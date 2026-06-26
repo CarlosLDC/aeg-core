@@ -1,5 +1,6 @@
 package com.aeg.core.security;
 
+import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceException;
@@ -73,6 +74,11 @@ public class GlobalExceptionHandler {
                         || e.getMessage().toLowerCase().contains("already")));
         HttpStatus status = isConflict ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
         return buildResponse(status, isConflict ? "Conflicto de datos" : "Petición inválida", message);
+    }
+
+    @ExceptionHandler(EnajenacionProtocolException.class)
+    public ResponseEntity<Map<String, Object>> handleEnajenacionProtocol(EnajenacionProtocolException e) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Petición inválida", e.getMessage());
     }
 
     @ExceptionHandler({PersistenceException.class, JpaSystemException.class, PropertyAccessException.class})

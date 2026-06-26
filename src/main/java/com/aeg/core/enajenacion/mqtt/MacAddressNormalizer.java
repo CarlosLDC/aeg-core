@@ -34,6 +34,14 @@ public final class MacAddressNormalizer {
         return mac.replace(":", "").toUpperCase(Locale.ROOT);
     }
 
+    public static String requireCompactForm(String mac) {
+        String compact = toCompactForm(mac);
+        if (compact == null || !COMPACT_MAC.matcher(compact).matches()) {
+            throw new IllegalArgumentException("La dirección MAC no es válida.");
+        }
+        return compact;
+    }
+
     public static boolean sameMac(String left, String right) {
         String compactLeft = toCompactForm(left);
         String compactRight = toCompactForm(right);
