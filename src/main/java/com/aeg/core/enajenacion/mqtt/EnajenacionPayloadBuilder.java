@@ -118,6 +118,92 @@ public class EnajenacionPayloadBuilder {
         return writeJson(commands);
     }
 
+    public String buildAnnualInspectionTestInvoicePayload() {
+        return buildAnnualInspectionTestInvoicePayload(EnajenacionConstants.ANNUAL_INSPECTION_DEFAULT_PRODUCT);
+    }
+
+    public String buildAnnualInspectionTestInvoicePayload(String productDescription) {
+        List<String> descriptionLines = FiscalInvoiceProductDescription.resolveLines(
+                productDescription,
+                EnajenacionConstants.ANNUAL_INSPECTION_DEFAULT_PRODUCT);
+        String description = descriptionLines.isEmpty()
+                ? EnajenacionConstants.ANNUAL_INSPECTION_DEFAULT_PRODUCT
+                : descriptionLines.getFirst();
+        // Orden obligatorio: la impresora ejecuta proF → subToF → fpaF → endFac secuencialmente.
+        List<Object> commands = new ArrayList<>();
+        commands.add(productLine("proF", 1, description));
+        commands.add(Map.of("cmd", "subToF", "data", 1, "valor", 0));
+        commands.add(Map.of(
+                "cmd", "fpaF",
+                "data", Map.of("tipo", 1, "monto", -1, "tasaConv", 0)));
+        commands.add(Map.of("cmd", "endFac", "data", 1));
+        return writeJson(commands);
+    }
+
+    public String buildAnnualInspectionTestCreditNotePayload(
+            int numeroFacturaPrueba,
+            String registroImpresora,
+            String productDescription) {
+        return buildAnnualInspectionTestCreditNotePayload(
+                numeroFacturaPrueba,
+                registroImpresora,
+                LocalDate.now(),
+                productDescription);
+    }
+
+    public String buildAnnualInspectionTestCreditNotePayload(
+            int numeroFacturaPrueba,
+            String registroImpresora,
+            LocalDate invoiceDate,
+            String productDescription) {
+        if (registroImpresora == null || registroImpresora.isBlank()) {
+            throw new EnajenacionProtocolException("Registro de impresora requerido para nota de crédito.");
+        }
+        List<String> descriptionLines = FiscalInvoiceProductDescription.resolveLines(
+                productDescription,
+                EnajenacionConstants.ANNUAL_INSPECTION_DEFAULT_PRODUCT);
+        String description = descriptionLines.isEmpty()
+                ? EnajenacionConstants.ANNUAL_INSPECTION_DEFAULT_PRODUCT
+                : descriptionLines.getFirst();
+
+        Map<String, Object> razSocData = new LinkedHashMap<>();
+        razSocData.put("razSoc", List.of(EnajenacionConstants.ANNUAL_INSPECTION_NC_RAZ_SOC));
+
+        // Orden obligatorio: nroFacNC → … → endNC; la impresora procesa el arreglo secuencialmente.
+        List<Object> commands = new ArrayList<>();
+        commands.add(Map.of("cmd", "nroFacNC", "data", numeroFacturaPrueba));
+        commands.add(Map.of("cmd", "fechFacNC", "data", INVOICE_DATE.format(invoiceDate)));
+        commands.add(Map.of("cmd", "conSerNC", "data", registroImpresora.trim()));
+        commands.add(Map.of("cmd", "rifCiNC", "data", EnajenacionConstants.ANNUAL_INSPECTION_NC_RIF));
+        commands.add(Map.of("cmd", "razSocNC", "data", razSocData));
+        commands.add(productLine("prodNC", 1, description));
+        commands.add(Map.of("cmd", "endPoNC", "data", 1, "valor", 0));
+        commands.add(Map.of(
+                "cmd", "fpaNC",
+                "data", Map.of("tipo", 1, "monto", -1, "tasaConv", 0)));
+        commands.add(Map.of("cmd", "endNC", "data", 1));
+        return writeJson(commands);
+    }
+
+    public String buildSetDateRevOPayload(AnnualInspectionInspAo inspAo) {
+        return buildSetDateRevOPayload(VenezuelaNaiveUnixTimestamp.currentSeconds(), inspAo);
+    }
+
+    public String buildSetDateRevOPayload(long dataTimestamp, AnnualInspectionInspAo inspAo) {
+        Map<String, Object> inspAoPayload = new LinkedHashMap<>();
+        inspAoPayload.put("precinto", inspAo.precinto());
+        inspAoPayload.put("etiqFisc", inspAo.etiqFisc());
+        inspAoPayload.put("impFact", inspAo.impFact());
+        inspAoPayload.put("impNC", inspAo.impNC());
+        inspAoPayload.put("sensPapel", inspAo.sensPapel());
+
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("cmd", EnajenacionConstants.CMD_SET_DATE_REV_O);
+        root.put("data", dataTimestamp);
+        root.put("inspAO", inspAoPayload);
+        return writeJson(root);
+    }
+
     public String buildCreditNotePayload(EnajenacionContext context, int invoiceNumber, LocalDate invoiceDate) {
         List<Object> commands = new ArrayList<>();
         commands.add(Map.of("cmd", "nroFacNC", "data", invoiceNumber));

@@ -237,6 +237,63 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void annualInspectionTestInvoicePayloadMatchesSingleLineCommand() throws Exception {
+        JsonNode root = objectMapper.readTree(builder.buildAnnualInspectionTestInvoicePayload("COLGATE TOTAL"));
+
+        assertThat(root).hasSize(4);
+        JsonNode prof = root.get(0);
+        assertThat(prof.path("cmd").asText()).isEqualTo("proF");
+        assertThat(prof.path("data").path("pre").asInt()).isEqualTo(100);
+        assertThat(prof.path("data").path("cant").asInt()).isEqualTo(1000);
+        assertThat(prof.path("data").path("imp").asInt()).isEqualTo(1);
+        assertThat(prof.path("data").path("des01").asText()).isEqualTo("COLGATE TOTAL");
+        assertThat(root.get(1).path("cmd").asText()).isEqualTo("subToF");
+        assertThat(root.get(2).path("cmd").asText()).isEqualTo("fpaF");
+        assertThat(root.get(3).path("cmd").asText()).isEqualTo("endFac");
+    }
+
+    @Test
+    void annualInspectionTestCreditNotePayloadMatchesSingleLineCommand() throws Exception {
+        JsonNode root = objectMapper.readTree(builder.buildAnnualInspectionTestCreditNotePayload(
+                7,
+                "GRA0000017",
+                LocalDate.of(2026, 6, 26),
+                "COLGATE TOTAL"));
+
+        assertThat(root).hasSize(9);
+        assertThat(root.get(0).path("cmd").asText()).isEqualTo("nroFacNC");
+        assertThat(root.get(0).path("data").asInt()).isEqualTo(7);
+        assertThat(root.get(1).path("cmd").asText()).isEqualTo("fechFacNC");
+        assertThat(root.get(1).path("data").asText()).isEqualTo("26/06/2026");
+        assertThat(root.get(2).path("cmd").asText()).isEqualTo("conSerNC");
+        assertThat(root.get(2).path("data").asText()).isEqualTo("GRA0000017");
+        assertThat(root.get(3).path("cmd").asText()).isEqualTo("rifCiNC");
+        assertThat(root.get(3).path("data").asText()).isEqualTo("V00000000");
+        assertThat(root.get(4).path("cmd").asText()).isEqualTo("razSocNC");
+        assertThat(root.get(4).path("data").path("razSoc").get(0).asText())
+                .isEqualTo("SIN DERECHO A CREDITO FISCAL");
+        JsonNode prodNc = root.get(5);
+        assertThat(prodNc.path("cmd").asText()).isEqualTo("prodNC");
+        assertThat(prodNc.path("data").path("imp").asInt()).isEqualTo(1);
+        assertThat(prodNc.path("data").path("des01").asText()).isEqualTo("COLGATE TOTAL");
+        assertThat(root.get(8).path("cmd").asText()).isEqualTo("endNC");
+    }
+
+    @Test
+    void setDateRevOPayloadMatchesAnnualInspectionCommand() throws Exception {
+        AnnualInspectionInspAo inspAo = AnnualInspectionInspAo.fromChecklist(true, true, true, true, true);
+        JsonNode root = objectMapper.readTree(builder.buildSetDateRevOPayload(1_782_259_200L, inspAo));
+
+        assertThat(root.path("cmd").asText()).isEqualTo("SetDateRevO");
+        assertThat(root.path("data").asLong()).isEqualTo(1_782_259_200L);
+        assertThat(root.path("inspAO").path("precinto").asText()).isEqualTo("Bien");
+        assertThat(root.path("inspAO").path("etiqFisc").asText()).isEqualTo("Bien");
+        assertThat(root.path("inspAO").path("impFact").asText()).isEqualTo("Bien");
+        assertThat(root.path("inspAO").path("impNC").asText()).isEqualTo("Bien");
+        assertThat(root.path("inspAO").path("sensPapel").asText()).isEqualTo("Bien");
+    }
+
+    @Test
     void creditNotePayloadMatchesFiscalCancellationCommand() throws Exception {
         JsonNode root = objectMapper.readTree(builder.buildCreditNotePayload(
                 context(),

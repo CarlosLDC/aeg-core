@@ -27,6 +27,7 @@ Está pensado como referencia para implementación del orquestador backend, prue
 17. [Estado actual en AEG Core](#17-estado-actual-en-aeg-core)
 18. [Pendientes y decisiones abiertas](#18-pendientes-y-decisiones-abiertas)
 19. [Anexo — Plantillas JSON](#19-anexo--plantillas-json)
+20. [Inspección anual obligatoria (MQTT)](#20-inspección-anual-obligatoria-mqtt)
 
 ---
 
@@ -856,6 +857,37 @@ Ver [sección 7](#7-paso-2a--dnf-de-alerta).
 | Enajenación REST | `PrinterServiceImpl.applyDistributorDisposition` |
 | Estados impresora | `PrinterStatus.ENAJENADA`, `ASIGNADA`, `LABORATORIO` |
 | Config MQTT prod | `.do/app.yaml`, `application.properties` |
+| Inspección anual MQTT | `AnnualInspectionMqttService`, `/api/mqtt/annual-inspection/**` |
+
+---
+
+## 20. Inspección anual obligatoria (MQTT)
+
+Flujo iniciado por el operador (panel admin o libro fiscal). Usa **el mismo patrón de tópicos** que los pasos 2–7 de la enajenación:
+
+| Topic | Dirección | Uso en inspección anual |
+|-------|-----------|-------------------------|
+| `/{mac}/AEG_Fiscal/Integracion/Comando` | Servidor → Impresora | `StaInf`, factura de prueba, NC de prueba, `SetDateRevO`. |
+| `/{mac}/AEG_Fiscal/Integracion/Respuesta` | Impresora → Servidor | Respuestas del firmware (`code`, `dataD`, `dataS` o arrays). |
+| `/{mac}/AEG_Fiscal/Integracion/CmdServer` | Impresora → Servidor | **No se usa** en este flujo (reservado a `ptrEnajenar` al arrancar en enajenación). |
+
+### Secuencia
+
+1. **StaInf** (`NroRegMa`) — objeto en Comando; respuesta objeto en Respuesta con `dataS` = serial fiscal.
+2. **Factura de prueba** — array (4 comandos: `proF`, `subToF`, `fpaF`, `endFac`); respuesta array en Respuesta; éxito cuando `endFac` tiene `code: 0`.
+3. **NC de prueba** — array (9 comandos); respuesta array; éxito cuando `endNc` tiene `code: 0`.
+4. **SetDateRevO** — objeto en Comando con timestamp e `inspAO`; respuesta objeto en Respuesta con `code: 0`.
+
+AEG Core publica siempre en **Comando** (`FiscalMqttTopics.comandoTopic`) y espera respuestas en **Respuesta** (`FiscalMqttSyncResponseAwaiter`).
+
+### Endpoints REST
+
+| Método | Ruta |
+|--------|------|
+| POST | `/api/mqtt/annual-inspection/sta-inf` |
+| POST | `/api/mqtt/annual-inspection/test-invoice` |
+| POST | `/api/mqtt/annual-inspection/test-credit-note` |
+| POST | `/api/mqtt/annual-inspection/submit` |
 
 ---
 

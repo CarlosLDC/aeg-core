@@ -13,6 +13,7 @@ public final class EnajenacionConstants {
     public static final String CMD_END_NC = "endNC";
     public static final String CMD_GEN_IMP_REP_Z = "genImpRepZ";
     public static final String CMD_STA_INF = "StaInf";
+    public static final String CMD_SET_DATE_REV_O = "SetDateRevO";
 
     public static final String STA_INF_STATUS_NRO_REG_MA = "NroRegMa";
 
@@ -21,6 +22,10 @@ public final class EnajenacionConstants {
     public static final int CREDIT_NOTE_END_OK = 10;
     public static final int SUBTOTAL_DATA_D = 555;
     public static final int PROD_NC_LINE_DATA_D = 9;
+
+    public static final String ANNUAL_INSPECTION_DEFAULT_PRODUCT = "COLGATE TOTAL";
+    public static final String ANNUAL_INSPECTION_NC_RIF = "V00000000";
+    public static final String ANNUAL_INSPECTION_NC_RAZ_SOC = "SIN DERECHO A CREDITO FISCAL";
 
     private EnajenacionConstants() {
     }

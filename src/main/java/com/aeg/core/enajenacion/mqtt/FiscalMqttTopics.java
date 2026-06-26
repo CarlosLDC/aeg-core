@@ -6,6 +6,15 @@ import java.util.regex.Pattern;
 
 public final class FiscalMqttTopics {
 
+    /**
+     * Tópicos fiscales AEG (misma convención en enajenación e inspección anual):
+     * <ul>
+     *   <li>{@link #CMD_SERVER_SUFFIX} — impresora → servidor; solo {@code ptrEnajenar} al arrancar (enajenación).</li>
+     *   <li>{@link #COMANDO_SUFFIX} — servidor → impresora; todos los comandos (pasos 2–7 y flujo de inspección anual).</li>
+     *   <li>{@link #RESPUESTA_SUFFIX} — impresora → servidor; respuestas del firmware ({@code code}, {@code dataD}, {@code dataS}).</li>
+     * </ul>
+     * Formato: {@code /{mac12hex}/AEG_Fiscal/Integracion/{CmdServer|Comando|Respuesta}}.
+     */
     public static final String CMD_SERVER_SUFFIX = "/AEG_Fiscal/Integracion/CmdServer";
     public static final String COMANDO_SUFFIX = "/AEG_Fiscal/Integracion/Comando";
     public static final String RESPUESTA_SUFFIX = "/AEG_Fiscal/Integracion/Respuesta";

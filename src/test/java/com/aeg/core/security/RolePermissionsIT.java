@@ -153,6 +153,30 @@ class RolePermissionsIT {
     }
 
     @Test
+    void fieldRolesCanAccessAnnualInspectionMqttEndpoints() throws Exception {
+        String distributorToken = tokenFor("distributor@test.local");
+        String technicianToken = tokenFor("sc-tech@test.local");
+
+        var adminMqtt = post(
+                "/api/mqtt/publish",
+                "{\"topic\":\"test\",\"payload\":{}}",
+                distributorToken);
+        assertThat(adminMqtt.statusCode()).isEqualTo(403);
+
+        var distributorStaInf = post(
+                "/api/mqtt/annual-inspection/sta-inf",
+                "{\"printerId\":" + printerId + "}",
+                distributorToken);
+        assertThat(distributorStaInf.statusCode()).isNotEqualTo(403);
+
+        var technicianStaInf = post(
+                "/api/mqtt/annual-inspection/sta-inf",
+                "{\"printerId\":" + printerId + "}",
+                technicianToken);
+        assertThat(technicianStaInf.statusCode()).isNotEqualTo(403);
+    }
+
+    @Test
     void distributorCannotCreateTechnicalServiceButCanCreateAnnualInspection() throws Exception {
         String token = tokenFor("distributor@test.local");
 
