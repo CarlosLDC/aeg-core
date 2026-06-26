@@ -65,7 +65,8 @@ class BranchServiceImplTest {
                 null,
                 false,
                 false,
-                false);
+                false,
+                BranchOrganizationRole.NONE);
 
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -102,7 +103,8 @@ class BranchServiceImplTest {
                 null,
                 false,
                 false,
-                false);
+                false,
+                BranchOrganizationRole.NONE);
 
         service.update(10L, request);
 
