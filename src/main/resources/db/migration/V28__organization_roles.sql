@@ -16,7 +16,21 @@ SET organization_role = CASE
     ELSE 'NONE'
 END;
 
-UPDATE empresas
+UPDATE empresas e
 SET organization_type = 'FACTORY'
-WHERE UPPER(razon_social) LIKE '%AEG%'
-   OR UPPER(rif) LIKE '%AEG%';
+FROM (
+    SELECT id
+    FROM empresas
+    WHERE UPPER(razon_social) LIKE '%ALPHA ENGINEER GROUP%'
+       OR UPPER(razon_social) LIKE '%AEG%'
+       OR UPPER(rif) LIKE '%AEG%'
+    ORDER BY
+        CASE
+            WHEN UPPER(razon_social) LIKE '%ALPHA ENGINEER GROUP%' THEN 0
+            WHEN UPPER(razon_social) LIKE '%AEG%' THEN 1
+            ELSE 2
+        END,
+        id
+    LIMIT 1
+) picked
+WHERE e.id = picked.id;
