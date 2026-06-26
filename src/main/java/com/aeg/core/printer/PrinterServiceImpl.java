@@ -1,19 +1,23 @@
 package com.aeg.core.printer;
 
 import java.util.List;
-import java.util.Objects;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
+import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
 import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
+import com.aeg.core.branch.Branch;
+import com.aeg.core.client.Client;
+import com.aeg.core.company.Company;
+import com.aeg.core.enajenacion.EnajenacionTicketExtractor;
 
 @Service
 @Transactional
@@ -146,7 +150,40 @@ public class PrinterServiceImpl implements PrinterService {
         if (role != Role.ADMIN && role != Role.TECHNICIAN) {
             throw new AccessDeniedException("Cannot dispose printers");
         }
-        return toResponse(applyDisposition(p, request.clientId(), request.installationDate()));
+        return toResponse(applyDisposition(p, request));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PrinterEnajenacionTicketResponse previewEnajenacionTicket(Long printerId, Long clientId) {
+        if (clientId == null) {
+            throw new IllegalArgumentException("clientId is required");
+        }
+        Printer printer = findEntityById(printerId);
+        securityScope.assertPrinterInScope(printer);
+        Role role = currentUser().getRole();
+        if (role != Role.ADMIN && role != Role.TECHNICIAN) {
+            throw new AccessDeniedException("Cannot preview enajenacion ticket");
+        }
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + clientId));
+        securityScope.assertClientInScope(client);
+        Branch branch = client.getBranch();
+        if (branch == null) {
+            throw new IllegalArgumentException("Client branch is missing");
+        }
+        Company company = branch.getCompany();
+        if (company == null) {
+            throw new IllegalArgumentException("Client company is missing");
+        }
+        if (branch.getAddress() == null || branch.getAddress().isBlank()
+                || branch.getCity() == null || branch.getCity().isBlank()
+                || branch.getState() == null || branch.getState().isBlank()) {
+            throw new IllegalArgumentException("Branch address, city and state are required");
+        }
+        return new PrinterEnajenacionTicketResponse(
+                EnajenacionTicketExtractor.buildDefaultHeader(branch, company),
+                EnajenacionTicketExtractor.buildDefaultTrailer());
     }
 
     @Override
@@ -192,21 +229,14 @@ public class PrinterServiceImpl implements PrinterService {
      * Distribuidor: única mutación permitida — enajenar impresora asignada a un cliente propio.
      */
     private Printer applyDistributorDisposition(Printer printer, PrinterRequest request) {
-        if (request.status() != PrinterStatus.ENAJENADA) {
-            throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
+        if (request.status() == PrinterStatus.ENAJENADA) {
+            throw new IllegalArgumentException(
+                    "Use POST /api/printers/{id}/enajenar with header and trailer to register enajenacion ticket");
         }
-        if (request.clientId() == null) {
-            throw new IllegalArgumentException("clientId is required to dispose a printer");
-        }
-        assertDispositionFieldsUnchanged(printer, request);
-
-        return applyDisposition(printer, request.clientId(), request.installationDate());
+        throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
     }
 
-    private Printer applyDisposition(
-            Printer printer,
-            Long clientId,
-            java.time.OffsetDateTime installationDate) {
+    private Printer applyDisposition(Printer printer, PrinterDispositionRequest request) {
         if (printer.getStatus() != PrinterStatus.ASIGNADA) {
             throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
         }
@@ -214,55 +244,21 @@ public class PrinterServiceImpl implements PrinterService {
             throw new IllegalArgumentException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
         }
-        if (clientId == null) {
+        if (request.clientId() == null) {
             throw new IllegalArgumentException("clientId is required to dispose a printer");
         }
 
-        var client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + clientId));
+        var client = clientRepository.findById(request.clientId())
+                .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
         securityScope.assertClientInScope(client);
         printer.setClient(client);
-        printer.setStatus(PrinterStatus.ENAJENADA);
+        printer.setHeader(PrinterTicketValidator.normalizeHeader(request.header()));
+        printer.setTrailer(PrinterTicketValidator.normalizeTrailer(request.trailer()));
         printer.setInstallationDate(
-                installationDate != null
-                        ? installationDate
+                request.installationDate() != null
+                        ? request.installationDate()
                         : java.time.OffsetDateTime.now());
         return repository.save(printer);
-    }
-
-    private void assertDispositionFieldsUnchanged(Printer printer, PrinterRequest request) {
-        Long ownDistributorId = resolveDistributorIdForWrite(request.distributorId());
-        if (!Objects.equals(printer.getDistributorId(), ownDistributorId)) {
-            throw new AccessDeniedException("Cannot reassign printer to another distributor");
-        }
-        if (!Objects.equals(printer.getModelId(), request.modelId())
-                || !Objects.equals(printer.getSoftwareId(), request.softwareId())
-                || !printer.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial())
-                || !sameDecimal(printer.getFinalSalePrice(), request.finalSalePrice())
-                || !Objects.equals(printer.getPaid(), request.paid())
-                || !Objects.equals(printer.getVersionFirmware(), request.versionFirmware())
-                || !Objects.equals(normalizeMac(printer.getMacAddress()), normalizeMac(request.macAddress()))
-                || printer.getDeviceType() != request.deviceType()) {
-            throw new AccessDeniedException(
-                    "Distributors can only change printer status to disposed and assign a client");
-        }
-    }
-
-    private static boolean sameDecimal(java.math.BigDecimal left, java.math.BigDecimal right) {
-        if (left == null && right == null) {
-            return true;
-        }
-        if (left == null || right == null) {
-            return false;
-        }
-        return left.compareTo(right) == 0;
-    }
-
-    private static String normalizeMac(String mac) {
-        if (mac == null || mac.isBlank()) {
-            return null;
-        }
-        return mac.trim().toUpperCase();
     }
 
     private PrinterResponse toResponse(Printer p) {
@@ -280,7 +276,9 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getInstallationDate(),
                 p.getVersionFirmware(),
                 p.getMacAddress(),
-                p.getDeviceType()
+                p.getDeviceType(),
+                p.getHeader(),
+                p.getTrailer()
         );
     }
 }

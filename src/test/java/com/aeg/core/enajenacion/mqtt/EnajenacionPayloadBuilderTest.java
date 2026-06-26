@@ -51,6 +51,35 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void headerPayloadUsesStoredPrinterTicketLines() throws Exception {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J503752890",
+                "ABASTO HERMANOS YEISAR 2023, C.A.",
+                "CONTRIBUYENTE ORDINARIO",
+                "ignored",
+                "",
+                "ignored",
+                java.util.List.of(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of("PIE DE TICKET"));
+
+        JsonNode root = objectMapper.readTree(builder.buildHeaderPayload(context));
+        JsonNode contenido = root.path("data").path("contenido");
+
+        assertThat(textValues(contenido.path("encFacFijo")))
+                .containsExactly(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "CONTRIBUYENTE ORDINARIO");
+        assertThat(textValues(contenido.path("pieFacFijo"))).containsExactly("PIE DE TICKET");
+    }
+
+    @Test
     void headerPayloadOmitsBlankSecondAddressLine() throws Exception {
         EnajenacionContext context = new EnajenacionContext(
                 "GRA0000017",
@@ -61,7 +90,12 @@ class EnajenacionPayloadBuilderTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
                 "",
-                "PUERTO LA CRUZ, ANZOATEGUI");
+                "PUERTO LA CRUZ, ANZOATEGUI",
+                java.util.List.of(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
 
         JsonNode root = objectMapper.readTree(builder.buildHeaderPayload(context));
 
@@ -210,15 +244,6 @@ class EnajenacionPayloadBuilderTest {
     }
 
     private static EnajenacionContext context() {
-        return new EnajenacionContext(
-                "GRA0000017",
-                "20:6E:F1:88:4C:68",
-                1L,
-                "J500662998",
-                "INVERSIONES SHOP COMPUTER 2020, C.A.",
-                "CONTRIBUYENTE ORDINARIO",
-                "AV. URDANETA EDIF. CASA BERA",
-                "PISO PB LOCAL -005-C URB. LA CANDELARIA",
-                "CARACAS, DISTRITO CAPITAL");
+        return EnajenacionTestContexts.shopComputerContext();
     }
 }

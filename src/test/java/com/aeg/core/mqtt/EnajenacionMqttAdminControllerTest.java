@@ -72,7 +72,9 @@ class EnajenacionMqttAdminControllerTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         session.setState(EnajenacionSessionState.DNF_SENT);
         sessionRegistry.register(session);

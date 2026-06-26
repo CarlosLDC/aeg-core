@@ -137,15 +137,20 @@ public class PrinterControllerIT {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
 
-        String body = "{\"clientId\":" + client.getId() + "}";
+        String body = sampleDispositionBody(client.getId());
         var res = postDispose(printer.getId(), body);
 
         assertThat(res.statusCode()).isEqualTo(200);
-        assertThat(res.body()).contains("\"status\":\"enajenada\"");
+        assertThat(res.body()).contains("\"status\":\"asignada\"");
+        assertThat(res.body()).contains("\"header\"");
+        assertThat(res.body()).contains("\"trailer\"");
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
-        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
         assertThat(updated.getClientId()).isEqualTo(client.getId());
         assertThat(updated.getInstallationDate()).isNotNull();
+        assertThat(updated.getHeader()).isNotNull();
+        assertThat(updated.getHeader().lines()).contains("CARACAS, DISTRITO CAPITAL");
+        assertThat(updated.getTrailer()).isNotNull();
     }
 
     @Test
@@ -153,7 +158,7 @@ public class PrinterControllerIT {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, false);
 
-        var res = postDispose(printer.getId(), "{\"clientId\":" + client.getId() + "}");
+        var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
 
         assertThat(res.statusCode()).isEqualTo(400);
         assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
@@ -165,7 +170,7 @@ public class PrinterControllerIT {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.LABORATORIO, true);
 
-        var res = postDispose(printer.getId(), "{\"clientId\":" + client.getId() + "}");
+        var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
 
         assertThat(res.statusCode()).isEqualTo(400);
         assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
@@ -205,6 +210,14 @@ public class PrinterControllerIT {
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(updated.getClientId()).isNull();
         assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
+    }
+
+    private static String sampleDispositionBody(Long clientId) {
+        return "{"
+                + "\"clientId\":" + clientId + ","
+                + "\"header\":{\"lines\":[\"AV. PRINCIPAL\",\"CARACAS, DISTRITO CAPITAL\",\"CONTRIBUYENTE ORDINARIO\"]},"
+                + "\"trailer\":{\"lines\":[\"PIE DE TICKET\"]}"
+                + "}";
     }
 
     private java.net.http.HttpResponse<String> putPrinter(Long printerId, String body) throws Exception {

@@ -9,6 +9,7 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
+import com.aeg.core.enajenacion.EnajenacionTicketExtractor;
 import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
@@ -79,6 +80,8 @@ final class EnajenacionTestData {
         printer.setDeviceType(DeviceType.INTERNO);
         printer.setPaid(true);
         printer.setFinalSalePrice(BigDecimal.ZERO);
+        printer.setHeader(EnajenacionTicketExtractor.buildDefaultHeader(branch, company));
+        printer.setTrailer(EnajenacionTicketExtractor.buildDefaultTrailer());
         printer = printerRepository.save(printer);
 
         String compactMac = MacAddressNormalizer.toCompactForm(colonMac);

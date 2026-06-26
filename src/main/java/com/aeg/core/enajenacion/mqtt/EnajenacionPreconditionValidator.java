@@ -1,5 +1,7 @@
 package com.aeg.core.enajenacion.mqtt;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import com.aeg.core.branch.Branch;
@@ -66,6 +68,18 @@ public class EnajenacionPreconditionValidator {
         AddressLines addressLines = EnajenacionPayloadBuilder.splitAddress(branch.getAddress());
         String cityStateLine = branch.getCity().trim() + ", " + branch.getState().trim();
 
+        if (printer.getHeader() == null
+                || printer.getHeader().lines() == null
+                || printer.getHeader().lines().isEmpty()) {
+            throw new EnajenacionProtocolException(
+                    "Printer ticket header is missing. Save ticket configuration in the enajenacion panel before starting the MQTT ritual.");
+        }
+
+        List<String> encFacFijoLines = List.copyOf(printer.getHeader().lines());
+        List<String> pieFacFijoLines = printer.getTrailer() == null || printer.getTrailer().lines() == null
+                ? List.of()
+                : List.copyOf(printer.getTrailer().lines());
+
         return new EnajenacionContext(
                 printer.getFiscalSerial(),
                 MacAddressNormalizer.toColonForm(printer.getMacAddress()),
@@ -75,7 +89,9 @@ public class EnajenacionPreconditionValidator {
                 ContributorTypeFiscalText.toEncFacLine(company.getContributorType()),
                 addressLines.line1(),
                 addressLines.line2(),
-                cityStateLine);
+                cityStateLine,
+                encFacFijoLines,
+                pieFacFijoLines);
     }
 
     public Long resolvePrinterId(String ptrReg) {

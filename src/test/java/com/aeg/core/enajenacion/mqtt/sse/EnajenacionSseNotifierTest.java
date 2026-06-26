@@ -90,7 +90,13 @@ class EnajenacionSseNotifierTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "LINE1",
                 "LINE2",
-                "CARACAS, DISTRITO CAPITAL");
+                "CARACAS, DISTRITO CAPITAL",
+                java.util.List.of(
+                        "LINE1",
+                        "LINE2",
+                        "CARACAS, DISTRITO CAPITAL",
+                        "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
         return session;

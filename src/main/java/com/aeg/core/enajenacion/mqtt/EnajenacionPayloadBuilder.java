@@ -10,9 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,16 +67,16 @@ public class EnajenacionPayloadBuilder {
     }
 
     public String buildHeaderPayload(EnajenacionContext context) {
-        List<String> encFacFijo = buildEncFacFijo(
-                context.addressLine1(),
-                context.addressLine2(),
-                context.cityStateLine(),
-                context.contributorTypeLine());
+        List<String> encFacFijo = List.copyOf(context.encFacFijoLines());
+        List<String> pieFacFijo = new ArrayList<>(context.pieFacFijoLines());
+        if (pieFacFijo.isEmpty() && !ticketFooterLines.isEmpty()) {
+            pieFacFijo.addAll(ticketFooterLines);
+        }
 
         Map<String, Object> contenido = new LinkedHashMap<>();
         contenido.put("encFacFijo", encFacFijo);
-        if (!ticketFooterLines.isEmpty()) {
-            contenido.put("pieFacFijo", ticketFooterLines);
+        if (!pieFacFijo.isEmpty()) {
+            contenido.put("pieFacFijo", pieFacFijo);
         }
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("Access", "AeG-1968-2024");

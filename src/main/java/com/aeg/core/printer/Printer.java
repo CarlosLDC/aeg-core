@@ -12,6 +12,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.PrePersist;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
@@ -68,6 +71,14 @@ public class Printer {
     @Column(name = "tipo_dispositivo", nullable = false)
     private DeviceType deviceType;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "header")
+    private PrinterTicketSection header;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "trailer")
+    private PrinterTicketSection trailer;
+
     // Getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -114,6 +125,12 @@ public class Printer {
 
     public DeviceType getDeviceType() { return deviceType; }
     public void setDeviceType(DeviceType deviceType) { this.deviceType = deviceType; }
+
+    public PrinterTicketSection getHeader() { return header; }
+    public void setHeader(PrinterTicketSection header) { this.header = header; }
+
+    public PrinterTicketSection getTrailer() { return trailer; }
+    public void setTrailer(PrinterTicketSection trailer) { this.trailer = trailer; }
 
     @PrePersist
     public void prePersist() {

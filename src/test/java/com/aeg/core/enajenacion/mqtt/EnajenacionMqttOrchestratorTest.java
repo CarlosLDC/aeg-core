@@ -94,7 +94,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
@@ -127,7 +129,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
@@ -156,7 +160,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);
@@ -195,7 +201,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.DNF_SENT);
@@ -233,7 +241,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.DNF_SENT);
@@ -264,7 +274,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.DNF_SENT);
@@ -293,7 +305,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.INVOICE_SENT);
@@ -319,7 +333,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.DNF_SENT);
@@ -368,7 +384,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.DNF_SENT);
@@ -394,7 +412,9 @@ class EnajenacionMqttOrchestratorTest {
                 "CONTRIBUYENTE ORDINARIO",
                 "Address",
                 "Line 2",
-                "Caracas, DC");
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
         EnajenacionSession session = new EnajenacionSession(MAC, 1L, context);
         registry.register(session);
         session.setState(EnajenacionSessionState.FISCAL_RIF_SENT);

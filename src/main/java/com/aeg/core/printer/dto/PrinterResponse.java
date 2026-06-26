@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 
 import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.PrinterStatus;
+import com.aeg.core.printer.PrinterTicketSection;
 
 public record PrinterResponse(
         Long id,
@@ -20,5 +21,7 @@ public record PrinterResponse(
         OffsetDateTime installationDate,
         String versionFirmware,
         String macAddress,
-        DeviceType deviceType
+        DeviceType deviceType,
+        PrinterTicketSection header,
+        PrinterTicketSection trailer
 ) {}
