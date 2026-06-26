@@ -9,7 +9,7 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
-import com.aeg.core.enajenacion.EnajenacionTicketExtractor;
+import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
 import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;

@@ -1,4 +1,4 @@
-package com.aeg.core.enajenacion;
+package com.aeg.core.enajenacion.mqtt;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -6,8 +6,6 @@ import java.util.stream.Collectors;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.ContributorType;
-import com.aeg.core.enajenacion.mqtt.ContributorTypeFiscalText;
-import com.aeg.core.enajenacion.mqtt.EnajenacionPayloadBuilder;
 import com.aeg.core.enajenacion.mqtt.EnajenacionPayloadBuilder.AddressLines;
 import com.aeg.core.printer.PrinterTicketSection;
 

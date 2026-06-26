@@ -1,4 +1,4 @@
-package com.aeg.core.enajenacion;
+package com.aeg.core.enajenacion.mqtt;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

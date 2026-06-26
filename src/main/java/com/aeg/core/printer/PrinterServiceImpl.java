@@ -17,7 +17,7 @@ import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.client.Client;
 import com.aeg.core.company.Company;
-import com.aeg.core.enajenacion.EnajenacionTicketExtractor;
+import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
 
 @Service
 @Transactional
