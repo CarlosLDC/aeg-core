@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
@@ -31,6 +32,7 @@ public class UserController {
     private final ServiceCenterRepository serviceCenterRepository;
     private final ModificationRequestRepository modificationRequestRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserRoleAssignmentService userRoleAssignmentService;
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserRegistrationRequest request) {
@@ -43,12 +45,12 @@ public class UserController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
         }
 
-        Role role;
-        try {
-            role = Role.valueOf(request.getRole().toUpperCase(Locale.ROOT));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+        UserRoleAssignmentService.RoleResolution roleResolution =
+                userRoleAssignmentService.resolveForCreate(request);
+        if (roleResolution.hasError()) {
+            return ResponseEntity.status(roleResolution.errorStatus()).build();
         }
+        Role role = roleResolution.role();
 
         ProfileAssignment profile = resolveProfileAssignment(role, request, null);
         if (profile.errorStatus() != null) {
@@ -111,15 +113,13 @@ public class UserController {
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             existing.setPassword(passwordEncoder.encode(request.getPassword()));
         }
-        Role role = existing.getRole();
-        if (request.getRole() != null && !request.getRole().isBlank()) {
-            try {
-                role = Role.valueOf(request.getRole().toUpperCase(Locale.ROOT));
-                existing.setRole(role);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().build();
-            }
+        UserRoleAssignmentService.RoleResolution roleResolution =
+                userRoleAssignmentService.resolveForUpdate(request, existing);
+        if (roleResolution.hasError()) {
+            return ResponseEntity.status(roleResolution.errorStatus()).build();
         }
+        Role role = roleResolution.role();
+        existing.setRole(role);
 
         ProfileAssignment profile = resolveProfileAssignment(role, request, existing);
         if (profile.errorStatus() != null) {
@@ -199,7 +199,7 @@ public class UserController {
             Distributor distributor = distributorRepository.findById(distributorId).orElse(null);
             return new ProfileAssignment(nationalId, distributorId, distributor, null, null, null);
         }
-        if (role == Role.SERVICE_CENTER) {
+        if (role == Role.TECHNICIAN) {
             Long branchId = updateRequest != null && updateRequest.getBranchId() != null
                     ? updateRequest.getBranchId()
                     : createRequest != null
@@ -209,7 +209,7 @@ public class UserController {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
             Branch branch = branchRepository.findById(branchId).orElse(null);
-            if (branch == null || !Boolean.TRUE.equals(branch.getIsServiceCenter())) {
+            if (branch == null || branch.getOrganizationRole() != BranchOrganizationRole.SERVICE_CENTER) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
             if (serviceCenterRepository.findByBranch_Id(branchId).isEmpty()) {
@@ -220,13 +220,14 @@ public class UserController {
                     : createRequest != null
                             ? normalizeNationalId(createRequest.getNationalId())
                             : existing != null ? existing.getNationalId() : null;
-            if (nationalId != null) {
-                Long excludeId = existing != null ? existing.getId() : null;
-                if (excludeId != null
-                        ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
-                        : userRepository.findByNationalId(nationalId).isPresent()) {
-                    return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
-                }
+            if (nationalId == null) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            Long excludeId = existing != null ? existing.getId() : null;
+            if (excludeId != null
+                    ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
+                    : userRepository.findByNationalId(nationalId).isPresent()) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
             }
             return new ProfileAssignment(nationalId, null, null, branchId, branch, null);
         }

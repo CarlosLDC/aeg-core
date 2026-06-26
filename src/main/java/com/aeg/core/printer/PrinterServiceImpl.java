@@ -18,6 +18,8 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.client.Client;
 import com.aeg.core.company.Company;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 
 @Service
 @Transactional
@@ -29,19 +31,22 @@ public class PrinterServiceImpl implements PrinterService {
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
     private final com.aeg.core.client.ClientRepository clientRepository;
     private final SecurityScopeService securityScope;
+    private final OrganizationCapabilityService organizationCapability;
 
     public PrinterServiceImpl(PrinterRepository repository,
                               com.aeg.core.printermodel.PrinterModelRepository modelRepository,
                               com.aeg.core.software.SoftwareRepository softwareRepository,
                               com.aeg.core.distributor.DistributorRepository distributorRepository,
                               com.aeg.core.client.ClientRepository clientRepository,
-                              SecurityScopeService securityScope) {
+                              SecurityScopeService securityScope,
+                              OrganizationCapabilityService organizationCapability) {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
         this.distributorRepository = distributorRepository;
         this.clientRepository = clientRepository;
         this.securityScope = securityScope;
+        this.organizationCapability = organizationCapability;
     }
 
     @Override
@@ -72,6 +77,7 @@ public class PrinterServiceImpl implements PrinterService {
             p.setSoftware(softwareRepository.findById(request.softwareId())
                 .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
         }
+        assertPrinterAssignmentAllowed(p, null, request.distributorId());
         applyDistributor(p, resolveDistributorIdForWrite(request.distributorId()));
         if (request.clientId() != null) {
             var client = clientRepository.findById(request.clientId())
@@ -111,10 +117,12 @@ public class PrinterServiceImpl implements PrinterService {
                 .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
         }
         Long resolvedDistributorId = resolveDistributorIdForWrite(request.distributorId());
+        Long previousDistributorId = p.getDistributorId();
         if (request.status() == PrinterStatus.SIN_ASIGNAR
                 || request.status() == PrinterStatus.DE_FABRICA) {
             applyDistributor(p, null);
         } else if (resolvedDistributorId != null) {
+            assertPrinterAssignmentAllowed(p, previousDistributorId, resolvedDistributorId);
             applyDistributor(p, resolvedDistributorId);
         }
         if (request.clientId() != null) {
@@ -146,10 +154,7 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterResponse dispose(Long id, PrinterDispositionRequest request) {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
-        Role role = currentUser().getRole();
-        if (role != Role.ADMIN && !Role.isDistributorScoped(role)) {
-            throw new AccessDeniedException("Cannot dispose printers");
-        }
+        organizationCapability.assertActorCan(OrgCapability.ENAJENAR);
         return toResponse(applyDisposition(p, request));
     }
 
@@ -161,10 +166,7 @@ public class PrinterServiceImpl implements PrinterService {
         }
         Printer printer = findEntityById(printerId);
         securityScope.assertPrinterInScope(printer);
-        Role role = currentUser().getRole();
-        if (role != Role.ADMIN && !Role.isDistributorScoped(role)) {
-            throw new AccessDeniedException("Cannot preview enajenacion ticket");
-        }
+        organizationCapability.assertActorCan(OrgCapability.ENAJENAR);
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + clientId));
         securityScope.assertClientInScope(client);
@@ -234,6 +236,23 @@ public class PrinterServiceImpl implements PrinterService {
                     "Use POST /api/printers/{id}/enajenar with header and trailer to register enajenacion ticket");
         }
         throw new AccessDeniedException("Distributors can only dispose assigned printers to a client");
+    }
+
+    private void assertPrinterAssignmentAllowed(
+            Printer printer,
+            Long previousDistributorId,
+            Long requestedDistributorId) {
+        Long resolved = resolveDistributorIdForWrite(requestedDistributorId);
+        if (resolved == null) {
+            return;
+        }
+        if (previousDistributorId != null && previousDistributorId.equals(resolved)) {
+            return;
+        }
+        PrinterStatus status = printer.getStatus();
+        if (status == PrinterStatus.DE_FABRICA || status == PrinterStatus.SIN_ASIGNAR) {
+            organizationCapability.assertActorCan(OrgCapability.ASSIGN_TO_DISTRIBUTOR);
+        }
     }
 
     private Printer applyDisposition(Printer printer, PrinterDispositionRequest request) {

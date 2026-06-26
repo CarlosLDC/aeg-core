@@ -6,6 +6,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchOrganizationRole;
+import com.aeg.core.branch.BranchOrganizationRoleSupport;
 import com.aeg.core.distributor.dto.DistributorRequest;
 import com.aeg.core.distributor.dto.DistributorResponse;
 import com.aeg.core.security.BranchScope;
@@ -72,10 +75,13 @@ public class DistributorServiceImpl implements DistributorService {
 
 	@Override
 	public DistributorResponse create(DistributorRequest request) {
-		Distributor distributor = new Distributor();
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
 		securityScope.assertBranchInScope(branch.getId());
+		validateDistributorBranch(branch);
+		BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.DISTRIBUTOR);
+		branchRepository.save(branch);
+		Distributor distributor = new Distributor();
 		distributor.setBranch(branch);
 		return toResponse(repository.save(distributor));
 	}
@@ -95,7 +101,20 @@ public class DistributorServiceImpl implements DistributorService {
 	public void delete(Long id) {
 		Distributor distributor = findEntityById(id);
 		securityScope.assertBranchInScope(distributor.getBranchId());
+		Branch branch = distributor.getBranch();
+		if (branch != null && branch.getOrganizationRole() == BranchOrganizationRole.DISTRIBUTOR) {
+			BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.NONE);
+			branchRepository.save(branch);
+		}
 		repository.delete(distributor);
+	}
+
+	private void validateDistributorBranch(Branch branch) {
+		BranchOrganizationRoleSupport.assertOperationalRoleAllowed(branch.getCompany(), BranchOrganizationRole.DISTRIBUTOR);
+		BranchOrganizationRoleSupport.assertNotConflictingRole(branch, BranchOrganizationRole.DISTRIBUTOR);
+		if (repository.findByBranch_Id(branch.getId()).isPresent()) {
+			throw new IllegalArgumentException("Branch already has a distributor record");
+		}
 	}
 
 	private Distributor findEntityById(Long id) {

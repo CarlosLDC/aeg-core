@@ -90,9 +90,7 @@ public class BranchServiceImpl implements BranchService {
         b.setPhone(request.phone());
         b.setEmail(request.email());
         b.setContactPersonName(request.contactPersonName());
-        b.setIsClient(request.isClient());
-        b.setIsDistributor(request.isDistributor());
-        b.setIsServiceCenter(request.isServiceCenter());
+        applyOrganizationFields(b, b.getCompany(), request);
         return toResponse(repository.save(b));
     }
 
@@ -112,9 +110,7 @@ public class BranchServiceImpl implements BranchService {
         b.setPhone(request.phone());
         b.setEmail(request.email());
         b.setContactPersonName(request.contactPersonName());
-        b.setIsClient(request.isClient());
-        b.setIsDistributor(request.isDistributor());
-        b.setIsServiceCenter(request.isServiceCenter());
+        applyOrganizationFields(b, b.getCompany(), request);
         return toResponse(repository.save(b));
     }
 
@@ -145,6 +141,22 @@ public class BranchServiceImpl implements BranchService {
                 b.getCreatedAt(),
                 b.getIsClient(),
                 b.getIsDistributor(),
-                b.getIsServiceCenter());
+                b.getIsServiceCenter(),
+                b.getOrganizationRole());
+    }
+
+    private void applyOrganizationFields(Branch branch, com.aeg.core.company.Company company, BranchRequest request) {
+        if (request.isClient() != null) {
+            branch.setIsClient(request.isClient());
+        }
+        BranchOrganizationRole role = BranchOrganizationRoleSupport.resolveFromRequest(
+                request.organizationRole(),
+                request.isDistributor(),
+                request.isServiceCenter());
+        BranchOrganizationRoleSupport.assertOperationalRoleAllowed(company, role);
+        if (role != branch.getOrganizationRole()) {
+            BranchOrganizationRoleSupport.assertNotConflictingRole(branch, role);
+        }
+        BranchOrganizationRoleSupport.applyOrganizationRole(branch, role);
     }
 }

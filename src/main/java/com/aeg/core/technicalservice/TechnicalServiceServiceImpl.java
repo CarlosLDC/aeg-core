@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.seal.Seal;
 import com.aeg.core.seal.SealRepository;
@@ -32,6 +34,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	private final SealRepository sealRepository;
 	private final DistributorRepository distributorRepository;
 	private final SecurityScopeService securityScope;
+	private final OrganizationCapabilityService organizationCapability;
 
 	public TechnicalServiceServiceImpl(
 			TechnicalServiceVisitRepository repository,
@@ -40,7 +43,8 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 			ServiceCenterRepository serviceCenterRepository,
 			SealRepository sealRepository,
 			DistributorRepository distributorRepository,
-			SecurityScopeService securityScope) {
+			SecurityScopeService securityScope,
+			OrganizationCapabilityService organizationCapability) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
 		this.userRepository = userRepository;
@@ -48,6 +52,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		this.sealRepository = sealRepository;
 		this.distributorRepository = distributorRepository;
 		this.securityScope = securityScope;
+		this.organizationCapability = organizationCapability;
 	}
 
 	@Override
@@ -82,6 +87,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	@Override
 	public TechnicalServiceResponse create(TechnicalServiceRequest request) {
 		securityScope.assertCanWriteTechnicalService();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_TECHNICAL_SERVICE);
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
 		applyRequest(e, request, true);
 		applySealStatusChanges(e, request);
@@ -91,6 +97,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	@Override
 	public TechnicalServiceResponse update(Long id, TechnicalServiceRequest request) {
 		securityScope.assertCanWriteTechnicalService();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_TECHNICAL_SERVICE);
 		TechnicalServiceVisit e = findEntity(id);
 		assertVisitInScope(e);
 		applyRequest(e, request, false);
@@ -138,7 +145,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 			}
 			e.setServiceCenter(serviceCenter);
 		} else {
-			if (creating && securityScope.currentUser().getRole() == Role.SERVICE_CENTER) {
+			if (creating && Role.isServiceCenterStaff(securityScope.currentUser())) {
 				throw new IllegalArgumentException("Service center is required for technical service visits");
 			}
 			e.setServiceCenter(null);

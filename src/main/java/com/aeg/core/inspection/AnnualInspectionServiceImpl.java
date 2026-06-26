@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.inspection.dto.AnnualInspectionRequest;
 import com.aeg.core.inspection.dto.AnnualInspectionResponse;
 import com.aeg.core.printer.Printer;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.security.SecurityScopeService;
@@ -24,16 +26,19 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	private final PrinterRepository printerRepository;
 	private final UserRepository userRepository;
 	private final SecurityScopeService securityScope;
+	private final OrganizationCapabilityService organizationCapability;
 
 	public AnnualInspectionServiceImpl(
 			AnnualInspectionRepository repository,
 			PrinterRepository printerRepository,
 			UserRepository userRepository,
-			SecurityScopeService securityScope) {
+			SecurityScopeService securityScope,
+			OrganizationCapabilityService organizationCapability) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
 		this.userRepository = userRepository;
 		this.securityScope = securityScope;
+		this.organizationCapability = organizationCapability;
 	}
 
 	@Override
@@ -62,6 +67,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	@Override
 	public AnnualInspectionResponse create(AnnualInspectionRequest request) {
 		securityScope.assertCanWriteAnnualInspection();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
 		AnnualInspection e = new AnnualInspection();
 		applyRequest(e, request);
 		return toResponse(repository.save(e));
@@ -70,6 +76,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	@Override
 	public AnnualInspectionResponse update(Long id, AnnualInspectionRequest request) {
 		securityScope.assertCanWriteAnnualInspection();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
 		AnnualInspection e = findEntity(id);
 		assertInspectionInScope(e);
 		applyRequest(e, request);

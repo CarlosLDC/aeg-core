@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Email;
 
+import com.aeg.core.branch.BranchOrganizationRole;
+
 public record BranchRequest(
         @NotNull Long companyId,
         @NotBlank String city,
@@ -14,5 +16,6 @@ public record BranchRequest(
         String contactPersonName,
         Boolean isClient,
         Boolean isDistributor,
-        Boolean isServiceCenter
+        Boolean isServiceCenter,
+        BranchOrganizationRole organizationRole
 ) {}

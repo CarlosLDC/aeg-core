@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,10 +33,17 @@ public class Company {
     @Column(name = "tipo_contribuyente", nullable = false)
     private ContributorType contributorType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "organization_type", nullable = false)
+    private OrganizationType organizationType = OrganizationType.STANDARD;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (organizationType == null) {
+            organizationType = OrganizationType.STANDARD;
         }
     }
 
@@ -76,5 +85,13 @@ public class Company {
 
     public void setContributorType(ContributorType contributorType) {
         this.contributorType = contributorType;
+    }
+
+    public OrganizationType getOrganizationType() {
+        return organizationType;
+    }
+
+    public void setOrganizationType(OrganizationType organizationType) {
+        this.organizationType = organizationType;
     }
 }

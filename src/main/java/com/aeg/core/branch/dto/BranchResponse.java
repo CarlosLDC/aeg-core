@@ -2,6 +2,8 @@ package com.aeg.core.branch.dto;
 
 import java.time.OffsetDateTime;
 
+import com.aeg.core.branch.BranchOrganizationRole;
+
 public record BranchResponse(
         Long id,
         Long companyId,
@@ -14,5 +16,6 @@ public record BranchResponse(
         OffsetDateTime createdAt,
         Boolean isClient,
         Boolean isDistributor,
-        Boolean isServiceCenter
+        Boolean isServiceCenter,
+        BranchOrganizationRole organizationRole
 ) {}

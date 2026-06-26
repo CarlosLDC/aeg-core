@@ -158,6 +158,12 @@ public class CompanyServiceImpl implements CompanyService {
     }
 
     private CompanyResponse toResponse(Company c) {
-        return new CompanyResponse(c.getId(), c.getBusinessName(), c.getCreatedAt(), c.getRif(), c.getContributorType());
+        return new CompanyResponse(
+                c.getId(),
+                c.getBusinessName(),
+                c.getCreatedAt(),
+                c.getRif(),
+                c.getContributorType(),
+                c.getOrganizationType());
     }
 }

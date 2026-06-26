@@ -93,7 +93,7 @@ public class SecurityScopeService {
 		User user = currentUser();
 		return switch (user.getRole()) {
 			case ADMIN, SENIAT -> BranchScope.all();
-			case DISTRIBUTOR, TECHNICIAN -> {
+			case DISTRIBUTOR -> {
 				if (user.getDistributorId() == null) {
 					yield BranchScope.none();
 				}
@@ -102,7 +102,7 @@ public class SecurityScopeService {
 						.collect(Collectors.toSet());
 				yield BranchScope.scoped(ids);
 			}
-			case SERVICE_CENTER -> {
+			case SERVICE_CENTER, TECHNICIAN -> {
 				if (user.getBranchId() == null) {
 					yield BranchScope.none();
 				}
@@ -197,7 +197,7 @@ public class SecurityScopeService {
 			}
 			return;
 		}
-		if (Role.isServiceCenter(user.getRole())) {
+		if (Role.isServiceCenterStaff(user)) {
 			if (printer.getStatus() != PrinterStatus.ASIGNADA || printer.getClient() == null) {
 				throw new AccessDeniedException("Not allowed to access this printer");
 			}
@@ -237,19 +237,21 @@ public class SecurityScopeService {
 
 	public void assertTechnicalServiceSignerInScope(User signer) {
 		if (signer == null || !Role.canSignTechnicalService(signer.getRole())) {
-			throw new AccessDeniedException("Technical service signer must be a technician");
+			throw new AccessDeniedException("Technical service signer must be an admin or service center technician");
+		}
+		if (signer.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (!Role.isServiceCenterStaff(signer)) {
+			throw new AccessDeniedException("Technical service signer must be a service center technician");
 		}
 		if (isAdmin()) {
 			return;
 		}
-		if (currentUser().getRole() == Role.SERVICE_CENTER) {
+		if (Role.isServiceCenterStaff(currentUser())) {
 			return;
 		}
-		if (Role.isDistributorScoped(currentUser().getRole())) {
-			if (!currentUser().getId().equals(signer.getId())) {
-				throw new AccessDeniedException("Not allowed to assign this technician signer");
-			}
-		}
+		throw new AccessDeniedException("Not allowed to assign this technician signer");
 	}
 
 	/** @deprecated use {@link #assertInspectionInspectorInScope} or {@link #assertTechnicalServiceSignerInScope} */
@@ -260,7 +262,7 @@ public class SecurityScopeService {
 
 	public void assertServiceCenterActorOwnsCenter(Long serviceCenterId) {
 		User user = currentUser();
-		if (user.getRole() != Role.SERVICE_CENTER) {
+		if (!Role.isServiceCenterStaff(user)) {
 			return;
 		}
 		if (user.getBranchId() == null) {
@@ -298,7 +300,7 @@ public class SecurityScopeService {
 			}
 			return printerRepository.findByDistributor_Id(user.getDistributorId());
 		}
-		if (Role.isServiceCenter(user.getRole())) {
+		if (Role.isServiceCenterStaff(user)) {
 			return printerRepository.findByStatus(PrinterStatus.ASIGNADA).stream()
 					.filter(p -> p.getClient() != null)
 					.toList();
@@ -310,7 +312,7 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return sealRepository.findAll();
 		}
-		if (Role.isServiceCenter(currentUser().getRole())) {
+		if (Role.isServiceCenterStaff(currentUser())) {
 			return List.of();
 		}
 		List<Long> printerIds = findVisiblePrinters().stream().map(Printer::getId).toList();
@@ -328,7 +330,7 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return;
 		}
-		if (Role.isServiceCenter(currentUser().getRole())) {
+		if (Role.isServiceCenterStaff(currentUser())) {
 			throw new AccessDeniedException("Not allowed to access this seal");
 		}
 		if (seal.getPrinter() == null) {

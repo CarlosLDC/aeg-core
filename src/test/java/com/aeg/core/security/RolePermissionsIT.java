@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
 import com.aeg.core.client.ClientRepository;
@@ -83,8 +84,7 @@ class RolePermissionsIT {
 
     Long printerId;
     Long distributorUserId;
-    Long technicianUserId;
-    Long serviceCenterUserId;
+    Long serviceCenterTechnicianUserId;
     Long serviceCenterId;
 
     @BeforeEach
@@ -99,6 +99,8 @@ class RolePermissionsIT {
         distributorBranch.setCompany(company);
         distributorBranch.setCity("Caracas");
         distributorBranch.setState("Distrito Capital");
+        distributorBranch.setOrganizationRole(BranchOrganizationRole.DISTRIBUTOR);
+        distributorBranch.setIsDistributor(true);
         distributorBranch = branchRepository.save(distributorBranch);
 
         Distributor distributor = new Distributor();
@@ -124,6 +126,7 @@ class RolePermissionsIT {
         serviceBranch.setCompany(company);
         serviceBranch.setCity("Valencia");
         serviceBranch.setState("Carabobo");
+        serviceBranch.setOrganizationRole(BranchOrganizationRole.SERVICE_CENTER);
         serviceBranch.setIsServiceCenter(true);
         serviceBranch = branchRepository.save(serviceBranch);
 
@@ -138,29 +141,22 @@ class RolePermissionsIT {
                 distributor.getId(),
                 null,
                 "V11111111");
-        User technicianUser = ensureUser(
-                "technician@test.local",
+        User serviceCenterTechnician = ensureUser(
+                "sc-tech@test.local",
                 Role.TECHNICIAN,
-                distributor.getId(),
-                null,
-                "V22222222");
-        User serviceCenterUser = ensureUser(
-                "service-center@test.local",
-                Role.SERVICE_CENTER,
                 null,
                 serviceBranch.getId(),
                 "V33333333");
 
         distributorUserId = distributorUser.getId();
-        technicianUserId = technicianUser.getId();
-        serviceCenterUserId = serviceCenterUser.getId();
+        serviceCenterTechnicianUserId = serviceCenterTechnician.getId();
     }
 
     @Test
     void distributorCannotCreateTechnicalServiceButCanCreateAnnualInspection() throws Exception {
         String token = tokenFor("distributor@test.local");
 
-        var technicalService = post("/api/technical-services", minimalTechnicalServiceBody(technicianUserId), token);
+        var technicalService = post("/api/technical-services", minimalTechnicalServiceBody(serviceCenterTechnicianUserId), token);
         assertThat(technicalService.statusCode()).isEqualTo(403);
 
         var inspection = post(
@@ -171,35 +167,34 @@ class RolePermissionsIT {
     }
 
     @Test
-    void technicianCannotCreateTechnicalServiceButCanCreateAnnualInspection() throws Exception {
-        String token = tokenFor("technician@test.local");
+    void serviceCenterTechnicianCanCreateTechnicalServiceAndAnnualInspection() throws Exception {
+        String token = tokenFor("sc-tech@test.local");
 
-        var technicalService = post("/api/technical-services", minimalTechnicalServiceBody(technicianUserId), token);
-        assertThat(technicalService.statusCode()).isEqualTo(403);
+        var technicalService = post(
+                "/api/technical-services",
+                minimalTechnicalServiceBody(serviceCenterTechnicianUserId),
+                token);
+        assertThat(technicalService.statusCode()).isEqualTo(201);
+        assertThat(technicalService.body()).contains("\"userId\":" + serviceCenterTechnicianUserId);
 
         var inspection = post(
                 "/api/annual-inspections",
-                minimalAnnualInspectionBody(technicianUserId),
+                minimalAnnualInspectionBody(serviceCenterTechnicianUserId),
                 token);
         assertThat(inspection.statusCode()).isEqualTo(201);
     }
 
     @Test
-    void serviceCenterCanCreateTechnicalServiceWithTechnicianSignerAndAnnualInspection() throws Exception {
-        String token = tokenFor("service-center@test.local");
+    void adminCanCreateTechnicalServiceSigningAsSelf() throws Exception {
+        User admin = userRepository.findByUsername("admin@test.local").orElseThrow();
+        String token = tokenFor("admin@test.local");
 
         var technicalService = post(
                 "/api/technical-services",
-                minimalTechnicalServiceBody(technicianUserId),
+                minimalTechnicalServiceBodyWithoutServiceCenter(admin.getId()),
                 token);
         assertThat(technicalService.statusCode()).isEqualTo(201);
-        assertThat(technicalService.body()).contains("\"userId\":" + technicianUserId);
-
-        var inspection = post(
-                "/api/annual-inspections",
-                minimalAnnualInspectionBody(serviceCenterUserId),
-                token);
-        assertThat(inspection.statusCode()).isEqualTo(201);
+        assertThat(technicalService.body()).contains("\"userId\":" + admin.getId());
     }
 
     private User ensureUser(
@@ -229,6 +224,26 @@ class RolePermissionsIT {
                 + "\"notes\":null,"
                 + "\"photoUrls\":[],"
                 + "\"inspectionDate\":\"" + LocalDate.now() + "\""
+                + "}";
+    }
+
+    private String minimalTechnicalServiceBodyWithoutServiceCenter(Long signerUserId) {
+        OffsetDateTime now = OffsetDateTime.now();
+        return "{"
+                + "\"printerId\":" + printerId + ","
+                + "\"userId\":" + signerUserId + ","
+                + "\"sealTampered\":false,"
+                + "\"notes\":null,"
+                + "\"startAt\":\"" + now + "\","
+                + "\"endAt\":\"" + now.plusHours(1) + "\","
+                + "\"photoUrls\":[],"
+                + "\"initialZReport\":1,"
+                + "\"finalZReport\":2,"
+                + "\"cost\":" + BigDecimal.ZERO + ","
+                + "\"reportedFailure\":\"falla de prueba\","
+                + "\"requestDate\":\"" + LocalDate.now() + "\","
+                + "\"initialZDate\":\"" + now + "\","
+                + "\"finalZDate\":\"" + now.plusHours(1) + "\""
                 + "}";
     }
 

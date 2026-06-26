@@ -1,10 +1,12 @@
 package com.aeg.core.branch;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -55,6 +57,10 @@ public class Branch {
     @Column(name = "es_centro_servicio")
     private Boolean isServiceCenter = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "organization_role", nullable = false)
+    private BranchOrganizationRole organizationRole = BranchOrganizationRole.NONE;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public com.aeg.core.company.Company getCompany() { return company; }
@@ -82,6 +88,10 @@ public class Branch {
     public void setIsDistributor(Boolean isDistributor) { this.isDistributor = isDistributor; }
     public Boolean getIsServiceCenter() { return isServiceCenter; }
     public void setIsServiceCenter(Boolean isServiceCenter) { this.isServiceCenter = isServiceCenter; }
+    public BranchOrganizationRole getOrganizationRole() { return organizationRole; }
+    public void setOrganizationRole(BranchOrganizationRole organizationRole) {
+        this.organizationRole = organizationRole;
+    }
 
     @PrePersist
     public void prePersist() {
@@ -89,5 +99,6 @@ public class Branch {
         if (isClient == null) isClient = false;
         if (isDistributor == null) isDistributor = false;
         if (isServiceCenter == null) isServiceCenter = false;
+        if (organizationRole == null) organizationRole = BranchOrganizationRole.NONE;
     }
 }

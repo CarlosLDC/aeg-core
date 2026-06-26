@@ -1,23 +1,25 @@
 package com.aeg.core.security;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchOrganizationRole;
+import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
-import com.aeg.core.branch.Branch;
-import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import com.aeg.core.servicecenter.ServiceCenter;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
-import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
 
 class UserControllerUnitTest {
 
@@ -27,6 +29,7 @@ class UserControllerUnitTest {
     private ServiceCenterRepository serviceCenterRepository;
     private ModificationRequestRepository modificationRequestRepository;
     private PasswordEncoder passwordEncoder;
+    private UserRoleAssignmentService userRoleAssignmentService;
     private UserController controller;
 
     @BeforeEach
@@ -37,13 +40,18 @@ class UserControllerUnitTest {
         serviceCenterRepository = mock(ServiceCenterRepository.class);
         modificationRequestRepository = mock(ModificationRequestRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
+        userRoleAssignmentService = new UserRoleAssignmentService(
+                distributorRepository,
+                branchRepository,
+                serviceCenterRepository);
         controller = new UserController(
                 userRepository,
                 distributorRepository,
                 branchRepository,
                 serviceCenterRepository,
                 modificationRequestRepository,
-                passwordEncoder);
+                passwordEncoder,
+                userRoleAssignmentService);
     }
 
     @Test
@@ -64,19 +72,18 @@ class UserControllerUnitTest {
     }
 
     @Test
-    void createUser_technician_withDistributorAndNationalId_succeeds() {
+    void createUser_withDistributorAssignment_derivesDistributorEvenWhenRoleSaysTechnician() {
         UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
-        req.setName("Técnico");
-        req.setEmail("tech@aeg.local");
+        req.setName("Operativo");
+        req.setEmail("dist@aeg.local");
         req.setPassword("p");
         req.setRole("TECHNICIAN");
         req.setDistributorId(7L);
         req.setNationalId("V12345678");
 
-        Distributor distributor = new Distributor();
-        distributor.setId(7L);
+        Distributor distributor = distributorWithOrgRole(7L, BranchOrganizationRole.DISTRIBUTOR);
 
-        when(userRepository.findByUsername("tech@aeg.local")).thenReturn(Optional.empty());
+        when(userRepository.findByUsername("dist@aeg.local")).thenReturn(Optional.empty());
         when(userRepository.findByNationalId("V12345678")).thenReturn(Optional.empty());
         when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
         when(passwordEncoder.encode("p")).thenReturn("enc-p");
@@ -89,9 +96,8 @@ class UserControllerUnitTest {
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.DISTRIBUTOR);
         assertThat(resp.getBody().getDistributorId()).isEqualTo(7L);
-        assertThat(resp.getBody().getNationalId()).isEqualTo("V12345678");
-        assertThat(resp.getBody().getRole()).isEqualTo(Role.TECHNICIAN);
     }
 
     @Test
@@ -104,8 +110,7 @@ class UserControllerUnitTest {
         req.setDistributorId(7L);
         req.setNationalId("V87654321");
 
-        Distributor distributor = new Distributor();
-        distributor.setId(7L);
+        Distributor distributor = distributorWithOrgRole(7L, BranchOrganizationRole.DISTRIBUTOR);
 
         when(userRepository.findByUsername("dist@aeg.local")).thenReturn(Optional.empty());
         when(userRepository.findByNationalId("V87654321")).thenReturn(Optional.empty());
@@ -124,18 +129,16 @@ class UserControllerUnitTest {
     }
 
     @Test
-    void createUser_serviceCenter_withServiceCenterBranch_succeeds() {
+    void createUser_serviceCenterBranch_derivesTechnician() {
         UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
         req.setName("Centro");
         req.setEmail("sc@aeg.local");
         req.setPassword("p");
-        req.setRole("SERVICE_CENTER");
+        req.setRole("TECHNICIAN");
         req.setBranchId(12L);
         req.setNationalId("V99999999");
 
-        Branch branch = new Branch();
-        branch.setId(12L);
-        branch.setIsServiceCenter(true);
+        Branch branch = serviceCenterBranch(12L);
 
         ServiceCenter center = new ServiceCenter();
         center.setId(5L);
@@ -155,8 +158,25 @@ class UserControllerUnitTest {
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().getRole()).isEqualTo(Role.SERVICE_CENTER);
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.TECHNICIAN);
         assertThat(resp.getBody().getBranchId()).isEqualTo(12L);
+    }
+
+    @Test
+    void createUser_rejectsLegacyServiceCenterRole() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Centro");
+        req.setEmail("sc@aeg.local");
+        req.setPassword("p");
+        req.setRole("SERVICE_CENTER");
+        req.setBranchId(12L);
+        req.setNationalId("V99999999");
+
+        when(userRepository.findByUsername("sc@aeg.local")).thenReturn(Optional.empty());
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(userRepository, never()).save(ArgumentMatchers.any());
     }
 
     @Test
@@ -166,9 +186,15 @@ class UserControllerUnitTest {
         req.setEmail("tech@aeg.local");
         req.setPassword("p");
         req.setRole("TECHNICIAN");
-        req.setDistributorId(7L);
+        req.setBranchId(12L);
+
+        Branch branch = serviceCenterBranch(12L);
+        ServiceCenter center = new ServiceCenter();
+        center.setBranch(branch);
 
         when(userRepository.findByUsername("tech@aeg.local")).thenReturn(Optional.empty());
+        when(branchRepository.findById(12L)).thenReturn(Optional.of(branch));
+        when(serviceCenterRepository.findByBranch_Id(12L)).thenReturn(Optional.of(center));
 
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -182,10 +208,16 @@ class UserControllerUnitTest {
         req.setEmail("tech@aeg.local");
         req.setPassword("p");
         req.setRole("TECHNICIAN");
-        req.setDistributorId(7L);
+        req.setBranchId(12L);
         req.setNationalId("V12345678");
 
+        Branch branch = serviceCenterBranch(12L);
+        ServiceCenter center = new ServiceCenter();
+        center.setBranch(branch);
+
         when(userRepository.findByUsername("tech@aeg.local")).thenReturn(Optional.empty());
+        when(branchRepository.findById(12L)).thenReturn(Optional.of(branch));
+        when(serviceCenterRepository.findByBranch_Id(12L)).thenReturn(Optional.of(center));
         when(userRepository.findByNationalId("V12345678")).thenReturn(Optional.of(new User()));
 
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
@@ -201,7 +233,7 @@ class UserControllerUnitTest {
                 .name("Técnico")
                 .password("x")
                 .role(Role.TECHNICIAN)
-                .distributorId(7L)
+                .branchId(12L)
                 .nationalId("V12345678")
                 .enabled(true)
                 .build();
@@ -228,5 +260,23 @@ class UserControllerUnitTest {
 
         ResponseEntity<UserController.UserResponse> resp = controller.updateUser(1L, req);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    private static Distributor distributorWithOrgRole(Long id, BranchOrganizationRole orgRole) {
+        Branch branch = new Branch();
+        branch.setId(99L);
+        branch.setOrganizationRole(orgRole);
+        Distributor distributor = new Distributor();
+        distributor.setId(id);
+        distributor.setBranch(branch);
+        return distributor;
+    }
+
+    private static Branch serviceCenterBranch(Long id) {
+        Branch branch = new Branch();
+        branch.setId(id);
+        branch.setOrganizationRole(BranchOrganizationRole.SERVICE_CENTER);
+        branch.setIsServiceCenter(true);
+        return branch;
     }
 }
