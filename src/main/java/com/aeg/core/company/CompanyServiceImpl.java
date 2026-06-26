@@ -100,6 +100,9 @@ public class CompanyServiceImpl implements CompanyService {
 
     @Override
     public CompanyResponse create(CompanyRequest request) {
+        if (request.contributorType() == null) {
+            throw new IllegalArgumentException("El tipo de contribuyente es obligatorio.");
+        }
         if (repository.existsByRif(request.rif())) {
             throw new IllegalArgumentException("rif already exists: " + request.rif());
         }

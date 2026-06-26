@@ -71,6 +71,9 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public BranchResponse create(BranchRequest request) {
+        if (request.address() == null || request.address().isBlank()) {
+            throw new IllegalArgumentException("La dirección es obligatoria.");
+        }
         Optional<Branch> existing = repository.findFirstByCompany_IdAndCityIgnoreCaseAndStateIgnoreCase(
                 request.companyId(),
                 request.city() != null ? request.city().trim() : "",
