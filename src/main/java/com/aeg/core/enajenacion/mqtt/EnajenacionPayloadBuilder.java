@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import com.aeg.core.fiscal.FiscalInvoiceProductDescription;
 import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -101,10 +102,13 @@ public class EnajenacionPayloadBuilder {
     }
 
     public String buildInvoicePayload(String productDescription) {
-        String description = normalizeProductDescription(productDescription);
+        List<String> descriptionLines = FiscalInvoiceProductDescription.resolveLines(
+                productDescription,
+                DEFAULT_INVOICE_PRODUCT_DESCRIPTION);
+        List<String> profDescriptions = FiscalInvoiceProductDescription.linesForProfCommands(descriptionLines);
         List<Object> commands = new ArrayList<>();
         for (int imp = 1; imp <= 5; imp++) {
-            commands.add(productLine("proF", imp, description));
+            commands.add(productLine("proF", imp, profDescriptions.get(imp - 1)));
         }
         commands.add(Map.of("cmd", "subToF", "data", 1, "valor", 0));
         commands.add(Map.of(
@@ -153,14 +157,11 @@ public class EnajenacionPayloadBuilder {
     }
 
     static String normalizeProductDescription(String productDescription) {
-        String normalized = FiscalTicketLatin2.normalizeFiscalTicketText(
-                productDescription == null || productDescription.isBlank()
-                        ? DEFAULT_INVOICE_PRODUCT_DESCRIPTION
-                        : productDescription.trim());
-        if (normalized.length() > com.aeg.core.printer.PrinterTicketValidator.MAX_LINE_LENGTH) {
-            return normalized.substring(0, com.aeg.core.printer.PrinterTicketValidator.MAX_LINE_LENGTH);
-        }
-        return normalized;
+        return String.join(
+                "\n",
+                FiscalInvoiceProductDescription.resolveLines(
+                        productDescription,
+                        DEFAULT_INVOICE_PRODUCT_DESCRIPTION));
     }
 
     private static Map<String, String> line(String cmd, String data) {

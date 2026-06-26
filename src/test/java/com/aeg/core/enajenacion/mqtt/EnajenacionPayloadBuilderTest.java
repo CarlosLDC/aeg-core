@@ -187,13 +187,26 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void invoicePayloadMapsMultiLineDescriptionAcrossProfCommands() throws Exception {
+        String line1 = "L".repeat(70);
+        String line2 = "M".repeat(70);
+        JsonNode root = objectMapper.readTree(builder.buildInvoicePayload(line1 + "\n" + line2));
+
+        assertThat(root.get(0).path("data").path("des01").asText()).hasSize(60).startsWith("L");
+        assertThat(root.get(1).path("data").path("des01").asText()).hasSize(60).startsWith("M");
+        assertThat(root.get(2).path("data").path("des01").asText()).isEmpty();
+        assertThat(root.get(3).path("data").path("des01").asText()).isEmpty();
+        assertThat(root.get(4).path("data").path("des01").asText()).isEmpty();
+    }
+
+    @Test
     void invoicePayloadPreservesSpanishAccentsInProductDescription() throws Exception {
         JsonNode root = objectMapper.readTree(
                 builder.buildInvoicePayload("Producto de prueba — información técnica"));
 
         for (int i = 0; i < 5; i++) {
             assertThat(root.get(i).path("data").path("des01").asText())
-                    .isEqualTo("Producto de prueba - información técnica");
+                    .isEqualTo("Producto de prueba - información técnic");
         }
     }
 
