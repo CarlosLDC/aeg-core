@@ -48,7 +48,7 @@ public class ClientServiceImpl implements ClientService {
 		if (currentUser.getRole() == Role.ADMIN) {
 			return repository.findAllFetched().stream().map(this::toResponse).toList();
 		}
-		if (currentUser.getRole() == Role.TECHNICIAN && currentUser.getDistributorId() != null) {
+		if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
 			return repository.findAllFetchedByDistributorId(currentUser.getDistributorId()).stream()
 					.map(this::toResponse)
 					.toList();
@@ -75,7 +75,7 @@ public class ClientServiceImpl implements ClientService {
 	public Optional<ClientResponse> findByBranchId(Long branchId) {
 		User user = securityScope.currentUser();
 		Long distributorId =
-				user.getRole() == Role.TECHNICIAN ? user.getDistributorId() : null;
+				Role.isDistributorScoped(user.getRole()) ? user.getDistributorId() : null;
 		securityScope.assertCanLinkClientToBranch(branchId, distributorId);
 		Client client = resolveClientForBranch(branchId);
 		return client == null ? Optional.empty() : Optional.of(toResponse(client));
@@ -189,7 +189,7 @@ public class ClientServiceImpl implements ClientService {
 		Client client = findEntityById(id);
 		assertClientNotPending(client);
 		User user = securityScope.currentUser();
-		if (user.getRole() == Role.TECHNICIAN && client.getDistributorId() == null) {
+		if (Role.isDistributorScoped(user.getRole()) && client.getDistributorId() == null) {
 			securityScope.assertCanLinkClientToBranch(request.branchId(), request.distributorId());
 		} else {
 			securityScope.assertClientInScope(client);

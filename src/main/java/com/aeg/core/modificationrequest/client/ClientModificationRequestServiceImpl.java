@@ -190,7 +190,7 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 
 	private void assertRequesterCanCancel(ModificationRequest request) {
 		User user = securityScope.currentUser();
-		if (user.getRole() != Role.TECHNICIAN) {
+		if (!Role.isDistributorScoped(user.getRole())) {
 			throw new AccessDeniedException("Only distributors can cancel modification requests");
 		}
 		if (!request.getRequestedBy().getId().equals(user.getId())) {

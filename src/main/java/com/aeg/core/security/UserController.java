@@ -7,9 +7,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
+import com.aeg.core.servicecenter.ServiceCenterRepository;
 
 import java.util.List;
 import java.net.URI;
@@ -24,6 +27,8 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final DistributorRepository distributorRepository;
+    private final BranchRepository branchRepository;
+    private final ServiceCenterRepository serviceCenterRepository;
     private final ModificationRequestRepository modificationRequestRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -45,40 +50,21 @@ public class UserController {
             return ResponseEntity.badRequest().build();
         }
 
-        String nationalId = normalizeNationalId(request.getNationalId());
-        Long distributorId = request.getDistributorId();
-
-        if (role == Role.TECHNICIAN) {
-            if (nationalId == null || distributorId == null) {
-                return ResponseEntity.badRequest().build();
-            }
-            if (userRepository.findByNationalId(nationalId).isPresent()) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
-            }
-            if (distributorRepository.findById(distributorId).isEmpty()) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
-            }
-        } else if (role == Role.ADMIN || role == Role.SENIAT) {
-            nationalId = null;
-            distributorId = null;
-        } else {
-            return ResponseEntity.badRequest().build();
+        ProfileAssignment profile = resolveProfileAssignment(role, request, null);
+        if (profile.errorStatus() != null) {
+            return ResponseEntity.status(profile.errorStatus()).build();
         }
-
-        Distributor distributor = distributorId != null
-                ? distributorRepository.findById(distributorId).orElse(null)
-                : null;
 
         User user = User.builder()
                 .username(email)
                 .name(name)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
-                .branchId(null)
-                .branch(null)
-                .distributorId(distributorId)
-                .distributor(distributor)
-                .nationalId(nationalId)
+                .branchId(profile.branchId())
+                .branch(profile.branch())
+                .distributorId(profile.distributorId())
+                .distributor(profile.distributor())
+                .nationalId(profile.nationalId())
                 .enabled(true)
                 .build();
 
@@ -135,34 +121,16 @@ public class UserController {
             }
         }
 
-        if (role == Role.TECHNICIAN) {
-            String nationalId = request.getNationalId() != null
-                    ? normalizeNationalId(request.getNationalId())
-                    : existing.getNationalId();
-            Long distributorId = request.getDistributorId() != null
-                    ? request.getDistributorId()
-                    : existing.getDistributorId();
-            if (nationalId == null || distributorId == null) {
-                return ResponseEntity.badRequest().build();
-            }
-            if (userRepository.existsByNationalIdAndIdNot(nationalId, existing.getId())) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
-            }
-            if (distributorRepository.findById(distributorId).isEmpty()) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND).build();
-            }
-            existing.setNationalId(nationalId);
-            existing.setDistributorId(distributorId);
-            existing.setDistributor(distributorRepository.findById(distributorId).orElse(null));
-            existing.setBranchId(null);
-            existing.setBranch(null);
-        } else if (role == Role.ADMIN || role == Role.SENIAT) {
-            existing.setNationalId(null);
-            existing.setDistributorId(null);
-            existing.setDistributor(null);
-            existing.setBranchId(null);
-            existing.setBranch(null);
+        ProfileAssignment profile = resolveProfileAssignment(role, request, existing);
+        if (profile.errorStatus() != null) {
+            return ResponseEntity.status(profile.errorStatus()).build();
         }
+
+        existing.setNationalId(profile.nationalId());
+        existing.setDistributorId(profile.distributorId());
+        existing.setDistributor(profile.distributor());
+        existing.setBranchId(profile.branchId());
+        existing.setBranch(profile.branch());
 
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
@@ -182,6 +150,122 @@ public class UserController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    private ProfileAssignment resolveProfileAssignment(
+            Role role,
+            UserRegistrationRequest createRequest,
+            User existing) {
+        UserUpdateRequest updateRequest = existing != null ? toUpdateRequest(createRequest, existing) : null;
+        return resolveProfileAssignment(role, createRequest, updateRequest, existing);
+    }
+
+    private ProfileAssignment resolveProfileAssignment(
+            Role role,
+            UserUpdateRequest updateRequest,
+            User existing) {
+        return resolveProfileAssignment(role, null, updateRequest, existing);
+    }
+
+    private ProfileAssignment resolveProfileAssignment(
+            Role role,
+            UserRegistrationRequest createRequest,
+            UserUpdateRequest updateRequest,
+            User existing) {
+        if (role == Role.ADMIN || role == Role.SENIAT) {
+            return ProfileAssignment.global();
+        }
+        if (Role.isDistributorScoped(role)) {
+            String nationalId = updateRequest != null && updateRequest.getNationalId() != null
+                    ? normalizeNationalId(updateRequest.getNationalId())
+                    : createRequest != null
+                            ? normalizeNationalId(createRequest.getNationalId())
+                            : existing != null ? existing.getNationalId() : null;
+            Long distributorId = updateRequest != null && updateRequest.getDistributorId() != null
+                    ? updateRequest.getDistributorId()
+                    : createRequest != null
+                            ? createRequest.getDistributorId()
+                            : existing != null ? existing.getDistributorId() : null;
+            if (nationalId == null || distributorId == null) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            Long excludeId = existing != null ? existing.getId() : null;
+            if (excludeId != null
+                    ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
+                    : userRepository.findByNationalId(nationalId).isPresent()) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
+            }
+            if (distributorRepository.findById(distributorId).isEmpty()) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.NOT_FOUND);
+            }
+            Distributor distributor = distributorRepository.findById(distributorId).orElse(null);
+            return new ProfileAssignment(nationalId, distributorId, distributor, null, null, null);
+        }
+        if (role == Role.SERVICE_CENTER) {
+            Long branchId = updateRequest != null && updateRequest.getBranchId() != null
+                    ? updateRequest.getBranchId()
+                    : createRequest != null
+                            ? createRequest.getBranchId()
+                            : existing != null ? existing.getBranchId() : null;
+            if (branchId == null) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            Branch branch = branchRepository.findById(branchId).orElse(null);
+            if (branch == null || !Boolean.TRUE.equals(branch.getIsServiceCenter())) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            if (serviceCenterRepository.findByBranch_Id(branchId).isEmpty()) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            String nationalId = updateRequest != null && updateRequest.getNationalId() != null
+                    ? normalizeNationalId(updateRequest.getNationalId())
+                    : createRequest != null
+                            ? normalizeNationalId(createRequest.getNationalId())
+                            : existing != null ? existing.getNationalId() : null;
+            if (nationalId != null) {
+                Long excludeId = existing != null ? existing.getId() : null;
+                if (excludeId != null
+                        ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
+                        : userRepository.findByNationalId(nationalId).isPresent()) {
+                    return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
+                }
+            }
+            return new ProfileAssignment(nationalId, null, null, branchId, branch, null);
+        }
+        return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+    }
+
+    private UserUpdateRequest toUpdateRequest(UserRegistrationRequest createRequest, User existing) {
+        UserUpdateRequest update = new UserUpdateRequest();
+        update.setNationalId(createRequest.getNationalId());
+        update.setDistributorId(createRequest.getDistributorId());
+        update.setBranchId(createRequest.getBranchId());
+        if (createRequest.getNationalId() == null) {
+            update.setNationalId(existing.getNationalId());
+        }
+        if (createRequest.getDistributorId() == null) {
+            update.setDistributorId(existing.getDistributorId());
+        }
+        if (createRequest.getBranchId() == null) {
+            update.setBranchId(existing.getBranchId());
+        }
+        return update;
+    }
+
+    private record ProfileAssignment(
+            String nationalId,
+            Long distributorId,
+            Distributor distributor,
+            Long branchId,
+            Branch branch,
+            org.springframework.http.HttpStatus errorStatus) {
+        static ProfileAssignment global() {
+            return new ProfileAssignment(null, null, null, null, null, null);
+        }
+
+        static ProfileAssignment error(org.springframework.http.HttpStatus status) {
+            return new ProfileAssignment(null, null, null, null, null, status);
+        }
+    }
+
     @Data
     public static class UserRegistrationRequest {
         private String name;
@@ -189,6 +273,7 @@ public class UserController {
         private String password;
         private String role;
         private Long distributorId;
+        private Long branchId;
         private String nationalId;
     }
 
@@ -199,6 +284,7 @@ public class UserController {
         private String password;
         private String role;
         private Long distributorId;
+        private Long branchId;
         private String nationalId;
         private Boolean enabled;
     }

@@ -61,7 +61,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 	@Override
 	public AnnualInspectionResponse create(AnnualInspectionRequest request) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteAnnualInspection();
 		AnnualInspection e = new AnnualInspection();
 		applyRequest(e, request);
 		return toResponse(repository.save(e));
@@ -69,7 +69,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 	@Override
 	public AnnualInspectionResponse update(Long id, AnnualInspectionRequest request) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteAnnualInspection();
 		AnnualInspection e = findEntity(id);
 		assertInspectionInScope(e);
 		applyRequest(e, request);
@@ -78,7 +78,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 	@Override
 	public void delete(Long id) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteAnnualInspection();
 		AnnualInspection inspection = findEntity(id);
 		assertInspectionInScope(inspection);
 		repository.delete(inspection);
@@ -111,7 +111,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 		User fieldUser = userRepository.findById(request.userId())
 				.orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + request.userId()));
-		securityScope.assertFieldUserInScope(fieldUser);
+		securityScope.assertInspectionInspectorInScope(fieldUser);
 
 		e.setPrinter(printer);
 		e.setInspectorUser(fieldUser);

@@ -38,7 +38,7 @@ public class DistributorServiceImpl implements DistributorService {
 			return repository.findAll().stream().map(this::toResponse).toList();
 		}
 		User user = securityScope.currentUser();
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			if (user.getDistributorId() == null) {
 				return List.of();
 			}
@@ -60,7 +60,7 @@ public class DistributorServiceImpl implements DistributorService {
 	public DistributorResponse findById(Long id) {
 		Distributor distributor = findEntityById(id);
 		User user = securityScope.currentUser();
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			if (user.getDistributorId() == null || !user.getDistributorId().equals(id)) {
 				throw new AccessDeniedException("Not allowed to access distributor id: " + id);
 			}

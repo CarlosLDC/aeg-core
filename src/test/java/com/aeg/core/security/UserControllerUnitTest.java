@@ -7,6 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.servicecenter.ServiceCenter;
+import com.aeg.core.servicecenter.ServiceCenterRepository;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -19,6 +23,8 @@ class UserControllerUnitTest {
 
     private UserRepository userRepository;
     private DistributorRepository distributorRepository;
+    private BranchRepository branchRepository;
+    private ServiceCenterRepository serviceCenterRepository;
     private ModificationRequestRepository modificationRequestRepository;
     private PasswordEncoder passwordEncoder;
     private UserController controller;
@@ -27,11 +33,15 @@ class UserControllerUnitTest {
     void setup() {
         userRepository = mock(UserRepository.class);
         distributorRepository = mock(DistributorRepository.class);
+        branchRepository = mock(BranchRepository.class);
+        serviceCenterRepository = mock(ServiceCenterRepository.class);
         modificationRequestRepository = mock(ModificationRequestRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         controller = new UserController(
                 userRepository,
                 distributorRepository,
+                branchRepository,
+                serviceCenterRepository,
                 modificationRequestRepository,
                 passwordEncoder);
     }
@@ -82,6 +92,71 @@ class UserControllerUnitTest {
         assertThat(resp.getBody().getDistributorId()).isEqualTo(7L);
         assertThat(resp.getBody().getNationalId()).isEqualTo("V12345678");
         assertThat(resp.getBody().getRole()).isEqualTo(Role.TECHNICIAN);
+    }
+
+    @Test
+    void createUser_distributor_withDistributorAndNationalId_succeeds() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Distribuidor");
+        req.setEmail("dist@aeg.local");
+        req.setPassword("p");
+        req.setRole("DISTRIBUTOR");
+        req.setDistributorId(7L);
+        req.setNationalId("V87654321");
+
+        Distributor distributor = new Distributor();
+        distributor.setId(7L);
+
+        when(userRepository.findByUsername("dist@aeg.local")).thenReturn(Optional.empty());
+        when(userRepository.findByNationalId("V87654321")).thenReturn(Optional.empty());
+        when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(2L);
+            return saved;
+        });
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.DISTRIBUTOR);
+    }
+
+    @Test
+    void createUser_serviceCenter_withServiceCenterBranch_succeeds() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Centro");
+        req.setEmail("sc@aeg.local");
+        req.setPassword("p");
+        req.setRole("SERVICE_CENTER");
+        req.setBranchId(12L);
+        req.setNationalId("V99999999");
+
+        Branch branch = new Branch();
+        branch.setId(12L);
+        branch.setIsServiceCenter(true);
+
+        ServiceCenter center = new ServiceCenter();
+        center.setId(5L);
+        center.setBranch(branch);
+
+        when(userRepository.findByUsername("sc@aeg.local")).thenReturn(Optional.empty());
+        when(userRepository.findByNationalId("V99999999")).thenReturn(Optional.empty());
+        when(branchRepository.findById(12L)).thenReturn(Optional.of(branch));
+        when(serviceCenterRepository.findByBranch_Id(12L)).thenReturn(Optional.of(center));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(4L);
+            return saved;
+        });
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.SERVICE_CENTER);
+        assertThat(resp.getBody().getBranchId()).isEqualTo(12L);
     }
 
     @Test

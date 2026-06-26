@@ -62,7 +62,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		}
 		List<TechnicalServiceVisit> visits = repository.findByPrinter_IdIn(printerIds);
 		User user = securityScope.currentUser();
-		if (user.getRole() == Role.TECHNICIAN && user.getDistributorId() != null) {
+		if (Role.isDistributorScoped(user.getRole()) && user.getDistributorId() != null) {
 			Long distributorId = user.getDistributorId();
 			visits = visits.stream()
 					.filter(v -> distributorId.equals(v.getDistributorId()) || v.getDistributorId() == null)
@@ -81,25 +81,25 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 	@Override
 	public TechnicalServiceResponse create(TechnicalServiceRequest request) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteTechnicalService();
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
-		applyRequest(e, request);
+		applyRequest(e, request, true);
 		applySealStatusChanges(e, request);
 		return toResponse(repository.save(e));
 	}
 
 	@Override
 	public TechnicalServiceResponse update(Long id, TechnicalServiceRequest request) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteTechnicalService();
 		TechnicalServiceVisit e = findEntity(id);
 		assertVisitInScope(e);
-		applyRequest(e, request);
+		applyRequest(e, request, false);
 		return toResponse(repository.save(e));
 	}
 
 	@Override
 	public void delete(Long id) {
-		securityScope.assertCanWriteOperationalData();
+		securityScope.assertCanWriteTechnicalService();
 		TechnicalServiceVisit visit = findEntity(id);
 		assertVisitInScope(visit);
 		repository.delete(visit);
@@ -118,7 +118,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 				.orElseThrow(() -> new ResourceNotFoundException("Technical service not found with id: " + id));
 	}
 
-	private void applyRequest(TechnicalServiceVisit e, TechnicalServiceRequest r) {
+	private void applyRequest(TechnicalServiceVisit e, TechnicalServiceRequest r, boolean creating) {
 		Printer printer = printerRepository.findById(r.printerId())
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + r.printerId()));
 		securityScope.assertPrinterInScope(printer);
@@ -126,15 +126,21 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 
 		User fieldUser = userRepository.findById(r.userId())
 				.orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + r.userId()));
-		securityScope.assertFieldUserInScope(fieldUser);
+		securityScope.assertTechnicalServiceSignerInScope(fieldUser);
 		e.setReviewedByUser(fieldUser);
 
 		if (r.serviceCenterId() != null) {
 			var serviceCenter = serviceCenterRepository.findById(r.serviceCenterId())
 					.orElseThrow(() -> new ResourceNotFoundException("Service center not found with id: " + r.serviceCenterId()));
 			securityScope.assertBranchInScope(serviceCenter.getBranchId());
+			if (creating) {
+				securityScope.assertServiceCenterActorOwnsCenter(r.serviceCenterId());
+			}
 			e.setServiceCenter(serviceCenter);
 		} else {
+			if (creating && securityScope.currentUser().getRole() == Role.SERVICE_CENTER) {
+				throw new IllegalArgumentException("Service center is required for technical service visits");
+			}
 			e.setServiceCenter(null);
 		}
 

@@ -17,8 +17,10 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.seal.Seal;
 import com.aeg.core.seal.SealRepository;
+import com.aeg.core.servicecenter.ServiceCenterRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,18 +31,21 @@ public class SecurityScopeService {
 	private final DistributorRepository distributorRepository;
 	private final PrinterRepository printerRepository;
 	private final SealRepository sealRepository;
+	private final ServiceCenterRepository serviceCenterRepository;
 
 	public SecurityScopeService(
 			BranchRepository branchRepository,
 			ClientRepository clientRepository,
 			DistributorRepository distributorRepository,
 			PrinterRepository printerRepository,
-			SealRepository sealRepository) {
+			SealRepository sealRepository,
+			ServiceCenterRepository serviceCenterRepository) {
 		this.branchRepository = branchRepository;
 		this.clientRepository = clientRepository;
 		this.distributorRepository = distributorRepository;
 		this.printerRepository = printerRepository;
 		this.sealRepository = sealRepository;
+		this.serviceCenterRepository = serviceCenterRepository;
 	}
 
 	public User currentUser() {
@@ -70,11 +75,25 @@ public class SecurityScopeService {
 		}
 	}
 
+	public void assertCanWriteTechnicalService() {
+		assertCanWriteOperationalData();
+		if (!Role.canWriteTechnicalService(currentUser().getRole())) {
+			throw new AccessDeniedException("Not allowed to write technical services");
+		}
+	}
+
+	public void assertCanWriteAnnualInspection() {
+		assertCanWriteOperationalData();
+		if (!Role.canWriteAnnualInspection(currentUser().getRole())) {
+			throw new AccessDeniedException("Not allowed to write annual inspections");
+		}
+	}
+
 	public BranchScope resolveBranchScope() {
 		User user = currentUser();
 		return switch (user.getRole()) {
 			case ADMIN, SENIAT -> BranchScope.all();
-			case TECHNICIAN -> {
+			case DISTRIBUTOR, TECHNICIAN -> {
 				if (user.getDistributorId() == null) {
 					yield BranchScope.none();
 				}
@@ -82,6 +101,12 @@ public class SecurityScopeService {
 						.map(Branch::getId)
 						.collect(Collectors.toSet());
 				yield BranchScope.scoped(ids);
+			}
+			case SERVICE_CENTER -> {
+				if (user.getBranchId() == null) {
+					yield BranchScope.none();
+				}
+				yield BranchScope.scoped(Set.of(user.getBranchId()));
 			}
 		};
 	}
@@ -95,7 +120,7 @@ public class SecurityScopeService {
 
 	public Set<Long> resolveDistributorStaffBranchIds() {
 		User user = currentUser();
-		if (user.getRole() != Role.TECHNICIAN || user.getDistributorId() == null) {
+		if (!Role.isDistributorScoped(user.getRole()) || user.getDistributorId() == null) {
 			return Collections.emptySet();
 		}
 		return distributorRepository.findById(user.getDistributorId())
@@ -112,13 +137,13 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return;
 		}
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			if (isDistributorStaffBranch(branchId) || resolveBranchScope().allowsBranch(branchId)) {
 				return;
 			}
 			Long userDistributorId = user.getDistributorId();
 			if (userDistributorId == null) {
-				throw new AccessDeniedException("Technician user has no distributor id");
+				throw new AccessDeniedException("Distributor-scoped user has no distributor id");
 			}
 			var clientOnBranch = clientRepository.findByBranch_Id(branchId);
 			if (clientOnBranch.isEmpty()) {
@@ -138,10 +163,10 @@ public class SecurityScopeService {
 		if (user.getRole() == Role.ADMIN) {
 			return;
 		}
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			Long userDistributorId = user.getDistributorId();
 			if (userDistributorId == null) {
-				throw new AccessDeniedException("Technician user has no distributor id");
+				throw new AccessDeniedException("Distributor-scoped user has no distributor id");
 			}
 			if (distributorId == null || !userDistributorId.equals(distributorId)) {
 				throw new AccessDeniedException("Not allowed to create client for this distributor");
@@ -165,9 +190,15 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return;
 		}
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			Long distributorId = user.getDistributorId();
 			if (distributorId == null || !distributorId.equals(printer.getDistributorId())) {
+				throw new AccessDeniedException("Not allowed to access this printer");
+			}
+			return;
+		}
+		if (Role.isServiceCenter(user.getRole())) {
+			if (printer.getStatus() != PrinterStatus.ASIGNADA || printer.getClient() == null) {
 				throw new AccessDeniedException("Not allowed to access this printer");
 			}
 			return;
@@ -177,7 +208,7 @@ public class SecurityScopeService {
 
 	public void assertClientInScope(Client client) {
 		assertBranchInScope(client.getBranchId());
-		if (currentUser().getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(currentUser().getRole())) {
 			Long distributorId = currentUser().getDistributorId();
 			if (distributorId == null
 					|| client.getDistributorId() == null
@@ -187,21 +218,59 @@ public class SecurityScopeService {
 		}
 	}
 
-	public void assertFieldUserInScope(User fieldUser) {
-		if (fieldUser == null || fieldUser.getRole() != Role.TECHNICIAN) {
-			throw new AccessDeniedException("Field user must be a technician");
+	public void assertInspectionInspectorInScope(User inspector) {
+		if (inspector == null || !Role.canBeInspectionInspector(inspector.getRole())) {
+			throw new AccessDeniedException("Inspector must be a distributor, technician or service center user");
 		}
 		User user = currentUser();
 		if (isAdmin()) {
 			return;
 		}
-		if (user.getRole() == Role.TECHNICIAN) {
-			if (!user.getId().equals(fieldUser.getId())) {
-				throw new AccessDeniedException("Technicians can only register visits as themselves");
+		if (Role.canBeInspectionInspector(user.getRole())) {
+			if (!user.getId().equals(inspector.getId())) {
+				throw new AccessDeniedException("Field users can only register inspections as themselves");
 			}
 			return;
 		}
-		throw new AccessDeniedException("Not allowed to assign this field user");
+		throw new AccessDeniedException("Not allowed to assign this inspector");
+	}
+
+	public void assertTechnicalServiceSignerInScope(User signer) {
+		if (signer == null || !Role.canSignTechnicalService(signer.getRole())) {
+			throw new AccessDeniedException("Technical service signer must be a technician");
+		}
+		if (isAdmin()) {
+			return;
+		}
+		if (currentUser().getRole() == Role.SERVICE_CENTER) {
+			return;
+		}
+		if (Role.isDistributorScoped(currentUser().getRole())) {
+			if (!currentUser().getId().equals(signer.getId())) {
+				throw new AccessDeniedException("Not allowed to assign this technician signer");
+			}
+		}
+	}
+
+	/** @deprecated use {@link #assertInspectionInspectorInScope} or {@link #assertTechnicalServiceSignerInScope} */
+	@Deprecated
+	public void assertFieldUserInScope(User fieldUser) {
+		assertInspectionInspectorInScope(fieldUser);
+	}
+
+	public void assertServiceCenterActorOwnsCenter(Long serviceCenterId) {
+		User user = currentUser();
+		if (user.getRole() != Role.SERVICE_CENTER) {
+			return;
+		}
+		if (user.getBranchId() == null) {
+			throw new AccessDeniedException("Service center user has no branch assignment");
+		}
+		var center = serviceCenterRepository.findById(serviceCenterId)
+				.orElseThrow(() -> new AccessDeniedException("Service center not found"));
+		if (!user.getBranchId().equals(center.getBranchId())) {
+			throw new AccessDeniedException("Service center user can only register visits for their center");
+		}
 	}
 
 	public static boolean isPrinterInBranches(Printer printer, Set<Long> branchIds) {
@@ -223,11 +292,16 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return printerRepository.findAll();
 		}
-		if (user.getRole() == Role.TECHNICIAN) {
+		if (Role.isDistributorScoped(user.getRole())) {
 			if (user.getDistributorId() == null) {
 				return List.of();
 			}
 			return printerRepository.findByDistributor_Id(user.getDistributorId());
+		}
+		if (Role.isServiceCenter(user.getRole())) {
+			return printerRepository.findByStatus(PrinterStatus.ASIGNADA).stream()
+					.filter(p -> p.getClient() != null)
+					.toList();
 		}
 		return List.of();
 	}
@@ -235,6 +309,9 @@ public class SecurityScopeService {
 	public List<Seal> findVisibleSeals() {
 		if (isGlobalReader()) {
 			return sealRepository.findAll();
+		}
+		if (Role.isServiceCenter(currentUser().getRole())) {
+			return List.of();
 		}
 		List<Long> printerIds = findVisiblePrinters().stream().map(Printer::getId).toList();
 		if (printerIds.isEmpty()) {
@@ -250,6 +327,9 @@ public class SecurityScopeService {
 	public void assertSealInScope(Seal seal) {
 		if (isGlobalReader()) {
 			return;
+		}
+		if (Role.isServiceCenter(currentUser().getRole())) {
+			throw new AccessDeniedException("Not allowed to access this seal");
 		}
 		if (seal.getPrinter() == null) {
 			throw new AccessDeniedException("Not allowed to access this seal");

@@ -100,7 +100,7 @@ public class BranchServiceImpl implements BranchService {
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
         securityScope.assertBranchReadable(b.getId());
-        if (securityScope.currentUser().getRole() == Role.TECHNICIAN
+        if (Role.isDistributorScoped(securityScope.currentUser().getRole())
                 && clientRepository.existsByBranch_Id(b.getId())) {
             throw new IllegalArgumentException("client updates must be requested for review");
         }

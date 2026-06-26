@@ -96,7 +96,7 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterResponse update(Long id, PrinterRequest request) {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
-        if (currentUser().getRole() == Role.TECHNICIAN) {
+        if (Role.isDistributorScoped(currentUser().getRole())) {
             return toResponse(applyDistributorDisposition(p, request));
         }
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
@@ -147,7 +147,7 @@ public class PrinterServiceImpl implements PrinterService {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
         Role role = currentUser().getRole();
-        if (role != Role.ADMIN && role != Role.TECHNICIAN) {
+        if (role != Role.ADMIN && !Role.isDistributorScoped(role)) {
             throw new AccessDeniedException("Cannot dispose printers");
         }
         return toResponse(applyDisposition(p, request));
@@ -162,7 +162,7 @@ public class PrinterServiceImpl implements PrinterService {
         Printer printer = findEntityById(printerId);
         securityScope.assertPrinterInScope(printer);
         Role role = currentUser().getRole();
-        if (role != Role.ADMIN && role != Role.TECHNICIAN) {
+        if (role != Role.ADMIN && !Role.isDistributorScoped(role)) {
             throw new AccessDeniedException("Cannot preview enajenacion ticket");
         }
         Client client = clientRepository.findById(clientId)
@@ -203,7 +203,7 @@ public class PrinterServiceImpl implements PrinterService {
 
     private Long resolveDistributorIdForWrite(Long requestedDistributorId) {
         User user = currentUser();
-        if (user.getRole() != Role.TECHNICIAN) {
+        if (!Role.isDistributorScoped(user.getRole())) {
             return requestedDistributorId;
         }
         Long ownDistributorId = user.getDistributorId();
@@ -220,7 +220,7 @@ public class PrinterServiceImpl implements PrinterService {
         if (distributorId != null) {
             printer.setDistributor(distributorRepository.findById(distributorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distributorId)));
-        } else if (currentUser().getRole() != Role.TECHNICIAN) {
+        } else if (!Role.isDistributorScoped(currentUser().getRole())) {
             printer.setDistributor(null);
         }
     }

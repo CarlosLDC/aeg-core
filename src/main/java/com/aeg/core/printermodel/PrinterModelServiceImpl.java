@@ -38,7 +38,7 @@ public class PrinterModelServiceImpl implements PrinterModelService {
     @Transactional(readOnly = true)
     public List<PrinterModelResponse> findAll() {
         User user = securityScope.currentUser();
-        if (user.getRole() == Role.TECHNICIAN && user.getDistributorId() != null) {
+        if (Role.isDistributorScoped(user.getRole()) && user.getDistributorId() != null) {
             Set<Long> modelIds = printerRepository.findByDistributor_Id(user.getDistributorId()).stream()
                     .map(p -> p.getModelId())
                     .filter(Objects::nonNull)
@@ -61,7 +61,7 @@ public class PrinterModelServiceImpl implements PrinterModelService {
 
     private void assertDistributorCanReadModel(Long modelId) {
         User user = securityScope.currentUser();
-        if (user.getRole() != Role.TECHNICIAN || user.getDistributorId() == null) {
+        if (!Role.isDistributorScoped(user.getRole()) || user.getDistributorId() == null) {
             return;
         }
         boolean allowed = printerRepository.findByDistributor_Id(user.getDistributorId()).stream()

@@ -24,6 +24,8 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
     /** Navega la relación {@code distributor}, no un atributo {@code distributorId}. */
     List<Printer> findByDistributor_Id(Long distributorId);
 
+    List<Printer> findByStatus(PrinterStatus status);
+
     @Query("""
             SELECT p FROM Printer p
             WHERE (p.client IS NOT NULL AND p.client.branch.id IN :branchIds)
