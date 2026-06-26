@@ -88,4 +88,24 @@ public class EnajenacionActivityRecorder {
                 detail,
                 sessionState));
     }
+
+    public void recordAdminOutbound(
+            String topic,
+            String payload,
+            String mac,
+            Long printerId,
+            String ptrReg,
+            EnajenacionActivityResult result,
+            String detail) {
+        store.record(EnajenacionActivityEntry.create(
+                mac,
+                printerId,
+                ptrReg,
+                EnajenacionActivityDirection.OUTBOUND,
+                topic,
+                payload,
+                result,
+                detail,
+                null));
+    }
 }

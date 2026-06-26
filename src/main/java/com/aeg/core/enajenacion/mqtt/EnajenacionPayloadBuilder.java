@@ -94,10 +94,17 @@ public class EnajenacionPayloadBuilder {
         return loadConfigSpiffsTemplate();
     }
 
+    public static final String DEFAULT_INVOICE_PRODUCT_DESCRIPTION = "PRODUCTO";
+
     public String buildInvoicePayload() {
+        return buildInvoicePayload(DEFAULT_INVOICE_PRODUCT_DESCRIPTION);
+    }
+
+    public String buildInvoicePayload(String productDescription) {
+        String description = normalizeProductDescription(productDescription);
         List<Object> commands = new ArrayList<>();
         for (int imp = 1; imp <= 5; imp++) {
-            commands.add(productLine("proF", imp));
+            commands.add(productLine("proF", imp, description));
         }
         commands.add(Map.of("cmd", "subToF", "data", 1, "valor", 0));
         commands.add(Map.of(
@@ -115,7 +122,7 @@ public class EnajenacionPayloadBuilder {
         commands.add(Map.of("cmd", "rifCiNC", "data", RifFormatter.toFiscalForm(context.rif())));
         commands.add(Map.of("cmd", "razSocNC", "data", splitBusinessName(context.businessName())));
         for (int imp = 1; imp <= 5; imp++) {
-            commands.add(productLine("prodNC", imp));
+            commands.add(productLine("prodNC", imp, DEFAULT_INVOICE_PRODUCT_DESCRIPTION));
         }
         commands.add(Map.of("cmd", "endPoNC", "data", 1, "valor", 0));
         commands.add(Map.of(
@@ -136,13 +143,24 @@ public class EnajenacionPayloadBuilder {
         return writeJson(root);
     }
 
-    private static Map<String, Object> productLine(String cmd, int imp) {
+    private static Map<String, Object> productLine(String cmd, int imp, String description) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("pre", 100);
         data.put("cant", 1000);
         data.put("imp", imp);
-        data.put("des01", "PRODUCTO");
+        data.put("des01", description);
         return Map.of("cmd", cmd, "data", data);
+    }
+
+    static String normalizeProductDescription(String productDescription) {
+        String normalized = FiscalTicketLatin2.normalizeFiscalTicketText(
+                productDescription == null || productDescription.isBlank()
+                        ? DEFAULT_INVOICE_PRODUCT_DESCRIPTION
+                        : productDescription.trim());
+        if (normalized.length() > com.aeg.core.printer.PrinterTicketValidator.MAX_LINE_LENGTH) {
+            return normalized.substring(0, com.aeg.core.printer.PrinterTicketValidator.MAX_LINE_LENGTH);
+        }
+        return normalized;
     }
 
     private static Map<String, String> line(String cmd, String data) {

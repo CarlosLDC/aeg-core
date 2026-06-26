@@ -187,6 +187,17 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void invoicePayloadPreservesSpanishAccentsInProductDescription() throws Exception {
+        JsonNode root = objectMapper.readTree(
+                builder.buildInvoicePayload("Producto de prueba — información técnica"));
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(root.get(i).path("data").path("des01").asText())
+                    .isEqualTo("Producto de prueba - información técnica");
+        }
+    }
+
+    @Test
     void invoicePayloadMatchesFiscalTestInvoiceCommand() throws Exception {
         JsonNode root = objectMapper.readTree(builder.buildInvoicePayload());
 

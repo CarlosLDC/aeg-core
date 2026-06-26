@@ -3,6 +3,8 @@ package com.aeg.core.mqtt;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,6 +13,7 @@ import com.aeg.core.enajenacion.mqtt.EnajenacionAlreadyCompletedException;
 import com.aeg.core.enajenacion.mqtt.EnajenacionPreconditionValidator;
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSessionRegistry;
+import com.aeg.core.enajenacion.mqtt.EnajenacionTestInvoiceService;
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityDirection;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityQuery;
@@ -20,8 +23,13 @@ import com.aeg.core.mqtt.dto.EnajenacionActiveSessionResponse;
 import com.aeg.core.mqtt.dto.EnajenacionActivityEntryResponse;
 import com.aeg.core.mqtt.dto.EnajenacionActivityListResponse;
 import com.aeg.core.mqtt.dto.EnajenacionMqttPrecheckResponse;
+import com.aeg.core.mqtt.dto.EnajenacionTestInvoiceRequest;
+import com.aeg.core.mqtt.dto.EnajenacionTestInvoiceResponse;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @RequestMapping("/api/mqtt/enajenacion")
@@ -31,6 +39,16 @@ public class EnajenacionMqttAdminController {
     private final EnajenacionPreconditionValidator preconditionValidator;
     private final EnajenacionActivityStore activityStore;
     private final EnajenacionSessionRegistry sessionRegistry;
+    private final EnajenacionTestInvoiceService testInvoiceService;
+
+    @PostMapping("/test-invoice")
+    public ResponseEntity<EnajenacionTestInvoiceResponse> sendTestInvoice(
+            @Valid @RequestBody EnajenacionTestInvoiceRequest request) {
+        EnajenacionTestInvoiceResponse response = testInvoiceService.sendTestInvoice(
+                request.printerId(),
+                request.productDescription());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
 
     @GetMapping("/precheck")
     public EnajenacionMqttPrecheckResponse precheck(
