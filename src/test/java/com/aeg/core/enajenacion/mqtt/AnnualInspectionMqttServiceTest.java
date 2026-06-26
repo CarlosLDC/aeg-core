@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.aeg.core.client.Client;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
@@ -82,12 +83,14 @@ class AnnualInspectionMqttServiceTest {
     }
 
     private static Printer enajenadaPrinter() {
+        Client client = new Client();
+        client.setId(10L);
         Printer printer = new Printer();
         printer.setId(1L);
         printer.setStatus(PrinterStatus.ENAJENADA);
-        printer.setClientId(10L);
         printer.setFiscalSerial("GRA0000017");
         printer.setMacAddress(MAC);
+        printer.setClient(client);
         return printer;
     }
 }
