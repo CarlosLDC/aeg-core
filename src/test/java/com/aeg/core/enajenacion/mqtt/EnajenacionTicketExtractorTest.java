@@ -47,6 +47,25 @@ class EnajenacionTicketExtractorTest {
     }
 
     @Test
+    void extractHeaderLinesKeepsCustomLinesAfterAddressBlock() {
+        List<String> encabezado = List.of(
+                "SENIAT",
+                "J-503752890",
+                "ABASTO HERMANOS YEISAR 2023, C.A.",
+                "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                "",
+                "PUERTO LA CRUZ, ANZOATEGUI",
+                "LINEA DE EJEMPLO HEADER");
+
+        assertThat(EnajenacionTicketExtractor.extractHeaderLines(encabezado, ContributorType.ORDINARIO))
+                .containsExactly(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "LINEA DE EJEMPLO HEADER",
+                        "CONTRIBUYENTE ORDINARIO");
+    }
+
+    @Test
     void extractTrailerLinesFiltersBlankLines() {
         assertThat(EnajenacionTicketExtractor.extractTrailerLines(List.of("PIE 01", " ", "PIE 02")))
                 .containsExactly("PIE 01", "PIE 02");

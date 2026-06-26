@@ -1,5 +1,6 @@
 package com.aeg.core.enajenacion.mqtt;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -44,8 +45,22 @@ public final class EnajenacionTicketExtractor {
             addressLine2 = tail.get(1);
             cityStateLine = tail.get(2);
         }
-        return EnajenacionPayloadBuilder.buildEncFacFijo(
-                addressLine1, addressLine2, cityStateLine, contributorLine);
+        List<String> baseLines = new ArrayList<>(EnajenacionPayloadBuilder.buildEncFacFijo(
+                addressLine1, addressLine2, cityStateLine, contributorLine));
+        if (tail.size() <= 3) {
+            return List.copyOf(baseLines);
+        }
+        List<String> extraLines = tail.subList(3, tail.size()).stream()
+                .map(line -> line == null ? "" : line.trim())
+                .filter(line -> !line.isBlank())
+                .toList();
+        if (extraLines.isEmpty()) {
+            return List.copyOf(baseLines);
+        }
+        String contributor = baseLines.remove(baseLines.size() - 1);
+        baseLines.addAll(extraLines);
+        baseLines.add(contributor);
+        return List.copyOf(baseLines);
     }
 
     public static List<String> extractTrailerLines(List<String> pieMensajes) {
