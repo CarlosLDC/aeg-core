@@ -67,7 +67,7 @@ public class EnajenacionPayloadBuilder {
     }
 
     public String buildHeaderPayload(EnajenacionContext context) {
-        List<String> encFacFijo = List.of(
+        List<String> encFacFijo = buildEncFacFijo(
                 context.addressLine1(),
                 context.addressLine2(),
                 context.cityStateLine(),
@@ -183,6 +183,21 @@ public class EnajenacionPayloadBuilder {
             }
         }
         return lines;
+    }
+
+    static List<String> buildEncFacFijo(
+            String addressLine1,
+            String addressLine2,
+            String cityStateLine,
+            String contributorTypeLine) {
+        List<String> lines = new ArrayList<>();
+        lines.add(addressLine1);
+        if (addressLine2 != null && !addressLine2.isBlank()) {
+            lines.add(addressLine2);
+        }
+        lines.add(cityStateLine);
+        lines.add(contributorTypeLine);
+        return List.copyOf(lines);
     }
 
     static AddressLines splitAddress(String address) {

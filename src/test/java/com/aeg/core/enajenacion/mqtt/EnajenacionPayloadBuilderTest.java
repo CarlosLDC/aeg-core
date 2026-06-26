@@ -51,6 +51,28 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void headerPayloadOmitsBlankSecondAddressLine() throws Exception {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J503752890",
+                "ABASTO HERMANOS YEISAR 2023, C.A.",
+                "CONTRIBUYENTE ORDINARIO",
+                "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                "",
+                "PUERTO LA CRUZ, ANZOATEGUI");
+
+        JsonNode root = objectMapper.readTree(builder.buildHeaderPayload(context));
+
+        assertThat(textValues(root.path("data").path("contenido").path("encFacFijo")))
+                .containsExactly(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "CONTRIBUYENTE ORDINARIO");
+    }
+
+    @Test
     void headerPayloadIncludesConfiguredTicketFooterLines() throws Exception {
         EnajenacionPayloadBuilder builderWithFooter = new EnajenacionPayloadBuilder(
                 objectMapper,
