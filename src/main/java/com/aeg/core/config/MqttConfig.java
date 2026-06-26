@@ -126,7 +126,7 @@ public class MqttConfig {
     @MessagingGateway(defaultRequestChannel = "mqttOutboundChannel")
     public interface MqttGateway {
         void sendToMqtt(String data);
-        void sendToMqtt(String data, @Header(MqttHeaders.TOPIC) String topic);
+        void sendToMqtt(byte[] data, @Header(MqttHeaders.TOPIC) String topic);
     }
 
     // --- Inbound Configuration (Subscriptions) ---

@@ -80,6 +80,36 @@ class EnajenacionPayloadBuilderTest {
     }
 
     @Test
+    void headerPayloadPreservesSpanishAccentsInTicketLines() throws Exception {
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J503752890",
+                "ABASTO HERMANOS YEISAR 2023, C.A.",
+                "CONTRIBUYENTE ORDINARIO",
+                "ignored",
+                "",
+                "ignored",
+                java.util.List.of(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "Línea de información"),
+                java.util.List.of("Gracias por su compra — vuelva pronto"));
+
+        JsonNode root = objectMapper.readTree(builder.buildHeaderPayload(context));
+        JsonNode contenido = root.path("data").path("contenido");
+
+        assertThat(textValues(contenido.path("encFacFijo")))
+                .containsExactly(
+                        "AV SANTA CRUZ LOCAL NRO 13 SECTOR POZUELOS",
+                        "PUERTO LA CRUZ, ANZOATEGUI",
+                        "Línea de información");
+        assertThat(textValues(contenido.path("pieFacFijo")))
+                .containsExactly("Gracias por su compra - vuelva pronto");
+    }
+
+    @Test
     void headerPayloadOmitsBlankSecondAddressLine() throws Exception {
         EnajenacionContext context = new EnajenacionContext(
                 "GRA0000017",

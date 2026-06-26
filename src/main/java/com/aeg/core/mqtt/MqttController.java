@@ -2,6 +2,7 @@ package com.aeg.core.mqtt;
 
 import com.aeg.core.mqtt.dto.MqttPublishRequest;
 import com.aeg.core.mqtt.dto.MqttPublishResponse;
+import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -75,7 +76,10 @@ public class MqttController {
         final String serializedPayload;
 
         try {
-            serializedPayload = objectMapper.writeValueAsString(payload);
+            Object normalized = FiscalTicketLatin2.isFiscalPrinterTopic(request.topic())
+                    ? FiscalTicketLatin2.normalizePayloadValue(payload)
+                    : payload;
+            serializedPayload = objectMapper.writeValueAsString(normalized);
         } catch (JsonProcessingException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "payload could not be serialized as JSON", ex);
         }

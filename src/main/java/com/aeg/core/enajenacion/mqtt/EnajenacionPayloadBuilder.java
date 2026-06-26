@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -244,7 +245,8 @@ public class EnajenacionPayloadBuilder {
 
     private String writeJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            Object normalized = FiscalTicketLatin2.normalizePayloadValue(value);
+            return objectMapper.writeValueAsString(normalized);
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             throw new EnajenacionProtocolException("Failed to serialize MQTT payload: " + ex.getMessage());
         }

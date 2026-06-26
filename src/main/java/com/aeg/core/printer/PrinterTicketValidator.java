@@ -3,6 +3,8 @@ package com.aeg.core.printer;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.aeg.core.fiscal.FiscalTicketLatin2;
+
 public final class PrinterTicketValidator {
 
     public static final int MAX_LINE_LENGTH = 68;
@@ -37,7 +39,7 @@ public final class PrinterTicketValidator {
                 }
                 continue;
             }
-            String trimmed = rawLine.trim();
+            String trimmed = FiscalTicketLatin2.normalizeFiscalTicketText(rawLine.trim());
             if (trimmed.isEmpty()) {
                 if (required) {
                     throw new IllegalArgumentException("header lines must not be blank");
