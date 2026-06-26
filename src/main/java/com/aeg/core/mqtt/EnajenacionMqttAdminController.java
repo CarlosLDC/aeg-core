@@ -12,6 +12,9 @@ import com.aeg.core.enajenacion.mqtt.EnajenacionPreconditionValidator;
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSessionRegistry;
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityDirection;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityQuery;
+import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityStore;
 import com.aeg.core.mqtt.dto.EnajenacionActiveSessionResponse;
 import com.aeg.core.mqtt.dto.EnajenacionActivityEntryResponse;
@@ -47,11 +50,23 @@ public class EnajenacionMqttAdminController {
     @GetMapping("/activity")
     public EnajenacionActivityListResponse activity(
             @RequestParam(defaultValue = "100") int limit,
-            @RequestParam(required = false) String mac) {
-        List<EnajenacionActivityEntryResponse> entries = activityStore.recent(limit, mac).stream()
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String mac,
+            @RequestParam(required = false) String ptrReg,
+            @RequestParam(required = false) EnajenacionActivityResult result,
+            @RequestParam(required = false) EnajenacionActivityDirection direction,
+            @RequestParam(defaultValue = "false") boolean sessionOnly) {
+        EnajenacionActivityQuery query = new EnajenacionActivityQuery(
+                mac,
+                result,
+                ptrReg,
+                direction,
+                sessionOnly);
+        long total = activityStore.count(query);
+        List<EnajenacionActivityEntryResponse> entries = activityStore.find(query, limit, page).stream()
                 .map(EnajenacionActivityEntryResponse::from)
                 .toList();
-        return new EnajenacionActivityListResponse(entries, entries.size());
+        return new EnajenacionActivityListResponse(entries, Math.toIntExact(total));
     }
 
     @GetMapping("/sessions")

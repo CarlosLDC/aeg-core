@@ -13,11 +13,11 @@ class EnajenacionActivityStoreTest {
 
     @BeforeEach
     void setUp() {
-        store = new EnajenacionActivityStore(3);
+        store = new EnajenacionActivityStore(new InMemoryEnajenacionActivityPersistence());
     }
 
     @Test
-    void keepsMostRecentEntriesUpToCapacity() {
+    void keepsAllRecordedEntriesWithoutEviction() {
         for (int i = 0; i < 5; i++) {
             store.record(EnajenacionActivityEntry.create(
                     "MAC" + i,
@@ -31,9 +31,9 @@ class EnajenacionActivityStoreTest {
                     null));
         }
 
-        assertThat(store.recent(10, null)).hasSize(3);
-        assertThat(store.recent(10, null).get(0).mac()).isEqualTo("MAC4");
-        assertThat(store.recent(10, null).get(2).mac()).isEqualTo("MAC2");
+        assertThat(store.find(EnajenacionActivityQuery.unrestricted(), 10, 0)).hasSize(5);
+        assertThat(store.find(EnajenacionActivityQuery.unrestricted(), 10, 0).get(0).mac()).isEqualTo("MAC4");
+        assertThat(store.find(EnajenacionActivityQuery.unrestricted(), 10, 0).get(4).mac()).isEqualTo("MAC0");
     }
 
     @Test
@@ -42,28 +42,59 @@ class EnajenacionActivityStoreTest {
         store.record(entryForMac("BB1122334455"));
         store.record(entryForMac("AA1122334455"));
 
-        assertThat(store.recent(10, "AA:11:22:33:44:55")).hasSize(2);
-        assertThat(store.recent(10, "AA1122334455")).allMatch(e -> "AA1122334455".equals(e.mac()));
+        EnajenacionActivityQuery query = new EnajenacionActivityQuery(
+                "AA:11:22:33:44:55", null, null, null, false);
+        assertThat(store.find(query, 10, 0)).hasSize(2);
+        assertThat(store.find(query, 10, 0)).allMatch(e -> "AA1122334455".equals(e.mac()));
     }
 
     @Test
-    void respectsLimit() {
+    void filtersByResultAndSerial() {
+        store.record(entryForMac("AA1122334455", "GRA0000001", EnajenacionActivityResult.PROCESSED));
+        store.record(entryForMac("AA1122334455", "GRA0000002", EnajenacionActivityResult.FAILED));
+
+        EnajenacionActivityQuery query = new EnajenacionActivityQuery(
+                null, EnajenacionActivityResult.PROCESSED, "000001", null, false);
+        assertThat(store.find(query, 10, 0)).hasSize(1);
+        assertThat(store.find(query, 10, 0).get(0).ptrReg()).isEqualTo("GRA0000001");
+    }
+
+    @Test
+    void respectsLimitAndPage() {
         store.record(entryForMac("AA1122334455"));
         store.record(entryForMac("AA1122334455"));
         store.record(entryForMac("AA1122334455"));
 
-        assertThat(store.recent(2, null)).hasSize(2);
+        assertThat(store.find(EnajenacionActivityQuery.unrestricted(), 2, 0)).hasSize(2);
+        assertThat(store.find(EnajenacionActivityQuery.unrestricted(), 2, 1)).hasSize(1);
+    }
+
+    @Test
+    void countsMatchingEntries() {
+        store.record(entryForMac("AA1122334455"));
+        store.record(entryForMac("BB1122334455"));
+
+        assertThat(store.count(EnajenacionActivityQuery.unrestricted())).isEqualTo(2);
+        assertThat(store.count(new EnajenacionActivityQuery(
+                "AA1122334455", null, null, null, false))).isEqualTo(1);
     }
 
     private static EnajenacionActivityEntry entryForMac(String mac) {
+        return entryForMac(mac, "GRA0000001", EnajenacionActivityResult.RECEIVED);
+    }
+
+    private static EnajenacionActivityEntry entryForMac(
+            String mac,
+            String ptrReg,
+            EnajenacionActivityResult result) {
         return EnajenacionActivityEntry.create(
                 mac,
                 1L,
-                "GRA0000001",
+                ptrReg,
                 EnajenacionActivityDirection.INBOUND,
                 "/" + mac + "/AEG_Fiscal/Integracion/CmdServer",
                 "{}",
-                EnajenacionActivityResult.RECEIVED,
+                result,
                 null,
                 EnajenacionSessionState.DNF_SENT);
     }

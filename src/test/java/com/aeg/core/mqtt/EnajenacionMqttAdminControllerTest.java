@@ -19,6 +19,7 @@ import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityDirection;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityEntry;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityStore;
+import com.aeg.core.enajenacion.mqtt.activity.InMemoryEnajenacionActivityPersistence;
 import com.aeg.core.mqtt.dto.EnajenacionActiveSessionResponse;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +36,7 @@ class EnajenacionMqttAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        activityStore = new EnajenacionActivityStore(50);
+        activityStore = new EnajenacionActivityStore(new InMemoryEnajenacionActivityPersistence());
         sessionRegistry = new EnajenacionSessionRegistry();
         controller = new EnajenacionMqttAdminController(
                 preconditionValidator, activityStore, sessionRegistry);
@@ -54,7 +55,7 @@ class EnajenacionMqttAdminControllerTest {
                 null,
                 null));
 
-        var response = controller.activity(10, null);
+        var response = controller.activity(10, 0, null, null, null, null, false);
 
         assertThat(response.total()).isEqualTo(1);
         assertThat(response.entries().get(0).mac()).isEqualTo(MAC);

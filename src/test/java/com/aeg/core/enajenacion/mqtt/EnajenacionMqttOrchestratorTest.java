@@ -26,6 +26,7 @@ import org.springframework.scheduling.TaskScheduler;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityRecorder;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityResult;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityStore;
+import com.aeg.core.enajenacion.mqtt.activity.InMemoryEnajenacionActivityPersistence;
 import com.aeg.core.enajenacion.mqtt.sse.EnajenacionSseNotifier;
 import com.aeg.core.mqtt.MqttService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,7 +63,7 @@ class EnajenacionMqttOrchestratorTest {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         EnajenacionPayloadBuilder payloadBuilder = new EnajenacionPayloadBuilder(objectMapper, "");
         registry = new EnajenacionSessionRegistry();
-        activityStore = new EnajenacionActivityStore(100);
+        activityStore = new EnajenacionActivityStore(new InMemoryEnajenacionActivityPersistence());
         EnajenacionActivityRecorder activityRecorder = new EnajenacionActivityRecorder(activityStore);
         FiscalResponseValidator responseValidator = new FiscalResponseValidator();
         EnajenacionMqttSettings settings = new EnajenacionMqttSettings();
