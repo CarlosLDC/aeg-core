@@ -221,6 +221,19 @@ class RolePermissionsIT {
         assertThat(technicalService.body()).contains("\"userId\":" + admin.getId());
     }
 
+    @Test
+    void adminCanCreateAnnualInspectionAsSelf() throws Exception {
+        User admin = userRepository.findByUsername("admin@test.local").orElseThrow();
+        String token = tokenFor("admin@test.local");
+
+        var inspection = post(
+                "/api/annual-inspections",
+                minimalAnnualInspectionBody(admin.getId()),
+                token);
+        assertThat(inspection.statusCode()).isEqualTo(201);
+        assertThat(inspection.body()).contains("\"userId\":" + admin.getId());
+    }
+
     private User ensureUser(
             String username,
             Role role,

@@ -45,6 +45,6 @@ public enum Role {
     }
 
     public static boolean canBeInspectionInspector(Role role) {
-        return isDistributorScoped(role) || role == TECHNICIAN || role == SERVICE_CENTER;
+        return canWriteAnnualInspection(role);
     }
 }

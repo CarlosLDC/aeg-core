@@ -34,10 +34,20 @@ class RoleTest {
 
     @Test
     void annualInspectionWriteIncludesDistributorAndTechnician() {
+        assertThat(Role.canWriteAnnualInspection(Role.ADMIN)).isTrue();
         assertThat(Role.canWriteAnnualInspection(Role.DISTRIBUTOR)).isTrue();
         assertThat(Role.canWriteAnnualInspection(Role.TECHNICIAN)).isTrue();
         assertThat(Role.canWriteAnnualInspection(Role.SERVICE_CENTER)).isTrue();
         assertThat(Role.canWriteAnnualInspection(Role.SENIAT)).isFalse();
+    }
+
+    @Test
+    void inspectionInspectorMatchesAnnualInspectionWriters() {
+        assertThat(Role.canBeInspectionInspector(Role.ADMIN)).isTrue();
+        assertThat(Role.canBeInspectionInspector(Role.DISTRIBUTOR)).isTrue();
+        assertThat(Role.canBeInspectionInspector(Role.TECHNICIAN)).isTrue();
+        assertThat(Role.canBeInspectionInspector(Role.SERVICE_CENTER)).isTrue();
+        assertThat(Role.canBeInspectionInspector(Role.SENIAT)).isFalse();
     }
 
     @Test

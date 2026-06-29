@@ -220,7 +220,8 @@ public class SecurityScopeService {
 
 	public void assertInspectionInspectorInScope(User inspector) {
 		if (inspector == null || !Role.canBeInspectionInspector(inspector.getRole())) {
-			throw new AccessDeniedException("Inspector must be a distributor, technician or service center user");
+			throw new AccessDeniedException(
+					"Inspector must be an admin, distributor, or service center technician");
 		}
 		User user = currentUser();
 		if (isAdmin()) {
