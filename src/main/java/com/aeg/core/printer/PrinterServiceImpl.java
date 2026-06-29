@@ -95,6 +95,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
+        reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
 
@@ -147,6 +148,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
+        reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
 
@@ -252,6 +254,30 @@ public class PrinterServiceImpl implements PrinterService {
         PrinterStatus status = printer.getStatus();
         if (status == PrinterStatus.DE_FABRICA || status == PrinterStatus.SIN_ASIGNAR) {
             organizationCapability.assertActorCan(OrgCapability.ASSIGN_TO_DISTRIBUTOR);
+        }
+    }
+
+    /**
+     * Impresoras con distribuidor y sin pago quedan en consignación; al pagar pasan a asignada.
+     */
+    private void reconcileDistributorPaymentStatus(Printer printer) {
+        if (printer.getDistributor() == null) {
+            return;
+        }
+        PrinterStatus status = printer.getStatus();
+        if (status == PrinterStatus.ENAJENADA
+                || status == PrinterStatus.DESINCORPORADA
+                || status == PrinterStatus.LABORATORIO
+                || status == PrinterStatus.DE_FABRICA
+                || status == PrinterStatus.SIN_ASIGNAR) {
+            return;
+        }
+        if (Boolean.TRUE.equals(printer.getPaid())) {
+            if (status == PrinterStatus.EN_CONSIGNACION) {
+                printer.setStatus(PrinterStatus.ASIGNADA);
+            }
+        } else if (status == PrinterStatus.ASIGNADA || status == PrinterStatus.EN_CONSIGNACION) {
+            printer.setStatus(PrinterStatus.EN_CONSIGNACION);
         }
     }
 

@@ -7,6 +7,7 @@ public enum PrinterStatus {
     DE_FABRICA("de_fabrica"),
     SIN_ASIGNAR("sin_asignar"),
     ASIGNADA("asignada"),
+    EN_CONSIGNACION("en_consignacion"),
     ENAJENADA("enajenada"),
     DESINCORPORADA("desincorporada"),
     LABORATORIO("laboratorio");

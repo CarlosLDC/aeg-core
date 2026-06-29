@@ -20,6 +20,8 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
+import com.aeg.core.distributor.Distributor;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.printermodel.PrinterModelRepository;
@@ -51,6 +53,9 @@ public class PrinterControllerIT {
 
     @Autowired
     PrinterRepository printerRepository;
+
+    @Autowired
+    DistributorRepository distributorRepository;
 
     @Test
     void createAndGetPrinter() throws Exception {
@@ -156,11 +161,52 @@ public class PrinterControllerIT {
     @Test
     void disposeRejectsUnpaidPrinter() throws Exception {
         Client client = createClient();
-        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, false);
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
 
         var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
 
         assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.EN_CONSIGNACION);
+    }
+
+    @Test
+    void unpaidAssignmentReconcilesToEnConsignacion() throws Exception {
+        Distributor distributor = createDistributor();
+        PrinterModel model = createPrinterModel();
+        String body = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"asignada\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId()
+                + "}";
+
+        var res = postPrinter(body);
+
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.body()).contains("\"status\":\"en_consignacion\"");
+    }
+
+    @Test
+    void markingPaidMovesEnConsignacionToAsignada() throws Exception {
+        Distributor distributor = createDistributor();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.EN_CONSIGNACION, false);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":true,"
+                + "\"status\":\"en_consignacion\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId()
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"asignada\"");
         assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
                 .isEqualTo(PrinterStatus.ASIGNADA);
     }
@@ -231,6 +277,17 @@ public class PrinterControllerIT {
         return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
     }
 
+    private java.net.http.HttpResponse<String> postPrinter(String body) throws Exception {
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
     private String basicAuthHeader() {
         String token = Base64.getEncoder()
                 .encodeToString("segar12345@gmail.com:aeg-r1".getBytes(StandardCharsets.UTF_8));
@@ -268,11 +325,7 @@ public class PrinterControllerIT {
     }
 
     private Printer createPrinter(Client client, PrinterStatus status, boolean paid) {
-        PrinterModel model = new PrinterModel();
-        model.setBrand("DispBrand");
-        model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());
-        model.setPrice(new BigDecimal("0.00"));
-        model = modelRepository.save(model);
+        PrinterModel model = createPrinterModel();
 
         Printer printer = new Printer();
         printer.setModel(model);
@@ -285,6 +338,51 @@ public class PrinterControllerIT {
         printer.setVersionFirmware("1.0.0");
         printer.setMacAddress(nextMacAddress());
         return printerRepository.save(printer);
+    }
+
+    private Printer createPrinterWithDistributor(
+            Distributor distributor,
+            PrinterStatus status,
+            boolean paid) {
+        Printer printer = new Printer();
+        printer.setModel(createPrinterModel());
+        printer.setDistributor(distributor);
+        printer.setFiscalSerial(nextFiscalSerial());
+        printer.setFinalSalePrice(new BigDecimal("100.00"));
+        printer.setPaid(paid);
+        printer.setStatus(status);
+        printer.setDeviceType(DeviceType.INTERNO);
+        printer.setVersionFirmware("1.0.0");
+        printer.setMacAddress(nextMacAddress());
+        return printerRepository.save(printer);
+    }
+
+    private PrinterModel createPrinterModel() {
+        PrinterModel model = new PrinterModel();
+        model.setBrand("DispBrand");
+        model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());
+        model.setPrice(new BigDecimal("0.00"));
+        return modelRepository.save(model);
+    }
+
+    private Distributor createDistributor() {
+        Company company = new Company();
+        company.setBusinessName("Distributor IT Co " + SERIAL_SEQUENCE.incrementAndGet());
+        company.setRif("V" + SERIAL_SEQUENCE.get());
+        company.setContributorType(ContributorType.ORDINARIO);
+        company = companyRepository.save(company);
+
+        Branch branch = new Branch();
+        branch.setCompany(company);
+        branch.setCity("Caracas");
+        branch.setState("Distrito Capital");
+        branch.setAddress("Av. Principal");
+        branch.setIsDistributor(true);
+        branch = branchRepository.save(branch);
+
+        Distributor distributor = new Distributor();
+        distributor.setBranch(branch);
+        return distributorRepository.save(distributor);
     }
 
     private String nextFiscalSerial() {
