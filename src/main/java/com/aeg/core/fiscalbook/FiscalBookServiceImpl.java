@@ -311,6 +311,14 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 		Client client = printer != null ? printer.getClient() : null;
 		Branch branch = client != null ? client.getBranch() : null;
 		Company company = branch != null ? branch.getCompany() : null;
+		Boolean chkPrecinto = inspection.getChkPrecinto();
+		if (chkPrecinto == null && inspection.getSealTampered() != null) {
+			chkPrecinto = !inspection.getSealTampered();
+		}
+		Boolean sealTampered = inspection.getSealTampered();
+		if (sealTampered == null && chkPrecinto != null) {
+			sealTampered = !chkPrecinto;
+		}
 		return new FiscalBookAnnualInspectionResponse(
 				inspection.getId(),
 				inspection.getCreatedAt(),
@@ -318,12 +326,17 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				company != null ? company.getBusinessName() : null,
 				company != null ? company.getRif() : null,
 				inspector != null ? inspector.getName() : null,
-				inspection.getSealTampered(),
+				sealTampered,
 				inspection.getNotes(),
 				inspection.getPhotoUrls() == null ? List.of() : Arrays.asList(inspection.getPhotoUrls()),
 				inspection.getMqttRegistroImpresora(),
 				inspection.getMqttSetDateRevOAt(),
-				inspection.getMqttNumeroFacturaPrueba());
+				inspection.getMqttNumeroFacturaPrueba(),
+				chkPrecinto,
+				inspection.getChkEtiquetaFiscal(),
+				inspection.getChkFactura(),
+				inspection.getChkNotaCredito(),
+				inspection.getChkSensorPapel());
 	}
 
 	private static String statusValue(PrinterStatus status) {

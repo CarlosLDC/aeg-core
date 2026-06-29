@@ -58,6 +58,21 @@ public class AnnualInspection {
 	@Column(name = "mqtt_numero_factura_prueba")
 	private Integer mqttNumeroFacturaPrueba;
 
+	@Column(name = "chk_precinto")
+	private Boolean chkPrecinto;
+
+	@Column(name = "chk_etiqueta_fiscal")
+	private Boolean chkEtiquetaFiscal;
+
+	@Column(name = "chk_factura")
+	private Boolean chkFactura;
+
+	@Column(name = "chk_nota_credito")
+	private Boolean chkNotaCredito;
+
+	@Column(name = "chk_sensor_papel")
+	private Boolean chkSensorPapel;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
@@ -165,5 +180,45 @@ public class AnnualInspection {
 
 	public void setMqttNumeroFacturaPrueba(Integer mqttNumeroFacturaPrueba) {
 		this.mqttNumeroFacturaPrueba = mqttNumeroFacturaPrueba;
+	}
+
+	public Boolean getChkPrecinto() {
+		return chkPrecinto;
+	}
+
+	public void setChkPrecinto(Boolean chkPrecinto) {
+		this.chkPrecinto = chkPrecinto;
+	}
+
+	public Boolean getChkEtiquetaFiscal() {
+		return chkEtiquetaFiscal;
+	}
+
+	public void setChkEtiquetaFiscal(Boolean chkEtiquetaFiscal) {
+		this.chkEtiquetaFiscal = chkEtiquetaFiscal;
+	}
+
+	public Boolean getChkFactura() {
+		return chkFactura;
+	}
+
+	public void setChkFactura(Boolean chkFactura) {
+		this.chkFactura = chkFactura;
+	}
+
+	public Boolean getChkNotaCredito() {
+		return chkNotaCredito;
+	}
+
+	public void setChkNotaCredito(Boolean chkNotaCredito) {
+		this.chkNotaCredito = chkNotaCredito;
+	}
+
+	public Boolean getChkSensorPapel() {
+		return chkSensorPapel;
+	}
+
+	public void setChkSensorPapel(Boolean chkSensorPapel) {
+		this.chkSensorPapel = chkSensorPapel;
 	}
 }

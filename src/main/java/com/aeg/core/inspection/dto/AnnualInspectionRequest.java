@@ -14,5 +14,10 @@ public record AnnualInspectionRequest(
 		LocalDate inspectionDate,
 		String mqttRegistroImpresora,
 		Long mqttSetDateRevOAt,
-		Integer mqttNumeroFacturaPrueba) {
+		Integer mqttNumeroFacturaPrueba,
+		Boolean chkPrecinto,
+		Boolean chkEtiquetaFiscal,
+		Boolean chkFactura,
+		Boolean chkNotaCredito,
+		Boolean chkSensorPapel) {
 }

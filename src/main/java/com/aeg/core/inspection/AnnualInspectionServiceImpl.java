@@ -123,7 +123,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 		e.setPrinter(printer);
 		e.setInspectorUser(fieldUser);
-		e.setSealTampered(request.sealTampered());
+		applyChecklistAndSealTampered(e, request);
 		e.setNotes(request.notes());
 		e.setPhotoUrls(request.photoUrls().toArray(String[]::new));
 		if (request.inspectionDate() != null) {
@@ -132,6 +132,60 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		e.setMqttRegistroImpresora(normalizeOptionalText(request.mqttRegistroImpresora()));
 		e.setMqttSetDateRevOAt(request.mqttSetDateRevOAt());
 		e.setMqttNumeroFacturaPrueba(request.mqttNumeroFacturaPrueba());
+	}
+
+	private void applyChecklistAndSealTampered(AnnualInspection e, AnnualInspectionRequest request) {
+		boolean hasChecklist = request.chkPrecinto() != null
+				|| request.chkEtiquetaFiscal() != null
+				|| request.chkFactura() != null
+				|| request.chkNotaCredito() != null
+				|| request.chkSensorPapel() != null;
+
+		if (hasChecklist) {
+			if (request.chkPrecinto() != null) {
+				e.setChkPrecinto(request.chkPrecinto());
+				e.setSealTampered(!request.chkPrecinto());
+			} else if (request.sealTampered() != null) {
+				e.setSealTampered(request.sealTampered());
+				e.setChkPrecinto(!request.sealTampered());
+			}
+			if (request.chkEtiquetaFiscal() != null) {
+				e.setChkEtiquetaFiscal(request.chkEtiquetaFiscal());
+			}
+			if (request.chkFactura() != null) {
+				e.setChkFactura(request.chkFactura());
+			}
+			if (request.chkNotaCredito() != null) {
+				e.setChkNotaCredito(request.chkNotaCredito());
+			}
+			if (request.chkSensorPapel() != null) {
+				e.setChkSensorPapel(request.chkSensorPapel());
+			}
+			return;
+		}
+
+		e.setSealTampered(request.sealTampered());
+		if (request.sealTampered() != null) {
+			e.setChkPrecinto(!request.sealTampered());
+		}
+	}
+
+	private static Boolean effectiveChkPrecinto(AnnualInspection e) {
+		if (e.getChkPrecinto() != null) {
+			return e.getChkPrecinto();
+		}
+		if (e.getSealTampered() != null) {
+			return !e.getSealTampered();
+		}
+		return null;
+	}
+
+	private static Boolean effectiveSealTampered(AnnualInspection e) {
+		if (e.getSealTampered() != null) {
+			return e.getSealTampered();
+		}
+		Boolean chkPrecinto = e.getChkPrecinto();
+		return chkPrecinto != null ? !chkPrecinto : null;
 	}
 
 	private static String normalizeOptionalText(String value) {
@@ -147,13 +201,18 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 				e.getId(),
 				e.getPrinterId(),
 				e.getUserId(),
-				e.getSealTampered(),
+				effectiveSealTampered(e),
 				e.getNotes(),
 				e.getCreatedAt(),
 				e.getPhotoUrls() == null ? List.of() : Arrays.asList(e.getPhotoUrls()),
 				e.getInspectionDate(),
 				e.getMqttRegistroImpresora(),
 				e.getMqttSetDateRevOAt(),
-				e.getMqttNumeroFacturaPrueba());
+				e.getMqttNumeroFacturaPrueba(),
+				effectiveChkPrecinto(e),
+				e.getChkEtiquetaFiscal(),
+				e.getChkFactura(),
+				e.getChkNotaCredito(),
+				e.getChkSensorPapel());
 	}
 }
