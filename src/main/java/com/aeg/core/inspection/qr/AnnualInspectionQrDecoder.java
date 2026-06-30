@@ -2,6 +2,9 @@ package com.aeg.core.inspection.qr;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -12,6 +15,8 @@ import org.springframework.stereotype.Component;
 public class AnnualInspectionQrDecoder {
 
     private static final String CIPHER_TRANSFORMATION = "AES/ECB/NoPadding";
+    private static final Pattern QR_QUERY_PARAM_PATTERN =
+            Pattern.compile("(?:^|[?&#])(qrCodigo|qr|code)=([^&#]+)", Pattern.CASE_INSENSITIVE);
 
     private final AnnualInspectionQrSettings settings;
 
@@ -35,7 +40,7 @@ public class AnnualInspectionQrDecoder {
 
         byte[] cipherBytes;
         try {
-            cipherBytes = Base64.getDecoder().decode(qrCodigo.trim());
+            cipherBytes = decodeBase64(normalizeQrInput(qrCodigo));
         } catch (IllegalArgumentException ex) {
             throw new IllegalArgumentException("El código QR no es Base64 válido.");
         }
@@ -71,6 +76,89 @@ public class AnnualInspectionQrDecoder {
         }
 
         return new AnnualInspectionQrPayload(registro, mac, fecha);
+    }
+
+    private static byte[] decodeBase64(String value) {
+        IllegalArgumentException lastError = null;
+        for (String candidate : base64Candidates(value)) {
+            try {
+                return Base64.getDecoder().decode(candidate);
+            } catch (IllegalArgumentException ex) {
+                lastError = ex;
+            }
+            try {
+                return Base64.getUrlDecoder().decode(candidate);
+            } catch (IllegalArgumentException ex) {
+                lastError = ex;
+            }
+            try {
+                return Base64.getMimeDecoder().decode(candidate);
+            } catch (IllegalArgumentException ex) {
+                lastError = ex;
+            }
+        }
+        throw lastError != null ? lastError : new IllegalArgumentException("invalid base64");
+    }
+
+    private static String[] base64Candidates(String value) {
+        String trimmed = stripWrappingQuotes(value.trim()).replaceAll("\\s+", "");
+        String standard = padBase64(trimmed);
+        String urlSafe = padBase64(trimmed.replace('+', '-').replace('/', '_'));
+        String standardFromUrlSafe = padBase64(trimmed.replace('-', '+').replace('_', '/'));
+        return new String[] { standard, urlSafe, standardFromUrlSafe };
+    }
+
+    private static String normalizeQrInput(String qrCodigo) {
+        String trimmed = qrCodigo.trim();
+        Optional<String> queryParam = extractQrQueryParam(trimmed);
+        return queryParam.orElse(trimmed);
+    }
+
+    private static Optional<String> extractQrQueryParam(String value) {
+        Matcher matcher = QR_QUERY_PARAM_PATTERN.matcher(value);
+        if (!matcher.find()) {
+            return Optional.empty();
+        }
+        return Optional.of(percentDecodePreservingPlus(matcher.group(2)));
+    }
+
+    private static String percentDecodePreservingPlus(String value) {
+        StringBuilder out = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch == '%' && i + 2 < value.length()) {
+                String hex = value.substring(i + 1, i + 3);
+                try {
+                    out.append((char) Integer.parseInt(hex, 16));
+                    i += 2;
+                    continue;
+                } catch (NumberFormatException ignored) {
+                    /* keep literal percent below */
+                }
+            }
+            out.append(ch);
+        }
+        return out.toString();
+    }
+
+    private static String stripWrappingQuotes(String value) {
+        if (value.length() >= 2
+                && ((value.startsWith("\"") && value.endsWith("\""))
+                        || (value.startsWith("'") && value.endsWith("'")))) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+
+    private static String padBase64(String value) {
+        int remainder = value.length() % 4;
+        if (remainder == 0) {
+            return value;
+        }
+        if (remainder == 1) {
+            return value;
+        }
+        return value + "=".repeat(4 - remainder);
     }
 
     private static String stripTrailingNulls(byte[] bytes) {
