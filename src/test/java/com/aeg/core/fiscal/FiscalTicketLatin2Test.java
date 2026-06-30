@@ -25,6 +25,17 @@ class FiscalTicketLatin2Test {
     }
 
     @Test
+    void encodesSpanishEnyeInFiscalMqttPayload() {
+        String payload = "{\"pieFacFijo\":[\"Año nuevo\"]}";
+        byte[] bytes = FiscalTicketLatin2.encodeMqttPayload(
+                "/20:6E:F1:88:4C:68/AEG_Fiscal/Integracion/Comando",
+                payload);
+
+        assertThat(bytes).contains((byte) 0xf1);
+        assertThat(bytes).doesNotContain((byte) 0x3f);
+    }
+
+    @Test
     void fiscalTopicUsesLatin2BytesInsteadOfUtf8Multibyte() {
         String payload = "{\"line\":\"Sí\"}";
         byte[] bytes = FiscalTicketLatin2.encodeMqttPayload(

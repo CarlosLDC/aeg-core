@@ -4,6 +4,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,11 +35,16 @@ public final class FiscalTicketLatin2 {
     };
 
     private static final boolean[] ENCODABLE = new boolean[0x110000];
+    private static final Map<Integer, Byte> CODE_POINT_TO_BYTE = new HashMap<>();
 
     static {
         for (int index = 0; index < ISO_8859_2_CODEPOINTS.length; index++) {
-            ENCODABLE[ISO_8859_2_CODEPOINTS[index]] = true;
+            int codePoint = ISO_8859_2_CODEPOINTS[index];
+            ENCODABLE[codePoint] = true;
+            CODE_POINT_TO_BYTE.put(codePoint, (byte) (index + 0x80));
         }
+        CODE_POINT_TO_BYTE.put(0x00D1, (byte) 0xD1);
+        CODE_POINT_TO_BYTE.put(0x00F1, (byte) 0xF1);
     }
 
     private FiscalTicketLatin2() {
@@ -114,7 +120,15 @@ public final class FiscalTicketLatin2 {
     }
 
     public static byte[] encodePayload(String payload) {
-        return payload.getBytes(CHARSET);
+        if (payload == null || payload.isEmpty()) {
+            return new byte[0];
+        }
+        int[] codePoints = payload.codePoints().toArray();
+        byte[] bytes = new byte[codePoints.length];
+        for (int index = 0; index < codePoints.length; index++) {
+            bytes[index] = encodeCodePoint(codePoints[index]);
+        }
+        return bytes;
     }
 
     public static boolean isFiscalPrinterTopic(String topic) {
@@ -122,8 +136,18 @@ public final class FiscalTicketLatin2 {
     }
 
     public static byte[] encodeMqttPayload(String topic, String payload) {
-        Charset charset = isFiscalPrinterTopic(topic) ? CHARSET : StandardCharsets.UTF_8;
-        return payload.getBytes(charset);
+        if (isFiscalPrinterTopic(topic)) {
+            return encodePayload(payload);
+        }
+        return payload.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte encodeCodePoint(int codePoint) {
+        if (codePoint < 0x80) {
+            return (byte) codePoint;
+        }
+        Byte mapped = CODE_POINT_TO_BYTE.get(codePoint);
+        return mapped != null ? mapped : (byte) '?';
     }
 
     private static boolean isEncodable(int codePoint) {
