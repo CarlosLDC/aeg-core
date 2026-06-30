@@ -5,6 +5,8 @@ import com.aeg.core.servicecenter.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceException;
 import org.hibernate.PropertyAccessException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.http.HttpStatus;
@@ -95,6 +97,34 @@ public class GlobalExceptionHandler {
                 HttpStatus.CONFLICT,
                 "Conflicto de datos",
                 mapPersistenceMessage(e));
+    }
+
+    @ExceptionHandler(IncorrectResultSizeDataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleIncorrectResultSize(
+            IncorrectResultSizeDataAccessException e) {
+        log.error("Ambiguous database result", e);
+        return buildResponse(
+                HttpStatus.CONFLICT,
+                "Conflicto de datos",
+                "Hay más de un registro que coincide con la búsqueda. Contacte a soporte.");
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleDataAccess(DataAccessException e) {
+        log.error("Database access error", e);
+        String specific = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : e.getMessage();
+        if (specific != null && specific.toLowerCase().contains("mqtt_qr_")) {
+            return buildResponse(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Servicio no disponible",
+                    "La base de datos aún no tiene las columnas QR de inspecciones anuales. Espere a que termine la migración.");
+        }
+        return buildResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Error interno del servidor",
+                "No se pudo completar la operación. Inténtalo de nuevo más tarde.");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

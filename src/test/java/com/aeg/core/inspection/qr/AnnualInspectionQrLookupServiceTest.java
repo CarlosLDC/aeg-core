@@ -2,7 +2,6 @@ package com.aeg.core.inspection.qr;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,7 +19,6 @@ import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrResponse;
 import com.aeg.core.inspection.AnnualInspection;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.printer.Printer;
-import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
@@ -30,7 +28,6 @@ class AnnualInspectionQrLookupServiceTest {
             "ZSn8njvkbk7x+iu8IOFJD+OXWW65uuvLX79us586JYrENbi5Z8LiNvllg9bhB/ca";
     private static final String SECRET = "AeGsGrAsFeCh2024";
 
-    private PrinterRepository printerRepository;
     private AnnualInspectionRepository inspectionRepository;
     private SecurityScopeService securityScope;
     private AnnualInspectionQrLookupService lookupService;
@@ -43,12 +40,10 @@ class AnnualInspectionQrLookupServiceTest {
         ReflectionTestUtils.setField(settings, "secret", SECRET);
         AnnualInspectionQrDecoder decoder = new AnnualInspectionQrDecoder(settings);
 
-        printerRepository = mock(PrinterRepository.class);
         inspectionRepository = mock(AnnualInspectionRepository.class);
         securityScope = mock(SecurityScopeService.class);
         lookupService = new AnnualInspectionQrLookupService(
                 decoder,
-                printerRepository,
                 inspectionRepository,
                 securityScope);
 
@@ -66,12 +61,12 @@ class AnnualInspectionQrLookupServiceTest {
         inspection.setInspectionDate(LocalDate.now());
         inspection.setCreatedAt(OffsetDateTime.now());
         inspection.setMqttRegistroImpresora("GRA0000017");
+
+        when(securityScope.findVisiblePrinters()).thenReturn(List.of(printer));
     }
 
     @Test
     void findsInspectionByRegistroAndMac() {
-        when(printerRepository.findByMacAddressCompact("206EF1884C68"))
-                .thenReturn(Optional.of(printer));
         when(inspectionRepository.findByPrinter_IdAndMqttQrCodigo(17L, EXAMPLE_QR))
                 .thenReturn(Optional.empty());
         when(inspectionRepository.findByPrinter_IdAndMqttRegistroImpresoraIgnoreCase(17L, "GRA0000017"))
@@ -84,13 +79,10 @@ class AnnualInspectionQrLookupServiceTest {
         assertThat(response.registro()).isEqualTo("GRA0000017");
         assertThat(response.mac()).isEqualTo("20:6E:F1:88:4C:68");
         assertThat(response.fecha()).isEqualTo("29/06/2026");
-        verify(securityScope).assertPrinterInScope(printer);
     }
 
     @Test
     void prefersExactQrCodigoMatch() {
-        when(printerRepository.findByMacAddressCompact("206EF1884C68"))
-                .thenReturn(Optional.of(printer));
         when(inspectionRepository.findByPrinter_IdAndMqttQrCodigo(17L, EXAMPLE_QR))
                 .thenReturn(Optional.of(inspection));
 
@@ -101,8 +93,6 @@ class AnnualInspectionQrLookupServiceTest {
 
     @Test
     void throwsWhenNoInspectionMatches() {
-        when(printerRepository.findByMacAddressCompact("206EF1884C68"))
-                .thenReturn(Optional.of(printer));
         when(inspectionRepository.findByPrinter_IdAndMqttQrCodigo(17L, EXAMPLE_QR))
                 .thenReturn(Optional.empty());
         when(inspectionRepository.findByPrinter_IdAndMqttRegistroImpresoraIgnoreCase(17L, "GRA0000017"))
@@ -115,10 +105,31 @@ class AnnualInspectionQrLookupServiceTest {
 
     @Test
     void throwsWhenPrinterNotFoundByMac() {
-        when(printerRepository.findByMacAddressCompact(any())).thenReturn(Optional.empty());
+        when(securityScope.findVisiblePrinters()).thenReturn(List.of());
 
         assertThatThrownBy(() -> lookupService.lookup(EXAMPLE_QR))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("MAC");
+    }
+
+    @Test
+    void trimsSecretBeforeDecoding() {
+        AnnualInspectionQrSettings settings = new AnnualInspectionQrSettings();
+        ReflectionTestUtils.setField(settings, "secret", SECRET + " ");
+        AnnualInspectionQrDecoder decoder = new AnnualInspectionQrDecoder(settings);
+        AnnualInspectionQrLookupService service = new AnnualInspectionQrLookupService(
+                decoder,
+                inspectionRepository,
+                securityScope);
+
+        when(inspectionRepository.findByPrinter_IdAndMqttQrCodigo(17L, EXAMPLE_QR))
+                .thenReturn(Optional.empty());
+        when(inspectionRepository.findByPrinter_IdAndMqttRegistroImpresoraIgnoreCase(17L, "GRA0000017"))
+                .thenReturn(List.of(inspection));
+
+        FiscalBookLookupInspectionByQrResponse response = service.lookup(EXAMPLE_QR);
+
+        assertThat(response.inspectionId()).isEqualTo(42L);
+        verify(securityScope).findVisiblePrinters();
     }
 }

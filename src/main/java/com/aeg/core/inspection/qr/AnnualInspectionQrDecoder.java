@@ -78,6 +78,13 @@ public class AnnualInspectionQrDecoder {
         return new AnnualInspectionQrPayload(registro, mac, fecha);
     }
 
+    public String normalizeQrCodigo(String qrCodigo) {
+        if (qrCodigo == null) {
+            return "";
+        }
+        return normalizeQrInput(qrCodigo).replaceAll("\\s+", "");
+    }
+
     private static byte[] decodeBase64(String value) {
         IllegalArgumentException lastError = null;
         for (String candidate : base64Candidates(value)) {

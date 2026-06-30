@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class AnnualInspectionQrSettings {
 
-    @Value("${app.annual-inspection.qr.secret:}")
-    private String secret = "";
+    @Value("${app.annual-inspection.qr.secret}")
+    private String secret;
 
     public String secret() {
-        return secret;
+        return secret == null ? "" : secret.trim();
     }
 }

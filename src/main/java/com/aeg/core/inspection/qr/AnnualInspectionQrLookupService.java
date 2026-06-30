@@ -13,7 +13,6 @@ import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrResponse;
 import com.aeg.core.inspection.AnnualInspection;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.printer.Printer;
-import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
@@ -25,34 +24,23 @@ public class AnnualInspectionQrLookupService {
 			"No existe un registro en el libro fiscal para este comprobante.";
 
 	private final AnnualInspectionQrDecoder decoder;
-	private final PrinterRepository printerRepository;
 	private final AnnualInspectionRepository inspectionRepository;
 	private final SecurityScopeService securityScope;
 
 	public AnnualInspectionQrLookupService(
 			AnnualInspectionQrDecoder decoder,
-			PrinterRepository printerRepository,
 			AnnualInspectionRepository inspectionRepository,
 			SecurityScopeService securityScope) {
 		this.decoder = decoder;
-		this.printerRepository = printerRepository;
 		this.inspectionRepository = inspectionRepository;
 		this.securityScope = securityScope;
 	}
 
 	public FiscalBookLookupInspectionByQrResponse lookup(String qrCodigo) {
 		AnnualInspectionQrPayload payload = decoder.decode(qrCodigo);
-		String compactMac = MacAddressNormalizer.requireCompactForm(payload.mac());
+		Printer printer = findVisiblePrinterByMac(payload.mac());
 
-		Printer printer = printerRepository.findByMacAddressCompact(compactMac)
-				.orElseThrow(() -> new ResourceNotFoundException(
-						"No se encontró una impresora con la MAC del comprobante."));
-
-		securityScope.assertPrinterInScope(printer);
-
-		String normalizedQr = qrCodigo.trim();
-		Optional<AnnualInspection> exactQrMatch = inspectionRepository
-				.findByPrinter_IdAndMqttQrCodigo(printer.getId(), normalizedQr);
+		Optional<AnnualInspection> exactQrMatch = findExactQrMatch(printer.getId(), qrCodigo);
 		if (exactQrMatch.isPresent()) {
 			return toResponse(exactQrMatch.get(), printer, payload);
 		}
@@ -69,6 +57,34 @@ public class AnnualInspectionQrLookupService {
 				.orElseThrow(() -> new ResourceNotFoundException(NOT_FOUND_MESSAGE));
 
 		return toResponse(match, printer, payload);
+	}
+
+	private Printer findVisiblePrinterByMac(String qrMac) {
+		return securityScope.findVisiblePrinters().stream()
+				.filter(printer -> MacAddressNormalizer.sameMac(printer.getMacAddress(), qrMac))
+				.findFirst()
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"No se encontró una impresora con la MAC del comprobante."));
+	}
+
+	private Optional<AnnualInspection> findExactQrMatch(Long printerId, String qrCodigo) {
+		String trimmed = qrCodigo == null ? "" : qrCodigo.trim();
+		if (trimmed.isEmpty()) {
+			return Optional.empty();
+		}
+
+		Optional<AnnualInspection> exactMatch = inspectionRepository
+				.findByPrinter_IdAndMqttQrCodigo(printerId, trimmed);
+		if (exactMatch.isPresent()) {
+			return exactMatch;
+		}
+
+		String normalized = decoder.normalizeQrCodigo(trimmed);
+		if (normalized.isEmpty() || normalized.equals(trimmed)) {
+			return Optional.empty();
+		}
+
+		return inspectionRepository.findByPrinter_IdAndMqttQrCodigo(printerId, normalized);
 	}
 
 	private static boolean macCoherent(
