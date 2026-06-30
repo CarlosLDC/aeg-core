@@ -7,8 +7,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aeg.core.enajenacion.mqtt.AnnualInspectionMqttService;
+import com.aeg.core.inspection.qr.AnnualInspectionQrDecoder;
 import com.aeg.core.inspection.qr.AnnualInspectionQrPayload;
 import com.aeg.core.inspection.qr.AnnualInspectionQrValidator;
+import com.aeg.core.mqtt.dto.AnnualInspectionDecodeQrRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionSubmitRequest;
@@ -30,6 +32,18 @@ public class AnnualInspectionMqttAdminController {
 
     private final AnnualInspectionMqttService annualInspectionMqttService;
     private final AnnualInspectionQrValidator annualInspectionQrValidator;
+    private final AnnualInspectionQrDecoder annualInspectionQrDecoder;
+
+    @PostMapping("/decode-qr")
+    public ResponseEntity<AnnualInspectionVerifyQrResponse> decodeQr(
+            @Valid @RequestBody AnnualInspectionDecodeQrRequest request) {
+        AnnualInspectionQrPayload payload = annualInspectionQrDecoder.decode(request.qrCodigo());
+        return ResponseEntity.ok(new AnnualInspectionVerifyQrResponse(
+                true,
+                payload.registro(),
+                payload.mac(),
+                payload.fecha()));
+    }
 
     @PostMapping("/verify-qr")
     public ResponseEntity<AnnualInspectionVerifyQrResponse> verifyQr(
