@@ -73,6 +73,18 @@ public class AnnualInspection {
 	@Column(name = "chk_sensor_papel")
 	private Boolean chkSensorPapel;
 
+	@Column(name = "mqtt_qr_codigo")
+	private String mqttQrCodigo;
+
+	@Column(name = "mqtt_qr_registro")
+	private String mqttQrRegistro;
+
+	@Column(name = "mqtt_qr_mac")
+	private String mqttQrMac;
+
+	@Column(name = "mqtt_qr_fecha")
+	private String mqttQrFecha;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
@@ -220,5 +232,37 @@ public class AnnualInspection {
 
 	public void setChkSensorPapel(Boolean chkSensorPapel) {
 		this.chkSensorPapel = chkSensorPapel;
+	}
+
+	public String getMqttQrCodigo() {
+		return mqttQrCodigo;
+	}
+
+	public void setMqttQrCodigo(String mqttQrCodigo) {
+		this.mqttQrCodigo = mqttQrCodigo;
+	}
+
+	public String getMqttQrRegistro() {
+		return mqttQrRegistro;
+	}
+
+	public void setMqttQrRegistro(String mqttQrRegistro) {
+		this.mqttQrRegistro = mqttQrRegistro;
+	}
+
+	public String getMqttQrMac() {
+		return mqttQrMac;
+	}
+
+	public void setMqttQrMac(String mqttQrMac) {
+		this.mqttQrMac = mqttQrMac;
+	}
+
+	public String getMqttQrFecha() {
+		return mqttQrFecha;
+	}
+
+	public void setMqttQrFecha(String mqttQrFecha) {
+		this.mqttQrFecha = mqttQrFecha;
 	}
 }

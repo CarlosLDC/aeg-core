@@ -20,5 +20,9 @@ public record AnnualInspectionResponse(
 		Boolean chkEtiquetaFiscal,
 		Boolean chkFactura,
 		Boolean chkNotaCredito,
-		Boolean chkSensorPapel) {
+		Boolean chkSensorPapel,
+		String mqttQrCodigo,
+		String mqttQrRegistro,
+		String mqttQrMac,
+		String mqttQrFecha) {
 }

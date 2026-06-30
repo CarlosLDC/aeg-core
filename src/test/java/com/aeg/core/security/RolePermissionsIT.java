@@ -43,7 +43,8 @@ import com.aeg.core.servicecenter.ServiceCenterRepository;
                 "app.mqtt.default-topic=aeg/test",
                 "app.security.admin.name=Test Admin",
                 "app.security.admin.username=admin@test.local",
-                "app.security.admin.password=admin-pass"
+                "app.security.admin.password=admin-pass",
+                "app.annual-inspection.qr.secret=AeGsGrAsFeCh2024"
         })
 class RolePermissionsIT {
 
@@ -174,6 +175,12 @@ class RolePermissionsIT {
                 "{\"printerId\":" + printerId + "}",
                 technicianToken);
         assertThat(technicianStaInf.statusCode()).isNotEqualTo(403);
+
+        var verifyQr = post(
+                "/api/mqtt/annual-inspection/verify-qr",
+                "{\"printerId\":" + printerId + ",\"qrCodigo\":\"invalid\",\"registroImpresora\":\"GRA1\"}",
+                technicianToken);
+        assertThat(verifyQr.statusCode()).isNotEqualTo(403);
     }
 
     @Test

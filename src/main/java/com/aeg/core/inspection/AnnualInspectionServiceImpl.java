@@ -8,6 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.inspection.dto.AnnualInspectionRequest;
 import com.aeg.core.inspection.dto.AnnualInspectionResponse;
+import com.aeg.core.inspection.qr.AnnualInspectionMqttEligibility;
+import com.aeg.core.inspection.qr.AnnualInspectionQrPayload;
+import com.aeg.core.inspection.qr.AnnualInspectionQrValidator;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.organization.OrgCapability;
 import com.aeg.core.organization.OrganizationCapabilityService;
@@ -27,18 +30,21 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	private final UserRepository userRepository;
 	private final SecurityScopeService securityScope;
 	private final OrganizationCapabilityService organizationCapability;
+	private final AnnualInspectionQrValidator qrValidator;
 
 	public AnnualInspectionServiceImpl(
 			AnnualInspectionRepository repository,
 			PrinterRepository printerRepository,
 			UserRepository userRepository,
 			SecurityScopeService securityScope,
-			OrganizationCapabilityService organizationCapability) {
+			OrganizationCapabilityService organizationCapability,
+			AnnualInspectionQrValidator qrValidator) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
 		this.userRepository = userRepository;
 		this.securityScope = securityScope;
 		this.organizationCapability = organizationCapability;
+		this.qrValidator = qrValidator;
 	}
 
 	@Override
@@ -132,6 +138,33 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		e.setMqttRegistroImpresora(normalizeOptionalText(request.mqttRegistroImpresora()));
 		e.setMqttSetDateRevOAt(request.mqttSetDateRevOAt());
 		e.setMqttNumeroFacturaPrueba(request.mqttNumeroFacturaPrueba());
+		applyQrFields(e, printer, request);
+	}
+
+	private void applyQrFields(AnnualInspection e, Printer printer, AnnualInspectionRequest request) {
+		if (!AnnualInspectionMqttEligibility.isEligible(printer)) {
+			return;
+		}
+
+		String qrCodigo = normalizeOptionalText(request.mqttQrCodigo());
+		if (qrCodigo == null) {
+			if (e.getId() == null) {
+				throw new IllegalArgumentException(
+						"El código QR impreso es obligatorio para impresoras con inspección anual MQTT.");
+			}
+			return;
+		}
+
+		String registroImpresora = normalizeOptionalText(request.mqttRegistroImpresora());
+		AnnualInspectionQrPayload payload = qrValidator.decodeAndValidate(
+				printer.getId(),
+				qrCodigo,
+				registroImpresora);
+
+		e.setMqttQrCodigo(qrCodigo);
+		e.setMqttQrRegistro(payload.registro());
+		e.setMqttQrMac(payload.mac());
+		e.setMqttQrFecha(payload.fecha());
 	}
 
 	private void applyChecklistAndSealTampered(AnnualInspection e, AnnualInspectionRequest request) {
@@ -213,6 +246,10 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 				e.getChkEtiquetaFiscal(),
 				e.getChkFactura(),
 				e.getChkNotaCredito(),
-				e.getChkSensorPapel());
+				e.getChkSensorPapel(),
+				e.getMqttQrCodigo(),
+				e.getMqttQrRegistro(),
+				e.getMqttQrMac(),
+				e.getMqttQrFecha());
 	}
 }

@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aeg.core.enajenacion.mqtt.AnnualInspectionMqttService;
+import com.aeg.core.inspection.qr.AnnualInspectionQrPayload;
+import com.aeg.core.inspection.qr.AnnualInspectionQrValidator;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionSubmitRequest;
@@ -15,6 +17,8 @@ import com.aeg.core.mqtt.dto.AnnualInspectionTestCreditNoteRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionTestCreditNoteResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionTestInvoiceRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionTestInvoiceResponse;
+import com.aeg.core.mqtt.dto.AnnualInspectionVerifyQrRequest;
+import com.aeg.core.mqtt.dto.AnnualInspectionVerifyQrResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +29,21 @@ import lombok.RequiredArgsConstructor;
 public class AnnualInspectionMqttAdminController {
 
     private final AnnualInspectionMqttService annualInspectionMqttService;
+    private final AnnualInspectionQrValidator annualInspectionQrValidator;
+
+    @PostMapping("/verify-qr")
+    public ResponseEntity<AnnualInspectionVerifyQrResponse> verifyQr(
+            @Valid @RequestBody AnnualInspectionVerifyQrRequest request) {
+        AnnualInspectionQrPayload payload = annualInspectionQrValidator.decodeAndValidate(
+                request.printerId(),
+                request.qrCodigo(),
+                request.registroImpresora());
+        return ResponseEntity.ok(new AnnualInspectionVerifyQrResponse(
+                true,
+                payload.registro(),
+                payload.mac(),
+                payload.fecha()));
+    }
 
     @PostMapping("/sta-inf")
     public ResponseEntity<AnnualInspectionStaInfResponse> requestStaInf(

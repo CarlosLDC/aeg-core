@@ -336,7 +336,11 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				inspection.getChkEtiquetaFiscal(),
 				inspection.getChkFactura(),
 				inspection.getChkNotaCredito(),
-				inspection.getChkSensorPapel());
+				inspection.getChkSensorPapel(),
+				inspection.getMqttQrCodigo(),
+				inspection.getMqttQrRegistro(),
+				inspection.getMqttQrMac(),
+				inspection.getMqttQrFecha());
 	}
 
 	private static String statusValue(PrinterStatus status) {
