@@ -29,7 +29,7 @@ services:
         value: SET_IN_APP_PLATFORM
         type: SECRET
       - key: APP_CORS_ALLOWED_ORIGINS
-        value: https://aeg-core-admin.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech
+        value: https://aeg-core-admin.vercel.app,https://aeg-libros-fiscales.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech
       - key: SPRING_DATASOURCE_URL
         value: jdbc:postgresql://private-db-postgresql-nyc1-16442-do-user-35225255-0.l.db.ondigitalocean.com:25060/defaultdb?sslmode=require
       - key: SPRING_DATASOURCE_USERNAME

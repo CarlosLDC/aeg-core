@@ -76,6 +76,14 @@ public class GlobalExceptionHandler {
         return buildResponse(status, isConflict ? "Conflicto de datos" : "Petición inválida", message);
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
+        String message = e.getMessage() != null && !e.getMessage().isBlank()
+                ? e.getMessage()
+                : "El servicio no está configurado correctamente.";
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Servicio no disponible", message);
+    }
+
     @ExceptionHandler(EnajenacionProtocolException.class)
     public ResponseEntity<Map<String, Object>> handleEnajenacionProtocol(EnajenacionProtocolException e) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Petición inválida", e.getMessage());
