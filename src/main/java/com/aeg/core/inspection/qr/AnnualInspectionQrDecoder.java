@@ -26,26 +26,26 @@ public class AnnualInspectionQrDecoder {
 
     public AnnualInspectionQrPayload decode(String qrCodigo) {
         if (qrCodigo == null || qrCodigo.isBlank()) {
-            throw new IllegalArgumentException("El código QR es obligatorio.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         String secret = settings.secret();
         if (secret == null || secret.isBlank()) {
-            throw new IllegalStateException("La clave de desencriptación del QR no está configurada.");
+            throw new IllegalStateException(AnnualInspectionQrMessages.INVALID_CODE);
         }
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length != 16) {
-            throw new IllegalStateException("La clave de desencriptación del QR debe tener exactamente 16 bytes UTF-8.");
+            throw new IllegalStateException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         byte[] cipherBytes;
         try {
             cipherBytes = decodeBase64(normalizeQrInput(qrCodigo));
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("El código QR no es Base64 válido.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
         if (cipherBytes.length == 0 || cipherBytes.length % 16 != 0) {
-            throw new IllegalArgumentException("El código QR no tiene un tamaño de bloque AES válido.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         byte[] decrypted;
@@ -54,25 +54,24 @@ public class AnnualInspectionQrDecoder {
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"));
             decrypted = cipher.doFinal(cipherBytes);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("No se pudo desencriptar el código QR.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         String plaintext = stripTrailingNulls(decrypted);
         if (plaintext.isBlank()) {
-            throw new IllegalArgumentException("El código QR desencriptado está vacío.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         String[] parts = plaintext.split("\\|", -1);
         if (parts.length != 3) {
-            throw new IllegalArgumentException(
-                    "El código QR desencriptado no tiene el formato registro|mac|fecha.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         String registro = parts[0].trim();
         String mac = parts[1].trim();
         String fecha = parts[2].trim();
         if (registro.isEmpty() || mac.isEmpty() || fecha.isEmpty()) {
-            throw new IllegalArgumentException("El código QR desencriptado contiene campos vacíos.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
 
         return new AnnualInspectionQrPayload(registro, mac, fecha);

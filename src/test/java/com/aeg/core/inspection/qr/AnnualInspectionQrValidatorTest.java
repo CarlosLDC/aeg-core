@@ -42,7 +42,7 @@ class AnnualInspectionQrValidatorTest {
 
         assertThatThrownBy(() -> validator.decodeAndValidate(1L, EXAMPLE_QR, "GRA9999999"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("registro");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 
     @Test
@@ -55,7 +55,7 @@ class AnnualInspectionQrValidatorTest {
                         EXAMPLE_QR,
                         examplePayload.registro()))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("MAC");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 
     @Test

@@ -100,7 +100,7 @@ class AnnualInspectionQrLookupServiceTest {
 
         assertThatThrownBy(() -> lookupService.lookup(EXAMPLE_QR))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("No existe un registro");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 
     @Test
@@ -109,7 +109,7 @@ class AnnualInspectionQrLookupServiceTest {
 
         assertThatThrownBy(() -> lookupService.lookup(EXAMPLE_QR))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("MAC");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 
     @Test

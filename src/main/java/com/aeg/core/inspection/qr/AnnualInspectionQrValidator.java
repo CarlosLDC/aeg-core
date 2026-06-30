@@ -38,18 +38,16 @@ public class AnnualInspectionQrValidator {
             String registroImpresora) {
         String expectedRegistro = normalizeRegistro(registroImpresora);
         if (expectedRegistro == null) {
-            throw new IllegalArgumentException("El registro de impresora es obligatorio para validar el QR.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
         if (!expectedRegistro.equalsIgnoreCase(payload.registro().trim())) {
-            throw new IllegalArgumentException(
-                    "El registro del QR no coincide con el de la impresora.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
         if (!MacAddressNormalizer.sameMac(printer.getMacAddress(), payload.mac())) {
-            throw new IllegalArgumentException(
-                    "La dirección MAC del QR no coincide con la de la impresora.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
         if (payload.fecha() == null || payload.fecha().isBlank()) {
-            throw new IllegalArgumentException("La fecha del QR está vacía.");
+            throw new IllegalArgumentException(AnnualInspectionQrMessages.INVALID_CODE);
         }
     }
 

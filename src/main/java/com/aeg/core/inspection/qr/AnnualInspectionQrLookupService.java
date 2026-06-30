@@ -20,8 +20,7 @@ import com.aeg.core.servicecenter.ResourceNotFoundException;
 @Transactional(readOnly = true)
 public class AnnualInspectionQrLookupService {
 
-	private static final String NOT_FOUND_MESSAGE =
-			"No existe un registro en el libro fiscal para este comprobante.";
+	private static final String NOT_FOUND_MESSAGE = AnnualInspectionQrMessages.INVALID_CODE;
 
 	private final AnnualInspectionQrDecoder decoder;
 	private final AnnualInspectionRepository inspectionRepository;
@@ -63,8 +62,7 @@ public class AnnualInspectionQrLookupService {
 		return securityScope.findVisiblePrinters().stream()
 				.filter(printer -> MacAddressNormalizer.sameMac(printer.getMacAddress(), qrMac))
 				.findFirst()
-				.orElseThrow(() -> new ResourceNotFoundException(
-						"No se encontró una impresora con la MAC del comprobante."));
+				.orElseThrow(() -> new ResourceNotFoundException(AnnualInspectionQrMessages.INVALID_CODE));
 	}
 
 	private Optional<AnnualInspection> findExactQrMatch(Long printerId, String qrCodigo) {

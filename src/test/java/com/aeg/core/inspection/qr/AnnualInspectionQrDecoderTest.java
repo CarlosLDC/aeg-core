@@ -65,7 +65,7 @@ class AnnualInspectionQrDecoderTest {
     void rejectsInvalidBase64() {
         assertThatThrownBy(() -> decoder.decode("not-valid-base64!!!"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Base64");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 
     @Test
@@ -76,6 +76,6 @@ class AnnualInspectionQrDecoderTest {
 
         assertThatThrownBy(() -> missingSecretDecoder.decode(EXAMPLE_QR))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("clave");
+                .hasMessage(AnnualInspectionQrMessages.INVALID_CODE);
     }
 }

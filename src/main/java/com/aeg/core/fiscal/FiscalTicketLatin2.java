@@ -127,6 +127,12 @@ public final class FiscalTicketLatin2 {
     }
 
     private static boolean isEncodable(int codePoint) {
-        return codePoint >= 0 && codePoint < ENCODABLE.length && ENCODABLE[codePoint];
+        return (codePoint >= 0 && codePoint < ENCODABLE.length && ENCODABLE[codePoint])
+                || isSpanishFiscalLatin1CodePoint(codePoint);
+    }
+
+    /** Ñ/ñ: posiciones Latin-1 usadas por impresoras fiscales venezolanas. */
+    private static boolean isSpanishFiscalLatin1CodePoint(int codePoint) {
+        return codePoint == 0x00D1 || codePoint == 0x00F1;
     }
 }
