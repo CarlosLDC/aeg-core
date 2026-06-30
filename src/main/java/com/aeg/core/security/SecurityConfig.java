@@ -112,6 +112,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.PUT, "/api/annual-inspections/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)
 				.requestMatchers(HttpMethod.DELETE, "/api/annual-inspections/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)
 				.requestMatchers(HttpMethod.GET, "/api/fiscal-books/**").hasAnyRole(BOOK_READ_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/fiscal-books/lookup-inspection-by-qr")
+						.hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()

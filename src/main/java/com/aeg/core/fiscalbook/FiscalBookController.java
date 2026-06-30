@@ -2,12 +2,18 @@ package com.aeg.core.fiscalbook;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookDetailResponse;
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookSearchResponse;
+import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrRequest;
+import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrResponse;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/fiscal-books")
@@ -30,5 +36,11 @@ public class FiscalBookController {
 	@GetMapping("/{printerId}")
 	public FiscalBookDetailResponse findByPrinterId(@PathVariable Long printerId) {
 		return service.findByPrinterId(printerId);
+	}
+
+	@PostMapping("/lookup-inspection-by-qr")
+	public FiscalBookLookupInspectionByQrResponse lookupInspectionByQr(
+			@Valid @RequestBody FiscalBookLookupInspectionByQrRequest request) {
+		return service.lookupInspectionByQr(request.qrCodigo());
 	}
 }

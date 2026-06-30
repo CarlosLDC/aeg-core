@@ -27,6 +27,8 @@ import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookSummaryResponse;
 import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookTechnicalServiceResponse;
 import com.aeg.core.inspection.AnnualInspection;
 import com.aeg.core.inspection.AnnualInspectionRepository;
+import com.aeg.core.inspection.qr.AnnualInspectionQrLookupService;
+import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrResponse;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.printermodel.PrinterModel;
@@ -51,16 +53,19 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 	private final TechnicalServiceVisitRepository technicalServiceRepository;
 	private final AnnualInspectionRepository annualInspectionRepository;
 	private final SealRepository sealRepository;
+	private final AnnualInspectionQrLookupService qrLookupService;
 
 	public FiscalBookServiceImpl(
 			SecurityScopeService securityScope,
 			TechnicalServiceVisitRepository technicalServiceRepository,
 			AnnualInspectionRepository annualInspectionRepository,
-			SealRepository sealRepository) {
+			SealRepository sealRepository,
+			AnnualInspectionQrLookupService qrLookupService) {
 		this.securityScope = securityScope;
 		this.technicalServiceRepository = technicalServiceRepository;
 		this.annualInspectionRepository = annualInspectionRepository;
 		this.sealRepository = sealRepository;
+		this.qrLookupService = qrLookupService;
 	}
 
 	@Override
@@ -118,6 +123,11 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				.findByPrinter_IdOrderByCreatedAtAsc(printerId);
 
 		return toDetail(printer, seals, services, inspections);
+	}
+
+	@Override
+	public FiscalBookLookupInspectionByQrResponse lookupInspectionByQr(String qrCodigo) {
+		return qrLookupService.lookup(qrCodigo);
 	}
 
 	private FiscalBookSummaryResponse toSummary(Printer printer) {
