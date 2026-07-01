@@ -41,6 +41,7 @@ import com.aeg.core.servicecenter.ServiceCenter;
 import com.aeg.core.software.Software;
 import com.aeg.core.technicalservice.TechnicalServiceVisit;
 import com.aeg.core.technicalservice.TechnicalServiceVisitRepository;
+import com.aeg.core.technicalservice.TechnicalServiceDescription;
 
 @Service
 @Transactional(readOnly = true)
@@ -289,7 +290,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				centerRif,
 				reviewer != null ? reviewer.getName() : null,
 				reviewer != null ? reviewer.getNationalId() : null,
-				visit.getReportedFailure(),
+				TechnicalServiceDescription.fromVisit(visit),
 				visit.getStartAt(),
 				visit.getEndAt(),
 				visit.getInitialZReport(),
@@ -301,7 +302,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				visit.getRemovedSealId(),
 				installed != null ? installed.getSerial() : null,
 				removed != null ? removed.getSerial() : null,
-				visit.getNotes(),
+				null,
 				visit.getCost(),
 				visit.getPhotoUrls() == null ? List.of() : Arrays.asList(visit.getPhotoUrls()));
 	}

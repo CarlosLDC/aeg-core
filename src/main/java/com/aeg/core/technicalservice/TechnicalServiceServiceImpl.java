@@ -152,7 +152,8 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		}
 
 		e.setSealTampered(r.sealTampered());
-		e.setNotes(r.notes());
+		e.setReportedFailure(TechnicalServiceDescription.merge(r.reportedFailure(), r.notes()));
+		e.setNotes(null);
 		e.setStartAt(r.startAt());
 		e.setEndAt(r.endAt());
 		e.setPhotoUrls(r.photoUrls().toArray(String[]::new));
@@ -178,7 +179,6 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		e.setInitialZReport(r.initialZReport());
 		e.setFinalZReport(r.finalZReport());
 		e.setCost(r.cost());
-		e.setReportedFailure(r.reportedFailure());
 		e.setRequestDate(r.requestDate());
 		e.setInitialZDate(r.initialZDate());
 		e.setFinalZDate(r.finalZDate());
@@ -229,7 +229,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 				e.getUserId(),
 				e.getServiceCenterId(),
 				e.getSealTampered(),
-				e.getNotes(),
+				null,
 				e.getStartAt(),
 				e.getCreatedAt(),
 				e.getEndAt(),
@@ -239,7 +239,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 				e.getInitialZReport(),
 				e.getFinalZReport(),
 				e.getCost(),
-				e.getReportedFailure(),
+				TechnicalServiceDescription.fromVisit(e),
 				e.getRequestDate(),
 				e.getInitialZDate(),
 				e.getFinalZDate(),
