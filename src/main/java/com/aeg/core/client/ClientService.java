@@ -19,5 +19,7 @@ public interface ClientService {
 
 	ClientResponse update(Long id, ClientRequest request);
 
+	ClientResponse transferDistributor(Long clientId, Long targetDistributorId);
+
 	void delete(Long id);
 }

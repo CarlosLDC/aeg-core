@@ -208,6 +208,22 @@ public class ClientServiceImpl implements ClientService {
 	}
 
 	@Override
+	public ClientResponse transferDistributor(Long clientId, Long targetDistributorId) {
+		User user = securityScope.currentUser();
+		if (user.getRole() != Role.ADMIN) {
+			throw new IllegalArgumentException("only administrators can transfer client distributors");
+		}
+		Client client = findEntityById(clientId);
+		assertClientNotPending(client);
+		Long currentDistributorId = client.getDistributorId();
+		if (currentDistributorId != null && currentDistributorId.equals(targetDistributorId)) {
+			throw new IllegalArgumentException("client is already assigned to this distributor");
+		}
+		applyDistributor(client, targetDistributorId);
+		return toResponse(repository.save(client));
+	}
+
+	@Override
 	public void delete(Long id) {
 		Client client = findEntityById(id);
 		securityScope.assertClientInScope(client);
