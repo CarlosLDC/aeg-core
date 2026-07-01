@@ -74,6 +74,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 		int safeSize = Math.max(Math.min(pageSize, 100), 1);
 
 		List<Printer> visible = securityScope.findVisiblePrinters().stream()
+				.filter(this::isFiscalBookListedPrinter)
 				.sorted(Comparator.comparing(Printer::getFiscalSerial, String.CASE_INSENSITIVE_ORDER))
 				.toList();
 
@@ -112,6 +113,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 	@Override
 	public FiscalBookDetailResponse findByPrinterId(Long printerId) {
 		Printer printer = securityScope.findVisiblePrinters().stream()
+				.filter(this::isFiscalBookListedPrinter)
 				.filter(p -> p.getId().equals(printerId))
 				.findFirst()
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
@@ -351,6 +353,11 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				inspection.getMqttQrRegistro(),
 				inspection.getMqttQrMac(),
 				inspection.getMqttQrFecha());
+	}
+
+	private boolean isFiscalBookListedPrinter(Printer printer) {
+		PrinterStatus status = printer.getStatus();
+		return status == PrinterStatus.ENAJENADA || status == PrinterStatus.DESINCORPORADA;
 	}
 
 	private static String statusValue(PrinterStatus status) {
