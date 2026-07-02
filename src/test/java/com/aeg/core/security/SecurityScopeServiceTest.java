@@ -89,4 +89,28 @@ class SecurityScopeServiceTest {
 		assertThat(scope.visibility()).isEqualTo(BranchScope.Visibility.SCOPED);
 		assertThat(scope.branchIds()).containsExactlyInAnyOrder(20L, 99L);
 	}
+
+	@Test
+	void resolveBranchScope_distributor_withNoClients_includesOnlyOwnBranch() {
+		User distributorUser = User.builder()
+				.role(Role.DISTRIBUTOR)
+				.distributorId(7L)
+				.build();
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken(distributorUser, null, List.of()));
+
+		Branch distributorBranch = new Branch();
+		distributorBranch.setId(99L);
+		Distributor distributor = new Distributor();
+		distributor.setId(7L);
+		distributor.setBranch(distributorBranch);
+
+		when(branchRepository.findBranchesByDistributorId(7L)).thenReturn(List.of());
+		when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+
+		var scope = service.resolveBranchScope();
+
+		assertThat(scope.visibility()).isEqualTo(BranchScope.Visibility.SCOPED);
+		assertThat(scope.branchIds()).containsExactly(99L);
+	}
 }
