@@ -46,12 +46,15 @@ public class ClientServiceImpl implements ClientService {
 	public List<ClientResponse> findAll() {
 		User currentUser = securityScope.currentUser();
 		if (currentUser.getRole() == Role.ADMIN) {
-			return repository.findAllFetched().stream().map(this::toResponse).toList();
+			return repository.findAllFetched().stream()
+					.filter(client -> !isDistributorSelfClient(client))
+					.map(this::toResponse)
+					.toList();
 		}
 		if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
 			Long distributorId = currentUser.getDistributorId();
 			return repository.findAllFetchedByDistributorId(distributorId).stream()
-					.filter(client -> !isDistributorSelfClient(client, distributorId))
+					.filter(client -> !isDistributorSelfClient(client))
 					.map(this::toResponse)
 					.toList();
 		}
@@ -60,7 +63,7 @@ public class ClientServiceImpl implements ClientService {
 			return List.of();
 		}
 		return repository.findAllFetchedByBranch_IdIn(scope.branchIds()).stream()
-				.filter(client -> !isDistributorSelfClient(client, currentUser.getDistributorId()))
+				.filter(client -> !isDistributorSelfClient(client))
 				.map(this::toResponse)
 				.toList();
 	}
@@ -69,6 +72,9 @@ public class ClientServiceImpl implements ClientService {
 	@Transactional(readOnly = true)
 	public ClientResponse findById(Long id) {
 		Client client = findEntityById(id);
+		if (isDistributorSelfClient(client)) {
+			throw new ResourceNotFoundException("Client not found with id: " + id);
+		}
 		securityScope.assertClientInScope(client);
 		return toResponse(client);
 	}
@@ -81,7 +87,10 @@ public class ClientServiceImpl implements ClientService {
 				Role.isDistributorScoped(user.getRole()) ? user.getDistributorId() : null;
 		securityScope.assertCanLinkClientToBranch(branchId, distributorId);
 		Client client = resolveClientForBranch(branchId);
-		return client == null ? Optional.empty() : Optional.of(toResponse(client));
+		if (client == null || isDistributorSelfClient(client)) {
+			return Optional.empty();
+		}
+		return Optional.of(toResponse(client));
 	}
 
 	@Override
@@ -271,11 +280,11 @@ public class ClientServiceImpl implements ClientService {
 		}
 	}
 
-	private boolean isDistributorSelfClient(Client client, Long distributorId) {
-		if (distributorId == null || client.getBranchId() == null) {
+	private boolean isDistributorSelfClient(Client client) {
+		if (client == null || client.getBranchId() == null || client.getDistributorId() == null) {
 			return false;
 		}
-		return distributorRepository.findById(distributorId)
+		return distributorRepository.findById(client.getDistributorId())
 				.map(distributor -> client.getBranchId().equals(distributor.getBranchId()))
 				.orElse(false);
 	}
