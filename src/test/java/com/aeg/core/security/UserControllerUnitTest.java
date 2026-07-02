@@ -226,6 +226,45 @@ class UserControllerUnitTest {
     }
 
     @Test
+    void createUser_asAdminWithoutNationalId_returnsBadRequest() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Admin");
+        req.setEmail("admin-new@aeg.local");
+        req.setPassword("p");
+        req.setRole("ADMIN");
+
+        when(userRepository.findByUsername("admin-new@aeg.local")).thenReturn(Optional.empty());
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(userRepository, never()).save(ArgumentMatchers.any());
+    }
+
+    @Test
+    void createUser_asAdminWithNationalId_persistsProfile() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Admin");
+        req.setEmail("admin-new@aeg.local");
+        req.setPassword("p");
+        req.setRole("ADMIN");
+        req.setNationalId("V87654321");
+
+        when(userRepository.findByUsername("admin-new@aeg.local")).thenReturn(Optional.empty());
+        when(userRepository.findByNationalId("V87654321")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("p")).thenReturn("encoded");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(99L);
+            return saved;
+        });
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody().getNationalId()).isEqualTo("V87654321");
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.ADMIN);
+    }
+
+    @Test
     void deleteUser_removesModificationRequestsBeforeDeletingUser() {
         User existing = User.builder()
                 .id(3L)

@@ -170,15 +170,22 @@ public class UserController {
             UserRegistrationRequest createRequest,
             UserUpdateRequest updateRequest,
             User existing) {
-        if (role == Role.ADMIN || role == Role.SENIAT) {
+        if (role == Role.ADMIN) {
+            String nationalId = resolveNationalIdFromRequest(createRequest, updateRequest, existing);
+            if (nationalId == null) {
+                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+            }
+            ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
+            if (nationalIdConflict != null) {
+                return nationalIdConflict;
+            }
+            return new ProfileAssignment(nationalId, null, null, null, null, null);
+        }
+        if (role == Role.SENIAT) {
             return ProfileAssignment.global();
         }
         if (Role.isDistributorScoped(role)) {
-            String nationalId = updateRequest != null && updateRequest.getNationalId() != null
-                    ? normalizeNationalId(updateRequest.getNationalId())
-                    : createRequest != null
-                            ? normalizeNationalId(createRequest.getNationalId())
-                            : existing != null ? existing.getNationalId() : null;
+            String nationalId = resolveNationalIdFromRequest(createRequest, updateRequest, existing);
             Long distributorId = updateRequest != null && updateRequest.getDistributorId() != null
                     ? updateRequest.getDistributorId()
                     : createRequest != null
@@ -187,11 +194,9 @@ public class UserController {
             if (nationalId == null || distributorId == null) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
-            Long excludeId = existing != null ? existing.getId() : null;
-            if (excludeId != null
-                    ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
-                    : userRepository.findByNationalId(nationalId).isPresent()) {
-                return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
+            ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
+            if (nationalIdConflict != null) {
+                return nationalIdConflict;
             }
             if (distributorRepository.findById(distributorId).isEmpty()) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.NOT_FOUND);
@@ -215,23 +220,40 @@ public class UserController {
             if (serviceCenterRepository.findByBranch_Id(branchId).isEmpty()) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
-            String nationalId = updateRequest != null && updateRequest.getNationalId() != null
-                    ? normalizeNationalId(updateRequest.getNationalId())
-                    : createRequest != null
-                            ? normalizeNationalId(createRequest.getNationalId())
-                            : existing != null ? existing.getNationalId() : null;
+            String nationalId = resolveNationalIdFromRequest(createRequest, updateRequest, existing);
             if (nationalId == null) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
-            Long excludeId = existing != null ? existing.getId() : null;
-            if (excludeId != null
-                    ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
-                    : userRepository.findByNationalId(nationalId).isPresent()) {
-                return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
+            ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
+            if (nationalIdConflict != null) {
+                return nationalIdConflict;
             }
             return new ProfileAssignment(nationalId, null, null, branchId, branch, null);
         }
         return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
+    }
+
+    private String resolveNationalIdFromRequest(
+            UserRegistrationRequest createRequest,
+            UserUpdateRequest updateRequest,
+            User existing) {
+        if (updateRequest != null && updateRequest.getNationalId() != null) {
+            return normalizeNationalId(updateRequest.getNationalId());
+        }
+        if (createRequest != null) {
+            return normalizeNationalId(createRequest.getNationalId());
+        }
+        return existing != null ? existing.getNationalId() : null;
+    }
+
+    private ProfileAssignment assertNationalIdAvailable(String nationalId, User existing) {
+        Long excludeId = existing != null ? existing.getId() : null;
+        if (excludeId != null
+                ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
+                : userRepository.findByNationalId(nationalId).isPresent()) {
+            return ProfileAssignment.error(org.springframework.http.HttpStatus.CONFLICT);
+        }
+        return null;
     }
 
     private UserUpdateRequest toUpdateRequest(UserRegistrationRequest createRequest, User existing) {
