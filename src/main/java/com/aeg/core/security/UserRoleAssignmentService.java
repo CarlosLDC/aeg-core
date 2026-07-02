@@ -42,7 +42,20 @@ public class UserRoleAssignmentService {
 		if (requestedRole == null) {
 			return RoleResolution.error(HttpStatus.BAD_REQUEST);
 		}
-		return resolveOperational(requestedRole, request.getDistributorId(), request.getBranchId());
+		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT) {
+			if (request.getDistributorId() != null || request.getBranchId() != null) {
+				return RoleResolution.error(HttpStatus.BAD_REQUEST);
+			}
+			return RoleResolution.ok(requestedRole);
+		}
+		Long distributorId = null;
+		Long branchId = null;
+		if (Role.isDistributorScoped(requestedRole)) {
+			distributorId = request.getDistributorId();
+		} else if (requestedRole == Role.TECHNICIAN) {
+			branchId = request.getBranchId();
+		}
+		return resolveOperational(requestedRole, distributorId, branchId);
 	}
 
 	public RoleResolution resolveForUpdate(UserUpdateRequest request, User existing) {
@@ -116,16 +129,7 @@ public class UserRoleAssignmentService {
 		if (distributor.isEmpty()) {
 			return RoleResolution.error(HttpStatus.NOT_FOUND);
 		}
-		Branch branch = distributor.get().getBranch();
-		if (branch == null) {
-			return RoleResolution.error(HttpStatus.BAD_REQUEST);
-		}
-		BranchOrganizationRole role = branch.getOrganizationRole();
-		if (role == null || role == BranchOrganizationRole.NONE) {
-			role = BranchOrganizationRole.fromLegacyFlags(
-					branch.getIsDistributor(), branch.getIsServiceCenter());
-		}
-		if (role != BranchOrganizationRole.DISTRIBUTOR) {
+		if (distributor.get().getBranch() == null) {
 			return RoleResolution.error(HttpStatus.BAD_REQUEST);
 		}
 		return RoleResolution.ok(Role.DISTRIBUTOR);

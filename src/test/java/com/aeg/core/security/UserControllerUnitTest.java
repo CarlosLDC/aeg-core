@@ -129,6 +129,41 @@ class UserControllerUnitTest {
     }
 
     @Test
+    void createUser_distributor_withStaleBranchMetadata_succeeds() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Distribuidor");
+        req.setEmail("dist-stale@aeg.local");
+        req.setPassword("p");
+        req.setRole("DISTRIBUTOR");
+        req.setDistributorId(7L);
+        req.setNationalId("V87654321");
+
+        Branch branch = new Branch();
+        branch.setId(99L);
+        branch.setOrganizationRole(BranchOrganizationRole.SERVICE_CENTER);
+        branch.setIsDistributor(true);
+        branch.setIsServiceCenter(true);
+        Distributor distributor = new Distributor();
+        distributor.setId(7L);
+        distributor.setBranch(branch);
+
+        when(userRepository.findByUsername("dist-stale@aeg.local")).thenReturn(Optional.empty());
+        when(userRepository.findByNationalId("V87654321")).thenReturn(Optional.empty());
+        when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(3L);
+            return saved;
+        });
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.DISTRIBUTOR);
+        assertThat(resp.getBody().getDistributorId()).isEqualTo(7L);
+    }
+
+    @Test
     void createUser_serviceCenterBranch_derivesTechnician() {
         UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
         req.setName("Centro");
