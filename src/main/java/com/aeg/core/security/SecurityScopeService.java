@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
+import com.aeg.core.client.ClientBranchLinkPolicy;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
@@ -33,6 +34,7 @@ public class SecurityScopeService {
 	private final PrinterRepository printerRepository;
 	private final SealRepository sealRepository;
 	private final ServiceCenterRepository serviceCenterRepository;
+	private final ClientBranchLinkPolicy clientBranchLinkPolicy;
 
 	public SecurityScopeService(
 			BranchRepository branchRepository,
@@ -40,13 +42,15 @@ public class SecurityScopeService {
 			DistributorRepository distributorRepository,
 			PrinterRepository printerRepository,
 			SealRepository sealRepository,
-			ServiceCenterRepository serviceCenterRepository) {
+			ServiceCenterRepository serviceCenterRepository,
+			ClientBranchLinkPolicy clientBranchLinkPolicy) {
 		this.branchRepository = branchRepository;
 		this.clientRepository = clientRepository;
 		this.distributorRepository = distributorRepository;
 		this.printerRepository = printerRepository;
 		this.sealRepository = sealRepository;
 		this.serviceCenterRepository = serviceCenterRepository;
+		this.clientBranchLinkPolicy = clientBranchLinkPolicy;
 	}
 
 	public User currentUser() {
@@ -176,6 +180,9 @@ public class SecurityScopeService {
 	public void assertCanLinkClientToBranch(Long branchId, Long distributorId) {
 		assertNotDistributorSelfClientBranch(branchId, distributorId);
 		User user = currentUser();
+		if (user.getRole() != Role.ADMIN) {
+			clientBranchLinkPolicy.assertFieldUserMayLinkClient(branchId, distributorId);
+		}
 		if (user.getRole() == Role.ADMIN) {
 			return;
 		}
@@ -193,7 +200,8 @@ public class SecurityScopeService {
 			clientRepository.findByBranch_Id(branchId).ifPresent(existing -> {
 				Long existingDistributorId = existing.getDistributorId();
 				if (existingDistributorId != null && !existingDistributorId.equals(distributorId)) {
-					throw new AccessDeniedException("Branch already assigned to another distributor");
+					throw new IllegalArgumentException(
+							ClientBranchLinkPolicy.REASSIGNMENT_REQUIRED_MESSAGE);
 				}
 			});
 			return;

@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.client.ClientBranchLinkPolicy;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
@@ -45,13 +46,19 @@ class SecurityScopeServiceSelfClientTest {
 
 	@BeforeEach
 	void setUp() {
+		ClientBranchLinkPolicy clientBranchLinkPolicy = new ClientBranchLinkPolicy(
+				branchRepository,
+				clientRepository,
+				distributorRepository,
+				serviceCenterRepository);
 		service = new SecurityScopeService(
 				branchRepository,
 				clientRepository,
 				distributorRepository,
 				printerRepository,
 				sealRepository,
-				serviceCenterRepository);
+				serviceCenterRepository,
+				clientBranchLinkPolicy);
 	}
 
 	@Test

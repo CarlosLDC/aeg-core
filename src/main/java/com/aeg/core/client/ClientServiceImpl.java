@@ -154,8 +154,7 @@ public class ClientServiceImpl implements ClientService {
 		Long existingDistributorId = client.getDistributorId();
 		if (request.distributorId() != null) {
 			if (existingDistributorId != null && !existingDistributorId.equals(request.distributorId())) {
-				throw new IllegalArgumentException(
-						"branch already linked to another distributor");
+				throw new IllegalArgumentException(ClientBranchLinkPolicy.REASSIGNMENT_REQUIRED_MESSAGE);
 			}
 			if (existingDistributorId == null) {
 				Client managed = repository.findAllFetchedByBranchId(branchId).stream()

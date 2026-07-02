@@ -18,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.client.ClientBranchLinkPolicy;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
@@ -47,16 +48,23 @@ class SecurityScopeServiceTest {
 	private ServiceCenterRepository serviceCenterRepository;
 
 	private SecurityScopeService service;
+	private ClientBranchLinkPolicy clientBranchLinkPolicy;
 
 	@BeforeEach
 	void setUp() {
+		clientBranchLinkPolicy = new ClientBranchLinkPolicy(
+				branchRepository,
+				clientRepository,
+				distributorRepository,
+				serviceCenterRepository);
 		service = new SecurityScopeService(
 				branchRepository,
 				clientRepository,
 				distributorRepository,
 				printerRepository,
 				sealRepository,
-				serviceCenterRepository);
+				serviceCenterRepository,
+				clientBranchLinkPolicy);
 	}
 
 	@AfterEach
