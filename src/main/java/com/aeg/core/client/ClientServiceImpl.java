@@ -49,7 +49,9 @@ public class ClientServiceImpl implements ClientService {
 			return repository.findAllFetched().stream().map(this::toResponse).toList();
 		}
 		if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
-			return repository.findAllFetchedByDistributorId(currentUser.getDistributorId()).stream()
+			Long distributorId = currentUser.getDistributorId();
+			return repository.findAllFetchedByDistributorId(distributorId).stream()
+					.filter(client -> !isDistributorSelfClient(client, distributorId))
 					.map(this::toResponse)
 					.toList();
 		}
@@ -58,6 +60,7 @@ public class ClientServiceImpl implements ClientService {
 			return List.of();
 		}
 		return repository.findAllFetchedByBranch_IdIn(scope.branchIds()).stream()
+				.filter(client -> !isDistributorSelfClient(client, currentUser.getDistributorId()))
 				.map(this::toResponse)
 				.toList();
 	}
@@ -266,5 +269,14 @@ public class ClientServiceImpl implements ClientService {
 		if (client.getReviewStatus() == ClientReviewStatus.PENDING_REVIEW) {
 			throw new IllegalArgumentException("client has a pending review request");
 		}
+	}
+
+	private boolean isDistributorSelfClient(Client client, Long distributorId) {
+		if (distributorId == null || client.getBranchId() == null) {
+			return false;
+		}
+		return distributorRepository.findById(distributorId)
+				.map(distributor -> client.getBranchId().equals(distributor.getBranchId()))
+				.orElse(false);
 	}
 }

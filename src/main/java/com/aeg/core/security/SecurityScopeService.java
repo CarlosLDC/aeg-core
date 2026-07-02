@@ -136,6 +136,17 @@ public class SecurityScopeService {
 		return resolveDistributorStaffBranchIds().contains(branchId);
 	}
 
+	private void assertNotDistributorSelfClientBranch(Long branchId, Long distributorId) {
+		if (branchId == null || distributorId == null) {
+			return;
+		}
+		distributorRepository.findById(distributorId).ifPresent(distributor -> {
+			if (branchId.equals(distributor.getBranchId())) {
+				throw new IllegalArgumentException("distributor cannot be client of itself");
+			}
+		});
+	}
+
 	public void assertBranchReadable(Long branchId) {
 		User user = currentUser();
 		if (isGlobalReader()) {
@@ -163,6 +174,7 @@ public class SecurityScopeService {
 	}
 
 	public void assertCanLinkClientToBranch(Long branchId, Long distributorId) {
+		assertNotDistributorSelfClientBranch(branchId, distributorId);
 		User user = currentUser();
 		if (user.getRole() == Role.ADMIN) {
 			return;
