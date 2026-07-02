@@ -47,11 +47,6 @@ public class CompanyServiceImpl implements CompanyService {
         if (currentUser.getRole() == Role.ADMIN) {
             return repository.findAll().stream().map(this::toResponse).toList();
         }
-        if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
-            return repository.findCompaniesByDistributorId(currentUser.getDistributorId()).stream()
-                    .map(this::toResponse)
-                    .toList();
-        }
         BranchScope scope = securityScope.resolveBranchScope();
         if (scope.visibility() != BranchScope.Visibility.SCOPED) {
             return List.of();
@@ -142,10 +137,10 @@ public class CompanyServiceImpl implements CompanyService {
         if (currentUser.getRole() == Role.ADMIN) {
             return;
         }
-        if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
-            boolean inScope = repository.findCompaniesByDistributorId(currentUser.getDistributorId())
-                    .stream()
-                    .anyMatch(c -> c.getId().equals(companyId));
+        BranchScope scope = securityScope.resolveBranchScope();
+        if (scope.visibility() == BranchScope.Visibility.SCOPED) {
+            boolean inScope = branchRepository.findByIdIn(scope.branchIds()).stream()
+                    .anyMatch(branch -> companyId.equals(branch.getCompanyId()));
             if (inScope) {
                 return;
             }
