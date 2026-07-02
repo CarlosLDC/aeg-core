@@ -158,6 +158,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 		PrinterModel model = printer.getModel();
 		Software software = printer.getSoftware();
 		Distributor distributor = printer.getDistributor();
+		FiscalBookBranchResponse enajenador = resolveEnajenador(printer, services);
 
 		return new FiscalBookDetailResponse(
 				printer.getId(),
@@ -182,6 +183,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				toModel(model),
 				toSoftware(software),
 				toDistributor(distributor),
+				enajenador,
 				seals.stream().map(this::toSeal).toList(),
 				services.stream().map(s -> toTechnicalService(s, seals)).toList(),
 				inspections.stream().map(this::toAnnualInspection).toList());
@@ -241,6 +243,16 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 			return null;
 		}
 		return new FiscalBookDistributorResponse(distributor.getId(), toBranch(distributor.getBranch()));
+	}
+
+	private FiscalBookBranchResponse resolveEnajenador(
+			Printer printer,
+			List<TechnicalServiceVisit> services) {
+		Branch branch = FiscalBookEnajenadorResolver.resolveBranch(printer, services);
+		if (branch != null) {
+			return toBranch(branch);
+		}
+		return AegManufacturerProfile.toBranchResponse();
 	}
 
 	private FiscalBookSealResponse toSeal(Seal seal) {

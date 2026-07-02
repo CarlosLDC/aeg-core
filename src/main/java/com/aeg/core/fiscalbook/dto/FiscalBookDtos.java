@@ -49,6 +49,8 @@ public final class FiscalBookDtos {
 			FiscalBookModelResponse model,
 			FiscalBookSoftwareResponse software,
 			FiscalBookDistributorResponse distributor,
+			/** Sucursal del enajenador (distribuidor, centro de servicio o fabricante AEG). */
+			FiscalBookBranchResponse enajenador,
 			List<FiscalBookSealResponse> seals,
 			List<FiscalBookTechnicalServiceResponse> technicalServices,
 			List<FiscalBookAnnualInspectionResponse> annualInspections) {
