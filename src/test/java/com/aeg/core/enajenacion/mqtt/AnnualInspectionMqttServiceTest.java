@@ -64,7 +64,6 @@ class AnnualInspectionMqttServiceTest {
     void publishesStaInfToFiscalComandoTopicAndWaitsOnRespuesta() {
         Printer printer = enajenadaPrinter();
         when(printerRepository.findById(1L)).thenReturn(Optional.of(printer));
-        when(settings.regStatusTimeoutSeconds()).thenReturn(30);
 
         FiscalMqttResponseItem responseItem = new FiscalMqttResponseItem("StaInf", 0, null, "GRA0000017");
         CompletableFuture<FiscalMqttResponseItem> future = CompletableFuture.completedFuture(responseItem);

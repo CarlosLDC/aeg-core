@@ -110,11 +110,13 @@ public class FiscalResponseValidator {
     /** Validates StaInf for annual inspection; returns {@code dataS} as printer registration number. */
     public String validateStaInfRegistrationResponse(FiscalMqttResponseItem item) {
         if (item == null || !cmdEquals(item.cmd(), EnajenacionConstants.CMD_STA_INF)) {
-            throw new EnajenacionProtocolException("Unexpected response cmd, expected StaInf");
+            throw new EnajenacionProtocolException(
+                    "No se pudo consultar la impresora. Verifique que esté encendida y conectada a la red, e intente nuevamente.");
         }
         assertSuccessCode(item);
         if (item.dataS() == null || item.dataS().isBlank()) {
-            throw new EnajenacionProtocolException("StaInf response missing dataS");
+            throw new EnajenacionProtocolException(
+                    "No se pudo consultar la impresora. Verifique que esté encendida y conectada a la red, e intente nuevamente.");
         }
         return item.dataS().trim();
     }

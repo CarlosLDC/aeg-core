@@ -26,6 +26,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AnnualInspectionMqttService {
 
+    private static final int STA_INF_TIMEOUT_SECONDS = 1;
+    private static final String PRINTER_QUERY_TIMEOUT_MESSAGE =
+            "La impresora no respondió a tiempo. Verifique que esté encendida y conectada a la red, e intente nuevamente.";
+    private static final String PRINTER_QUERY_ERROR_MESSAGE =
+            "No se pudo consultar la impresora. Verifique que esté encendida y conectada a la red, e intente nuevamente.";
+
     private final PrinterRepository printerRepository;
     private final EnajenacionPayloadBuilder payloadBuilder;
     private final MqttService mqttService;
@@ -56,7 +62,7 @@ public class AnnualInspectionMqttService {
         String compactMac = MacAddressNormalizer.requireCompactForm(printer.getMacAddress());
         String topic = FiscalMqttTopics.comandoTopic(compactMac);
         String commandPayload = payloadBuilder.buildRegistrationStatusPayload();
-        int timeoutSeconds = settings.regStatusTimeoutSeconds();
+        int timeoutSeconds = STA_INF_TIMEOUT_SECONDS;
 
         CompletableFuture<FiscalMqttResponseItem> responseFuture = syncResponseAwaiter.register(
                 compactMac,
@@ -81,17 +87,16 @@ public class AnnualInspectionMqttService {
                     response,
                     publishedAt);
         } catch (TimeoutException ex) {
-            throw new EnajenacionProtocolException(
-                    "Tiempo de espera agotado esperando respuesta StaInf de la impresora.");
+            throw new EnajenacionProtocolException(PRINTER_QUERY_TIMEOUT_MESSAGE);
         } catch (ExecutionException ex) {
             Throwable cause = ex.getCause();
             if (cause instanceof RuntimeException runtime) {
                 throw runtime;
             }
-            throw new EnajenacionProtocolException("Error esperando respuesta StaInf: " + ex.getMessage());
+            throw new EnajenacionProtocolException(PRINTER_QUERY_ERROR_MESSAGE);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new EnajenacionProtocolException("Consulta StaInf interrumpida.");
+            throw new EnajenacionProtocolException(PRINTER_QUERY_ERROR_MESSAGE);
         } finally {
             syncResponseAwaiter.cancel(compactMac);
         }
@@ -287,7 +292,8 @@ public class AnnualInspectionMqttService {
             throw new IllegalArgumentException("La impresora no tiene serial fiscal.");
         }
         if (printer.getMacAddress() == null || printer.getMacAddress().isBlank()) {
-            throw new IllegalArgumentException("La impresora no tiene dirección MAC.");
+            throw new IllegalArgumentException(
+                    "La impresora no tiene dirección MAC registrada. Sin la MAC no es posible comunicarse con la impresora para la inspección anual.");
         }
     }
 }
