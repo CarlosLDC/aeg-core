@@ -287,6 +287,39 @@ class UserControllerUnitTest {
     }
 
     @Test
+    void updateUser_adminToDistributor_persistsDistributorProfile() {
+        User existing = User.builder()
+                .id(1L)
+                .username("admin@aeg.local")
+                .name("Admin")
+                .password("x")
+                .role(Role.ADMIN)
+                .branchId(12L)
+                .nationalId("V12345678")
+                .enabled(true)
+                .build();
+
+        UserController.UserUpdateRequest req = new UserController.UserUpdateRequest();
+        req.setRole("DISTRIBUTOR");
+        req.setDistributorId(7L);
+        req.setBranchId(null);
+        req.setNationalId("V12345678");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(distributorRepository.findById(7L))
+                .thenReturn(Optional.of(distributorWithOrgRole(7L, BranchOrganizationRole.DISTRIBUTOR)));
+        when(userRepository.existsByNationalIdAndIdNot("V12345678", 1L)).thenReturn(false);
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<UserController.UserResponse> resp = controller.updateUser(1L, req);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.DISTRIBUTOR);
+        assertThat(resp.getBody().getDistributorId()).isEqualTo(7L);
+        assertThat(resp.getBody().getBranchId()).isNull();
+    }
+
+    @Test
     void updateUser_whenChangingToExistingEmail_returnsConflict() {
         User existing = User.builder().id(1L).username("old@aeg.local").name("Old").password("x").role(Role.ADMIN).enabled(true).build();
         User other = User.builder().id(2L).username("taken@aeg.local").name("Taken").password("x").role(Role.TECHNICIAN).enabled(true).build();

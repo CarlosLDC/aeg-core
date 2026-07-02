@@ -58,12 +58,17 @@ public class UserRoleAssignmentService {
 			}
 			return RoleResolution.ok(requestedRole);
 		}
-		Long distributorId = request.getDistributorId() != null
-				? request.getDistributorId()
-				: existing.getDistributorId();
-		Long branchId = request.getBranchId() != null
-				? request.getBranchId()
-				: existing.getBranchId();
+		Long distributorId = null;
+		Long branchId = null;
+		if (Role.isDistributorScoped(requestedRole)) {
+			distributorId = request.getDistributorId() != null
+					? request.getDistributorId()
+					: existing.getDistributorId();
+		} else if (requestedRole == Role.TECHNICIAN) {
+			branchId = request.getBranchId() != null
+					? request.getBranchId()
+					: existing.getBranchId();
+		}
 		return resolveOperational(requestedRole, distributorId, branchId);
 	}
 
