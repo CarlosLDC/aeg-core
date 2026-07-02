@@ -3,7 +3,6 @@ package com.aeg.core.technicalservice.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.List;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +15,6 @@ public record TechnicalServiceRequest(
 		String notes,
 		@NotNull OffsetDateTime startAt,
 		@NotNull OffsetDateTime endAt,
-		@NotNull List<String> photoUrls,
 		Long installedSealId,
 		Long removedSealId,
 		@NotNull Integer initialZReport,

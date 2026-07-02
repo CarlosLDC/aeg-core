@@ -3,7 +3,6 @@ package com.aeg.core.technicalservice.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.List;
 
 public record TechnicalServiceResponse(
 		Long id,
@@ -15,7 +14,6 @@ public record TechnicalServiceResponse(
 		OffsetDateTime startAt,
 		OffsetDateTime createdAt,
 		OffsetDateTime endAt,
-		List<String> photoUrls,
 		Long installedSealId,
 		Long removedSealId,
 		Integer initialZReport,

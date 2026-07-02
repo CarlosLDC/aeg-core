@@ -57,7 +57,6 @@ class AnnualInspectionQrLookupServiceTest {
         inspection.setPrinter(printer);
         inspection.setInspectorUser(mock(com.aeg.core.security.User.class));
         inspection.setSealTampered(false);
-        inspection.setPhotoUrls(new String[0]);
         inspection.setInspectionDate(LocalDate.now());
         inspection.setCreatedAt(OffsetDateTime.now());
         inspection.setMqttRegistroImpresora("GRA0000017");

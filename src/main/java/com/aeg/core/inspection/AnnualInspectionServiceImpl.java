@@ -1,6 +1,5 @@
 package com.aeg.core.inspection;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -125,7 +124,6 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		e.setInspectorUser(fieldUser);
 		applyChecklistAndSealTampered(e, request);
 		e.setNotes(request.notes());
-		e.setPhotoUrls(request.photoUrls().toArray(String[]::new));
 		if (request.inspectionDate() != null) {
 			e.setInspectionDate(request.inspectionDate());
 		}
@@ -204,7 +202,6 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 				effectiveSealTampered(e),
 				e.getNotes(),
 				e.getCreatedAt(),
-				e.getPhotoUrls() == null ? List.of() : Arrays.asList(e.getPhotoUrls()),
 				e.getInspectionDate(),
 				e.getMqttRegistroImpresora(),
 				e.getMqttSetDateRevOAt(),

@@ -1,6 +1,5 @@
 package com.aeg.core.technicalservice;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -156,7 +155,6 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		e.setNotes(null);
 		e.setStartAt(r.startAt());
 		e.setEndAt(r.endAt());
-		e.setPhotoUrls(r.photoUrls().toArray(String[]::new));
 
 		if (r.installedSealId() != null) {
 			var seal = sealRepository.findById(r.installedSealId())
@@ -233,7 +231,6 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 				e.getStartAt(),
 				e.getCreatedAt(),
 				e.getEndAt(),
-				e.getPhotoUrls() == null ? List.of() : Arrays.asList(e.getPhotoUrls()),
 				e.getInstalledSealId(),
 				e.getRemovedSealId(),
 				e.getInitialZReport(),

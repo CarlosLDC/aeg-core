@@ -271,7 +271,6 @@ class RolePermissionsIT {
                 + "\"chkNotaCredito\":true,"
                 + "\"chkSensorPapel\":true,"
                 + "\"notes\":null,"
-                + "\"photoUrls\":[],"
                 + "\"inspectionDate\":\"" + LocalDate.now() + "\""
                 + "}";
     }
@@ -285,7 +284,6 @@ class RolePermissionsIT {
                 + "\"notes\":null,"
                 + "\"startAt\":\"" + now + "\","
                 + "\"endAt\":\"" + now.plusHours(1) + "\","
-                + "\"photoUrls\":[],"
                 + "\"initialZReport\":1,"
                 + "\"finalZReport\":2,"
                 + "\"cost\":" + BigDecimal.ZERO + ","
@@ -306,7 +304,6 @@ class RolePermissionsIT {
                 + "\"notes\":null,"
                 + "\"startAt\":\"" + now + "\","
                 + "\"endAt\":\"" + now.plusHours(1) + "\","
-                + "\"photoUrls\":[],"
                 + "\"initialZReport\":1,"
                 + "\"finalZReport\":2,"
                 + "\"cost\":" + BigDecimal.ZERO + ","

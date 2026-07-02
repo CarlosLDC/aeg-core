@@ -1,6 +1,5 @@
 package com.aeg.core.fiscalbook;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -303,8 +302,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				installed != null ? installed.getSerial() : null,
 				removed != null ? removed.getSerial() : null,
 				null,
-				visit.getCost(),
-				visit.getPhotoUrls() == null ? List.of() : Arrays.asList(visit.getPhotoUrls()));
+				visit.getCost());
 	}
 
 	private String resolveServiceCenterLabel(TechnicalServiceVisit visit) {
@@ -341,7 +339,6 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				inspector != null ? inspector.getName() : null,
 				sealTampered,
 				inspection.getNotes(),
-				inspection.getPhotoUrls() == null ? List.of() : Arrays.asList(inspection.getPhotoUrls()),
 				inspection.getMqttRegistroImpresora(),
 				inspection.getMqttSetDateRevOAt(),
 				inspection.getMqttNumeroFacturaPrueba(),

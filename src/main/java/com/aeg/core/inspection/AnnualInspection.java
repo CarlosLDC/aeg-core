@@ -3,9 +3,6 @@ package com.aeg.core.inspection;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -41,10 +38,6 @@ public class AnnualInspection {
 
 	@Column(name = "created_at", nullable = false)
 	private OffsetDateTime createdAt;
-
-	@JdbcTypeCode(SqlTypes.ARRAY)
-	@Column(name = "url_fotos", nullable = false)
-	private String[] photoUrls;
 
 	@Column(name = "fecha", nullable = false)
 	private LocalDate inspectionDate;
@@ -89,9 +82,6 @@ public class AnnualInspection {
 	void prePersist() {
 		if (createdAt == null) {
 			createdAt = OffsetDateTime.now();
-		}
-		if (photoUrls == null) {
-			photoUrls = new String[0];
 		}
 		if (inspectionDate == null) {
 			inspectionDate = LocalDate.now();
@@ -152,14 +142,6 @@ public class AnnualInspection {
 
 	public void setCreatedAt(OffsetDateTime createdAt) {
 		this.createdAt = createdAt;
-	}
-
-	public String[] getPhotoUrls() {
-		return photoUrls;
-	}
-
-	public void setPhotoUrls(String[] photoUrls) {
-		this.photoUrls = photoUrls;
 	}
 
 	public LocalDate getInspectionDate() {

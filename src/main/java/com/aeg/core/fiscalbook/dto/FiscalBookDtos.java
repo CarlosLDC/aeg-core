@@ -128,8 +128,7 @@ public final class FiscalBookDtos {
 			String installedSealSerial,
 			String removedSealSerial,
 			String notes,
-			BigDecimal cost,
-			List<String> photoUrls) {
+			BigDecimal cost) {
 	}
 
 	public record FiscalBookAnnualInspectionResponse(
@@ -141,7 +140,6 @@ public final class FiscalBookDtos {
 			String inspector,
 			Boolean sealTampered,
 			String notes,
-			List<String> photoUrls,
 			String mqttRegistroImpresora,
 			Long mqttSetDateRevOAt,
 			Integer mqttNumeroFacturaPrueba,

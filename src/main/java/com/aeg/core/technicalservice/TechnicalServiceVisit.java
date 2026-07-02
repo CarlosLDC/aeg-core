@@ -4,9 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.seal.Seal;
@@ -58,10 +55,6 @@ public class TechnicalServiceVisit {
 	@Column(name = "fecha_fin", nullable = false)
 	private OffsetDateTime endAt;
 
-	@JdbcTypeCode(SqlTypes.ARRAY)
-	@Column(name = "url_fotos", nullable = false)
-	private String[] photoUrls;
-
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "id_precinto_instalado")
 	private Seal installedSeal;
@@ -99,9 +92,6 @@ public class TechnicalServiceVisit {
 	void prePersist() {
 		if (createdAt == null) {
 			createdAt = OffsetDateTime.now();
-		}
-		if (photoUrls == null) {
-			photoUrls = new String[0];
 		}
 	}
 
@@ -187,14 +177,6 @@ public class TechnicalServiceVisit {
 
 	public void setEndAt(OffsetDateTime endAt) {
 		this.endAt = endAt;
-	}
-
-	public String[] getPhotoUrls() {
-		return photoUrls;
-	}
-
-	public void setPhotoUrls(String[] photoUrls) {
-		this.photoUrls = photoUrls;
 	}
 
 	public Seal getInstalledSeal() {
