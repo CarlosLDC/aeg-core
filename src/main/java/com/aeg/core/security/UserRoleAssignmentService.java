@@ -112,7 +112,15 @@ public class UserRoleAssignmentService {
 			return RoleResolution.error(HttpStatus.NOT_FOUND);
 		}
 		Branch branch = distributor.get().getBranch();
-		if (branch == null || branch.getOrganizationRole() != BranchOrganizationRole.DISTRIBUTOR) {
+		if (branch == null) {
+			return RoleResolution.error(HttpStatus.BAD_REQUEST);
+		}
+		BranchOrganizationRole role = branch.getOrganizationRole();
+		if (role == null || role == BranchOrganizationRole.NONE) {
+			role = BranchOrganizationRole.fromLegacyFlags(
+					branch.getIsDistributor(), branch.getIsServiceCenter());
+		}
+		if (role != BranchOrganizationRole.DISTRIBUTOR) {
 			return RoleResolution.error(HttpStatus.BAD_REQUEST);
 		}
 		return RoleResolution.ok(Role.DISTRIBUTOR);

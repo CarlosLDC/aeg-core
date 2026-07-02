@@ -93,6 +93,9 @@ public class DistributorServiceImpl implements DistributorService {
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
 		securityScope.assertBranchInScope(branch.getId());
+		validateDistributorBranch(branch);
+		BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.DISTRIBUTOR);
+		branchRepository.save(branch);
 		distributor.setBranch(branch);
 		return toResponse(repository.save(distributor));
 	}

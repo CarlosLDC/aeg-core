@@ -96,6 +96,44 @@ class OrganizationCapabilityServiceTest {
 	}
 
 	@Test
+	void resolve_usesLegacyDistributorFlagWhenOrganizationRoleNone() {
+		Company company = standardCompany();
+		Branch branch = new Branch();
+		branch.setOrganizationRole(BranchOrganizationRole.NONE);
+		branch.setIsDistributor(true);
+		branch.setIsServiceCenter(false);
+
+		assertThat(service.resolve(company, branch)).isEqualTo(OrganizationProfile.DISTRIBUTOR);
+		assertThat(service.hasCapability(
+				service.resolve(company, branch), OrgCapability.ENAJENAR)).isTrue();
+	}
+
+	@Test
+	void resolveActorProfile_distributorUserDefaultsToDistributorWhenBranchRoleUnset() {
+		Company company = standardCompany();
+		Branch branch = new Branch();
+		branch.setId(5L);
+		branch.setCompany(company);
+		branch.setOrganizationRole(BranchOrganizationRole.NONE);
+		branch.setIsDistributor(false);
+
+		com.aeg.core.distributor.Distributor distributor = new com.aeg.core.distributor.Distributor();
+		distributor.setId(7L);
+		distributor.setBranch(branch);
+
+		User distributorUser = User.builder()
+				.role(Role.DISTRIBUTOR)
+				.distributorId(7L)
+				.build();
+
+		when(securityScope.currentUser()).thenReturn(distributorUser);
+		when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+
+		assertThat(service.resolveActorProfile()).isEqualTo(OrganizationProfile.DISTRIBUTOR);
+		service.assertActorCan(OrgCapability.ENAJENAR);
+	}
+
+	@Test
 	void assertCapabilityThrowsWhenDenied() {
 		assertThatThrownBy(() -> service.assertCapability(
 				OrganizationProfile.DISTRIBUTOR, OrgCapability.ASSIGN_TO_DISTRIBUTOR))

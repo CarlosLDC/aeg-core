@@ -33,10 +33,15 @@ public class OrganizationCapabilityService {
 		if (company != null && company.getOrganizationType() == OrganizationType.FACTORY) {
 			return OrganizationProfile.FACTORY;
 		}
-		if (branch == null || branch.getOrganizationRole() == null) {
+		if (branch == null) {
 			return OrganizationProfile.NONE;
 		}
-		return switch (branch.getOrganizationRole()) {
+		BranchOrganizationRole role = branch.getOrganizationRole();
+		if (role == null || role == BranchOrganizationRole.NONE) {
+			role = BranchOrganizationRole.fromLegacyFlags(
+					branch.getIsDistributor(), branch.getIsServiceCenter());
+		}
+		return switch (role) {
 			case SERVICE_CENTER -> OrganizationProfile.SERVICE_CENTER;
 			case DISTRIBUTOR -> OrganizationProfile.DISTRIBUTOR;
 			case NONE -> OrganizationProfile.NONE;
@@ -78,7 +83,15 @@ public class OrganizationCapabilityService {
 		}
 		if (Role.isDistributorScoped(user.getRole()) && user.getDistributorId() != null) {
 			return distributorRepository.findById(user.getDistributorId())
-					.map(distributor -> resolve(distributor.getBranch().getCompany(), distributor.getBranch()))
+					.map(distributor -> {
+						Branch branch = distributor.getBranch();
+						OrganizationProfile profile = resolve(
+								branch != null ? branch.getCompany() : null, branch);
+						if (profile == OrganizationProfile.NONE) {
+							return OrganizationProfile.DISTRIBUTOR;
+						}
+						return profile;
+					})
 					.orElse(OrganizationProfile.DISTRIBUTOR);
 		}
 		return OrganizationProfile.NONE;
