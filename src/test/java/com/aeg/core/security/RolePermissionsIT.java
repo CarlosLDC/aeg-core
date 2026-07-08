@@ -168,6 +168,12 @@ class RolePermissionsIT {
                 "{\"printerId\":" + printerId + "}",
                 distributorToken);
         assertThat(toolsStatus.statusCode()).isNotEqualTo(403);
+
+        var testInvoice = post(
+                "/api/mqtt/tools/test-documents/invoice",
+                "{\"printerId\":" + printerId + "}",
+                distributorToken);
+        assertThat(testInvoice.statusCode()).isNotEqualTo(403);
     }
 
     @Test

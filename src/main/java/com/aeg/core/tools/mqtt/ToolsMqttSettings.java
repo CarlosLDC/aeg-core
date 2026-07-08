@@ -54,4 +54,25 @@ public class ToolsMqttSettings {
     public int defaultTimeoutSeconds() {
         return defaultTimeoutSeconds;
     }
+
+    @Value("${app.mqtt.tools.timeout.test-invoice-seconds:5}")
+    private int testInvoiceTimeoutSeconds;
+
+    @Value("${app.mqtt.tools.timeout.test-note-seconds:6}")
+    private int testNoteTimeoutSeconds;
+
+    @Value("${app.mqtt.tools.timeout.test-generate-z-seconds:5}")
+    private int testGenerateZTimeoutSeconds;
+
+    public int testInvoiceTimeoutSeconds() {
+        return testInvoiceTimeoutSeconds;
+    }
+
+    public int testNoteTimeoutSeconds() {
+        return testNoteTimeoutSeconds;
+    }
+
+    public int testGenerateZTimeoutSeconds() {
+        return testGenerateZTimeoutSeconds;
+    }
 }

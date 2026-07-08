@@ -21,6 +21,7 @@ import com.aeg.core.mqtt.dto.ToolsTransmitZResponse;
 import com.aeg.core.mqtt.dto.ToolsWifiConnectRequest;
 import com.aeg.core.mqtt.dto.ToolsWifiScanResponse;
 import com.aeg.core.tools.mqtt.ToolsMqttService;
+import com.aeg.core.tools.mqtt.ToolsTestDocumentsService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class ToolsMqttController {
 
     private final ToolsMqttService toolsMqttService;
+    private final ToolsTestDocumentsService toolsTestDocumentsService;
 
     @PostMapping("/status")
     public ResponseEntity<ToolsMqttStatusResponse> status(@Valid @RequestBody ToolsPrinterRequest request) {
@@ -120,5 +122,29 @@ public class ToolsMqttController {
     public ResponseEntity<ToolsReprintResponse> reprint(@Valid @RequestBody ToolsReprintRequest request) {
         return ResponseEntity.ok(toolsMqttService.reprint(
                 request.printerId(), request.docType(), request.number(), request.mode()));
+    }
+
+    @PostMapping("/test-documents/invoice")
+    public ResponseEntity<ToolsMqttSimpleResponse> testDocumentInvoice(
+            @Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsTestDocumentsService.sendTestInvoice(request.printerId()));
+    }
+
+    @PostMapping("/test-documents/credit-note")
+    public ResponseEntity<ToolsMqttSimpleResponse> testDocumentCreditNote(
+            @Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsTestDocumentsService.sendTestCreditNote(request.printerId()));
+    }
+
+    @PostMapping("/test-documents/debit-note")
+    public ResponseEntity<ToolsMqttSimpleResponse> testDocumentDebitNote(
+            @Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsTestDocumentsService.sendTestDebitNote(request.printerId()));
+    }
+
+    @PostMapping("/test-documents/generate-z")
+    public ResponseEntity<ToolsMqttSimpleResponse> testDocumentGenerateZ(
+            @Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsTestDocumentsService.sendTestGenerateZ(request.printerId()));
     }
 }

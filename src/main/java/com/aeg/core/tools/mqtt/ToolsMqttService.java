@@ -329,6 +329,8 @@ public class ToolsMqttService {
             case "FACTURA", "FAC" -> "FAC";
             case "NOTA_CREDITO", "NC" -> "NC";
             case "NOTA_DEBITO", "ND" -> "ND";
+            case "NO_FISCAL", "NF", "DOCUMENTO-NO-FISCAL", "DOCUMENTO_NO_FISCAL" -> "NF";
+            case "REPORTE_X", "RX", "REPORT-X" -> "RX";
             case "Z" -> "Z";
             default -> docType.trim().toUpperCase();
         };
