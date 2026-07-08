@@ -1,6 +1,7 @@
 package com.aeg.core.seal.dto;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,5 +15,6 @@ public record SealRequest(
         OffsetDateTime installationDate,
         OffsetDateTime removalDate,
         @NotNull SealColor color,
-        @NotNull SealStatus status
+        @NotNull SealStatus status,
+        UUID creationBatchId
 ) {}

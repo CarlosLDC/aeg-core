@@ -95,6 +95,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(request.macAddress());
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
+        p.setCreationBatchId(request.creationBatchId());
         reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
@@ -315,6 +316,7 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getFiscalSerial(),
                 p.getFinalSalePrice(),
                 p.getCreatedAt(),
+                p.getCreationBatchId(),
                 p.getStatus(),
                 p.getDistributorId(),
                 p.getPaid(),

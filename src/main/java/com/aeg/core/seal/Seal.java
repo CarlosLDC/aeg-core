@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.PrePersist;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "precintos")
@@ -31,6 +32,9 @@ public class Seal {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "creation_batch_id")
+    private UUID creationBatchId;
 
     @Column(name = "fecha_instalacion")
     private OffsetDateTime installationDate;
@@ -55,6 +59,8 @@ public class Seal {
     public void setSerial(String serial) { this.serial = serial; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public UUID getCreationBatchId() { return creationBatchId; }
+    public void setCreationBatchId(UUID creationBatchId) { this.creationBatchId = creationBatchId; }
     public OffsetDateTime getInstallationDate() { return installationDate; }
     public void setInstallationDate(OffsetDateTime installationDate) { this.installationDate = installationDate; }
     public OffsetDateTime getRemovalDate() { return removalDate; }

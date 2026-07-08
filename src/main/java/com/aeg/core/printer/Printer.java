@@ -17,6 +17,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "impresoras")
@@ -46,6 +47,9 @@ public class Printer {
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
+
+    @Column(name = "creation_batch_id")
+    private UUID creationBatchId;
 
     @Convert(converter = PrinterStatusConverter.class)
     @Column(name = "estatus", nullable = false)
@@ -103,6 +107,8 @@ public class Printer {
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+    public UUID getCreationBatchId() { return creationBatchId; }
+    public void setCreationBatchId(UUID creationBatchId) { this.creationBatchId = creationBatchId; }
 
     public PrinterStatus getStatus() { return status; }
     public void setStatus(PrinterStatus status) { this.status = status; }

@@ -59,6 +59,7 @@ public class SealServiceImpl implements SealService {
         s.setRemovalDate(request.removalDate());
         s.setColor(request.color());
         s.setStatus(request.status());
+        s.setCreationBatchId(request.creationBatchId());
         return toResponse(repository.save(s));
     }
 
@@ -95,6 +96,15 @@ public class SealServiceImpl implements SealService {
     }
 
     private SealResponse toResponse(Seal s) {
-        return new SealResponse(s.getId(), s.getPrinterId(), s.getSerial(), s.getCreatedAt(), s.getInstallationDate(), s.getRemovalDate(), s.getColor(), s.getStatus());
+        return new SealResponse(
+                s.getId(),
+                s.getPrinterId(),
+                s.getSerial(),
+                s.getCreatedAt(),
+                s.getCreationBatchId(),
+                s.getInstallationDate(),
+                s.getRemovalDate(),
+                s.getColor(),
+                s.getStatus());
     }
 }

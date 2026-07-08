@@ -98,7 +98,8 @@ public class PrinterControllerIT {
                 "1.0.0",
                 "AA:BB:CC:DD:EE:FF",
                 PrinterStatus.LABORATORIO,
-                DeviceType.INTERNO);
+                DeviceType.INTERNO,
+                null);
         String body = "{"
                 + "\"modelId\":" + req.modelId() + ","
                 + (req.softwareId() != null ? "\"softwareId\":" + req.softwareId() + "," : "")

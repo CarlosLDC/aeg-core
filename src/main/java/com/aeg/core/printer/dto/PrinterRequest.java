@@ -2,6 +2,7 @@ package com.aeg.core.printer.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -23,5 +24,6 @@ public record PrinterRequest(
         @Pattern(regexp = "^[0-9]+\\.[0-9]+\\.[0-9]+$") String versionFirmware,
         @Pattern(regexp = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$") String macAddress,
         @NotNull PrinterStatus status,
-        @NotNull DeviceType deviceType
+        @NotNull DeviceType deviceType,
+        UUID creationBatchId
 ) {}
