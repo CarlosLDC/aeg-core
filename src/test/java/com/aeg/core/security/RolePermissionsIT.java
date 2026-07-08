@@ -154,6 +154,23 @@ class RolePermissionsIT {
     }
 
     @Test
+    void fieldRolesCanAccessToolsMqttEndpoints() throws Exception {
+        String distributorToken = tokenFor("distributor@test.local");
+
+        var adminPublish = post(
+                "/api/mqtt/publish",
+                "{\"topic\":\"test\",\"payload\":{}}",
+                distributorToken);
+        assertThat(adminPublish.statusCode()).isEqualTo(403);
+
+        var toolsStatus = post(
+                "/api/mqtt/tools/status",
+                "{\"printerId\":" + printerId + "}",
+                distributorToken);
+        assertThat(toolsStatus.statusCode()).isNotEqualTo(403);
+    }
+
+    @Test
     void fieldRolesCanAccessAnnualInspectionMqttEndpoints() throws Exception {
         String distributorToken = tokenFor("distributor@test.local");
         String technicianToken = tokenFor("sc-tech@test.local");

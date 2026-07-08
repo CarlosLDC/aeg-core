@@ -42,6 +42,10 @@ public class SecurityConfig {
 			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
 	};
 
+	private static final String[] TOOLS_MQTT_ROLES = {
+			"ADMIN", "DISTRIBUTOR", "TECHNICIAN", "SERVICE_CENTER"
+	};
+
 	private static final String[] PANEL_ROLES = {
 			"ADMIN", "DISTRIBUTOR"
 	};
@@ -88,6 +92,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/cancel").hasAnyRole(DISTRIBUTOR_PANEL_ROLES)
 				.requestMatchers("/api/mqtt/enajenacion/stream").permitAll()
 				.requestMatchers("/api/mqtt/annual-inspection/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)
+				.requestMatchers("/api/mqtt/tools/**").hasAnyRole(TOOLS_MQTT_ROLES)
 				.requestMatchers("/api/software/**", "/api/mqtt/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printer-models/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.POST, "/api/printer-models/**").hasRole("ADMIN")

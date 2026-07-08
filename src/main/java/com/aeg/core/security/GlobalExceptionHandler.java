@@ -1,6 +1,7 @@
 package com.aeg.core.security;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
+import com.aeg.core.tools.mqtt.ToolsMqttOperationException;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceException;
@@ -89,6 +90,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EnajenacionProtocolException.class)
     public ResponseEntity<Map<String, Object>> handleEnajenacionProtocol(EnajenacionProtocolException e) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Petición inválida", e.getMessage());
+    }
+
+    @ExceptionHandler(ToolsMqttOperationException.class)
+    public ResponseEntity<Map<String, Object>> handleToolsMqttOperation(ToolsMqttOperationException e) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Operación MQTT fallida", e.getMessage());
     }
 
     @ExceptionHandler({PersistenceException.class, JpaSystemException.class, PropertyAccessException.class})
