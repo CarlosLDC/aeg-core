@@ -9,7 +9,6 @@ import java.util.function.Predicate;
 
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter.ToolsMqttTextChunksResult;
@@ -89,11 +88,7 @@ public class ToolsMqttService {
 
     public ToolsMqttSimpleResponse resetWifi(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        try {
-            mqttService.publish(ctx.topic(), payloadBuilder.wifiResetPayload());
-        } catch (JsonProcessingException ex) {
-            throw new EnajenacionProtocolException("No se pudo construir el comando de reinicio.");
-        }
+        mqttService.publish(ctx.topic(), payloadBuilder.wifiResetPayload());
         return ToolsMqttSimpleResponse.ok("Comando de reinicio enviado a la impresora.");
     }
 

@@ -3,6 +3,7 @@ package com.aeg.core.tools.mqtt;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
+import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -39,72 +40,76 @@ public class ToolsMqttPayloadBuilder {
         return staInfPayload(ToolsMqttConstants.STA_PIE_FIJ);
     }
 
-    public String wifiConnectPayload(String ssid, String password) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String wifiConnectPayload(String ssid, String password) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_WIFI_CONF,
                 "data", java.util.Map.of("ssid", ssid, "pass", password)));
     }
 
-    public String wifiResetPayload() throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String wifiResetPayload() {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_RESET_MF,
                 "data", ToolsMqttConstants.RESET_MF_DATA));
     }
 
-    public String listReportZPayload() throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String listReportZPayload() {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_GET_REP_Z,
                 "data", -1));
     }
 
-    public String generateReportZPayload() throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String generateReportZPayload() {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_REP_Z,
                 "data", 0));
     }
 
-    public String getReportZPayload(int reportNumber) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String getReportZPayload(int reportNumber) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_GET_REP_Z,
                 "data", reportNumber));
     }
 
-    public String reportXPayload() throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String reportXPayload() {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_IMP_REP_X));
     }
 
-    public String formasPagoWritePayload(int nroFp, String descripcion) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String formasPagoWritePayload(int nroFp, String descripcion) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_DESC_FP,
                 "data", java.util.Map.of("nroFP", nroFp, "descripcion", descripcion)));
     }
 
-    public String headerWritePayload(String content) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String headerWritePayload(String content) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_W_FILE_SPIFF,
                 "data", content));
     }
 
-    public String footerWritePayload(String content) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String footerWritePayload(String content) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_PIE_TI_F,
                 "data", content));
     }
 
-    public String reprintPayload(String docType, int number) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(java.util.Map.of(
+    public String reprintPayload(String docType, int number) {
+        return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_REIM_REP,
                 "data", java.util.Map.of("tipo", docType, "nro", number)));
     }
 
     private String staInfPayload(String status) {
+        return writeJson(java.util.Map.of(
+                "cmd", ToolsMqttConstants.CMD_STA_INF,
+                "data", java.util.Map.of("status", status)));
+    }
+
+    private String writeJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(java.util.Map.of(
-                    "cmd", ToolsMqttConstants.CMD_STA_INF,
-                    "data", java.util.Map.of("status", status)));
+            return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Failed to build StaInf payload", ex);
+            throw new EnajenacionProtocolException("Failed to serialize MQTT payload: " + ex.getMessage());
         }
     }
 }

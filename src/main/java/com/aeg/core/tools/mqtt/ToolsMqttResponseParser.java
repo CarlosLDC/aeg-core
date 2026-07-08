@@ -57,9 +57,10 @@ public class ToolsMqttResponseParser {
             return ToolsMqttStatusResponse.ok("SIN CONEXION", null);
         }
 
-        return ToolsMqttStatusResponse.error(
-                response.message() != null ? response.message() : "Error al consultar estado",
-                response.code());
+        String errorMessage = response.dataS() != null && !response.dataS().isBlank()
+                ? response.dataS()
+                : "Error al consultar estado";
+        return ToolsMqttStatusResponse.error(errorMessage, response.code());
     }
 
     public List<ToolsWifiNetworkDto> parseWifiScan(FiscalMqttResponseItem response) {
