@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class ToolsMqttResponseParser {
 
     private static final Pattern FORMA_PAGO_KEY = Pattern.compile("^\\[(\\d+)\\](.+)$");
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final ObjectMapper objectMapper;
 
@@ -174,6 +175,21 @@ public class ToolsMqttResponseParser {
         if (response.dataS() == null) {
             return "";
         }
+        String dataS = response.dataS().trim();
+        if (dataS.isBlank()) {
+            return "";
+        }
+        if ("SIN PIE DE TICKET FIJOS".equalsIgnoreCase(dataS)) {
+            return "";
+        }
+        if (isJsonArrayOfStrings(dataS)) {
+            try {
+                List<String> lines = objectMapper.readValue(dataS, new TypeReference<>() {});
+                return String.join("\n", lines);
+            } catch (Exception ex) {
+                throw new ToolsMqttOperationException("No se pudo interpretar el encabezado o pie de página.");
+            }
+        }
         return response.dataS();
     }
 
@@ -198,8 +214,7 @@ public class ToolsMqttResponseParser {
         if (item.dataS() == null || item.dataS().isBlank()) {
             return false;
         }
-        String trimmed = item.dataS().trim();
-        return trimmed.startsWith("[");
+        return isJsonArrayOfObjectsWithField(item.dataS(), "ssid");
     }
 
     public static boolean isFormasPagoResponse(FiscalMqttResponseItem item) {
@@ -227,10 +242,15 @@ public class ToolsMqttResponseParser {
         if (item.dataS() == null || item.dataS().isBlank()) {
             return false;
         }
-        return !isStatusResponse(item)
-                && !isWifiScanResponse(item)
-                && !isFormasPagoResponse(item)
-                && !isLastTransmittedZResponse(item);
+        if (isStatusResponse(item)
+                || isWifiScanResponse(item)
+                || isFormasPagoResponse(item)
+                || isLastTransmittedZResponse(item)) {
+            return false;
+        }
+        String trimmed = item.dataS().trim();
+        return isJsonArrayOfStrings(trimmed)
+                || "SIN PIE DE TICKET FIJOS".equalsIgnoreCase(trimmed);
     }
 
     private static String textOrNa(JsonNode node, String field) {
@@ -240,5 +260,39 @@ public class ToolsMqttResponseParser {
 
     private static boolean isHexValue(String value) {
         return value != null && value.trim().matches("^[0-9A-Fa-f]+$");
+    }
+
+    private static boolean isJsonArrayOfStrings(String value) {
+        try {
+            JsonNode node = JSON.readTree(value);
+            if (!node.isArray() || node.isEmpty()) {
+                return false;
+            }
+            for (JsonNode element : node) {
+                if (!element.isTextual()) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private static boolean isJsonArrayOfObjectsWithField(String value, String field) {
+        try {
+            JsonNode node = JSON.readTree(value);
+            if (!node.isArray() || node.isEmpty()) {
+                return false;
+            }
+            for (JsonNode element : node) {
+                if (!element.isObject() || !element.has(field)) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

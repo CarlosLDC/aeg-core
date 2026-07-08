@@ -55,4 +55,37 @@ class ToolsMqttResponseParserTest {
         assertTrue(ToolsMqttResponseParser.isWifiScanResponse(item));
         assertFalse(ToolsMqttResponseParser.isStatusResponse(item));
     }
+
+    @Test
+    void isHeaderFooterReadResponseDetectsStringArray() {
+        String dataS = """
+                ["CALLE PRINCIPAL CC ORINOKIA MALL NIVEL PB",\
+                "LOCAL PB-C-064A/PB-C-064B SECTOR ALTA VISTA",\
+                "PUERTO ORDAZ ZONA POSTAL 8050",\
+                "CIUDAD GUAYANA, BOLIVAR",\
+                "CONTRIBUYENTE ORDINARIO"]""";
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem("StaInf", 0, 0, dataS);
+
+        assertFalse(ToolsMqttResponseParser.isWifiScanResponse(item));
+        assertTrue(ToolsMqttResponseParser.isHeaderFooterReadResponse(item));
+    }
+
+    @Test
+    void parseHeaderFooterJoinsStringArrayLines() {
+        String dataS = """
+                ["CALLE PRINCIPAL","CIUDAD GUAYANA, BOLIVAR"]""";
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem("StaInf", 0, 0, dataS);
+
+        assertEquals(
+                "CALLE PRINCIPAL\nCIUDAD GUAYANA, BOLIVAR",
+                parser.parseHeaderFooter(item));
+    }
+
+    @Test
+    void parseHeaderFooterReturnsEmptyForMissingFooterMarker() {
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem(
+                "StaInf", 0, 0, "SIN PIE DE TICKET FIJOS");
+
+        assertEquals("", parser.parseHeaderFooter(item));
+    }
 }
