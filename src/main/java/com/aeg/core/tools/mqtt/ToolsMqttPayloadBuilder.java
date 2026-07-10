@@ -4,9 +4,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
-import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class ToolsMqttPayloadBuilder {
@@ -83,15 +86,18 @@ public class ToolsMqttPayloadBuilder {
     }
 
     public String headerWritePayload(String content) {
-        return writeJson(java.util.Map.of(
-                "cmd", ToolsMqttConstants.CMD_W_FILE_SPIFF,
-                "data", FiscalTicketLatin2.normalizeFiscalTicketText(content)));
+        List<String> lines = ToolsHeaderFooterPayloadSupport.parseLines(content);
+        Map<String, Object> contenido = Map.of("encFacFijo", lines);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("Access", ToolsMqttConstants.SPIFF_ACCESS);
+        data.put("nameFile", ToolsMqttConstants.PARAM_FAC_SPIFF_FILE);
+        data.put("contenido", contenido);
+        return writeJson(Map.of("cmd", ToolsMqttConstants.CMD_W_FILE_SPIFF, "data", data));
     }
 
     public String footerWritePayload(String content) {
-        return writeJson(java.util.Map.of(
-                "cmd", ToolsMqttConstants.CMD_PIE_TI_F,
-                "data", FiscalTicketLatin2.normalizeFiscalTicketText(content)));
+        List<String> lines = ToolsHeaderFooterPayloadSupport.parseLines(content);
+        return writeJson(Map.of("cmd", ToolsMqttConstants.CMD_PIE_TI_F, "data", lines));
     }
 
     public String reprintPayload(String tipoRe, int number, boolean printPhysically) {

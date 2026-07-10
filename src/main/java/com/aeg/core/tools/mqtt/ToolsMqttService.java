@@ -189,6 +189,9 @@ public class ToolsMqttService {
 
     public ToolsMqttSimpleResponse writeHeader(Long printerId, String content) {
         try {
+            List<String> lines = ToolsHeaderFooterPayloadSupport.parseLines(content);
+            ToolsHeaderFooterPayloadSupport.validateLines(
+                    lines, ToolsMqttConstants.HEADER_MAX_LINES, "encabezado");
             FiscalMqttResponseItem response = publishAndAwait(
                     printerId,
                     payloadBuilder.headerWritePayload(content),
@@ -212,6 +215,9 @@ public class ToolsMqttService {
 
     public ToolsMqttSimpleResponse writeFooter(Long printerId, String content) {
         try {
+            List<String> lines = ToolsHeaderFooterPayloadSupport.parseLines(content);
+            ToolsHeaderFooterPayloadSupport.validateLines(
+                    lines, ToolsMqttConstants.FOOTER_MAX_LINES, "pie de página");
             FiscalMqttResponseItem response = publishAndAwait(
                     printerId,
                     payloadBuilder.footerWritePayload(content),

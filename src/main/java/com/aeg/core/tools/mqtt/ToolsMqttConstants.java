@@ -28,6 +28,13 @@ public final class ToolsMqttConstants {
     public static final String STA_ENC_FIJ = "staEncFij";
     public static final String STA_PIE_FIJ = "staPieFij";
 
+    public static final String SPIFF_ACCESS = "AeG-1968-2024";
+    public static final String PARAM_FAC_SPIFF_FILE = "paramFacSPIFF.json";
+
+    public static final int HEADER_MAX_LINES = 8;
+    public static final int FOOTER_MAX_LINES = 9;
+    public static final int HEADER_FOOTER_MAX_LINE_LENGTH = 50;
+
     public static final int RESET_MF_DATA = 5555;
 
     private ToolsMqttConstants() {
