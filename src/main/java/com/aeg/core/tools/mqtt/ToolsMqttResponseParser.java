@@ -35,12 +35,9 @@ public class ToolsMqttResponseParser {
     public ToolsMqttStatusResponse parseStatus(FiscalMqttResponseItem response) {
         if (response.code() != null && response.code() == 0 && response.dataS() != null) {
             try {
-                JsonNode node = objectMapper.readTree(response.dataS());
-                if (node.has("EstatusSeniat")) {
-                    String seniatRaw = node.path("EstatusSeniat").asText("");
-                    String seniatStatus = "EN LINEA".equalsIgnoreCase(seniatRaw.trim())
-                            ? "EN LINEA"
-                            : "SIN CONEXION";
+                JsonNode node = parseStaInfDataNode(response.dataS());
+                if (node != null && node.has("EstatusSeniat")) {
+                    String seniatStatus = normalizeSeniatStatus(node.path("EstatusSeniat").asText(""));
                     ToolsMqttAdditionalInfoDto info = new ToolsMqttAdditionalInfoDto(
                             textOrNa(node, "ConexionWifi"),
                             textOrNa(node, "direccionIP"),
@@ -207,10 +204,24 @@ public class ToolsMqttResponseParser {
         if (item == null || !ToolsMqttConstants.CMD_STA_INF.equalsIgnoreCase(item.cmd())) {
             return false;
         }
-        if (item.dataS() == null) {
+        if (item.dataS() == null || item.dataS().isBlank()) {
             return false;
         }
-        return item.dataS().contains("EstatusSeniat");
+        if (item.dataS().contains("EstatusSeniat")) {
+            return true;
+        }
+        try {
+            JsonNode node = JSON.readTree(item.dataS());
+            if (node.isTextual()) {
+                String inner = node.asText().trim();
+                if (inner.startsWith("{")) {
+                    node = JSON.readTree(inner);
+                }
+            }
+            return node.isObject() && node.has("EstatusSeniat");
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     public static boolean isWifiScanResponse(FiscalMqttResponseItem item) {
@@ -280,6 +291,32 @@ public class ToolsMqttResponseParser {
     private static String textOrNa(JsonNode node, String field) {
         String value = node.path(field).asText("");
         return value.isBlank() ? "N/A" : value;
+    }
+
+    private JsonNode parseStaInfDataNode(String dataS) throws Exception {
+        JsonNode node = objectMapper.readTree(dataS);
+        if (node.isTextual()) {
+            String inner = node.asText().trim();
+            if (inner.startsWith("{") || inner.startsWith("[")) {
+                return objectMapper.readTree(inner);
+            }
+        }
+        return node;
+    }
+
+    static String normalizeSeniatStatus(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "SIN CONEXION";
+        }
+        String normalized = raw.trim().replaceAll("\\s+", " ");
+        if ("EN LINEA".equalsIgnoreCase(normalized)) {
+            return "EN LINEA";
+        }
+        String upper = normalized.toUpperCase();
+        if (upper.contains("EN LINEA") || upper.contains("ENLINEA")) {
+            return "EN LINEA";
+        }
+        return "SIN CONEXION";
     }
 
     private static boolean isHexValue(String value) {

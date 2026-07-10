@@ -21,6 +21,30 @@ class ToolsMqttResponseParserTest {
     }
 
     @Test
+    void parseStatusReturnsSeniatOnlineForObjectDataS() {
+        String dataS = """
+                {"ConexionWifi":"AP_IoT_Home_CANTV","direccionIP":"192.168.1.101",\
+                "EstatusSeniat":"EN LINEA","NroUltZEmit":2,"NroUltZTx":0,"DiasSinTx":0}""";
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem("StaInf", 0, 1, dataS);
+
+        ToolsMqttStatusResponse response = parser.parseStatus(item);
+
+        assertTrue(response.success());
+        assertEquals("EN LINEA", response.seniatStatus());
+        assertEquals("AP_IoT_Home_CANTV", response.additionalInfo().wifiNetwork());
+        assertEquals("192.168.1.101", response.additionalInfo().ipAddress());
+        assertEquals(2, response.additionalInfo().lastZReport());
+        assertTrue(ToolsMqttResponseParser.isStatusResponse(item));
+    }
+
+    @Test
+    void parseStatusNormalizesEnLineaVariants() {
+        assertEquals("EN LINEA", ToolsMqttResponseParser.normalizeSeniatStatus("EN  LINEA"));
+        assertEquals("EN LINEA", ToolsMqttResponseParser.normalizeSeniatStatus("en linea"));
+        assertEquals("SIN CONEXION", ToolsMqttResponseParser.normalizeSeniatStatus("OFFLINE"));
+    }
+
+    @Test
     void parseStatusReturnsSeniatOnline() {
         String dataS = """
                 {"EstatusSeniat":"EN LINEA","ConexionWifi":"AEG-WiFi","direccionIP":"192.168.1.10",\

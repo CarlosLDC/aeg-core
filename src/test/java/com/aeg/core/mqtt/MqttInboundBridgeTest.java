@@ -13,6 +13,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 
+import java.nio.charset.StandardCharsets;
+
 @ExtendWith(MockitoExtension.class)
 class MqttInboundBridgeTest {
 
@@ -51,6 +53,25 @@ class MqttInboundBridgeTest {
 		ArgumentCaptor<MqttInboundReceivedEvent> captor = ArgumentCaptor.forClass(MqttInboundReceivedEvent.class);
 		verify(eventPublisher).publishEvent(captor.capture());
 		assertThat(captor.getValue().message().payload()).isEqualTo("hola");
+	}
+
+	@Test
+	void decodesAsciiJsonOnFiscalTopicAsUtf8() {
+		String json = """
+				{"cmd":"StaInf","code":0,"dataS":{"EstatusSeniat":"EN LINEA","ConexionWifi":"AP_IoT"}}\
+				""";
+		var message = MessageBuilder.withPayload(json.getBytes(StandardCharsets.UTF_8))
+				.setHeader(
+						MqttHeaders.RECEIVED_TOPIC,
+						"/206EF1884C68/AEG_Fiscal/Integracion/Respuesta")
+				.build();
+
+		bridge.handle(message);
+
+		ArgumentCaptor<MqttInboundReceivedEvent> captor = ArgumentCaptor.forClass(MqttInboundReceivedEvent.class);
+		verify(eventPublisher).publishEvent(captor.capture());
+		assertThat(captor.getValue().message().payload()).contains("EstatusSeniat");
+		assertThat(captor.getValue().message().payload()).contains("EN LINEA");
 	}
 
 	@Test

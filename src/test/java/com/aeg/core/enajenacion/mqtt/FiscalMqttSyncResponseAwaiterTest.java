@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
+import com.aeg.core.tools.mqtt.ToolsMqttResponseParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -106,5 +107,23 @@ class FiscalMqttSyncResponseAwaiterTest {
 
         assertThat(future.get().chunks()).containsExactly("LINEA 1\n");
         assertThat(future.get().terminal().code()).isZero();
+    }
+
+    @Test
+    void completesMatcherWaitForStaInfStatusObjectDataS() throws Exception {
+        String payload = """
+                {"cmd":"StaInf","code":0,"dataD":1,"dataS":{\
+                "ConexionWifi":"AP_IoT_Home_CANTV","direccionIP":"192.168.1.101",\
+                "EstatusSeniat":"EN LINEA","NroUltZEmit":2,"NroUltZTx":0,"DiasSinTx":0}}\
+                """;
+
+        CompletableFuture<FiscalMqttResponseItem> future = awaiter.registerWithMatcher(
+                MAC, ToolsMqttResponseParser::isStatusResponse);
+
+        boolean handled = awaiter.tryComplete(MAC, RESPUESTA, payload);
+
+        assertThat(handled).isTrue();
+        assertThat(future.get().dataS()).contains("EstatusSeniat");
+        assertThat(future.get().dataS()).contains("EN LINEA");
     }
 }

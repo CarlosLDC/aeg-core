@@ -1,6 +1,10 @@
 package com.aeg.core.mqtt;
 
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,11 +38,37 @@ public class MqttInboundBridge {
 		}
 		if (payload instanceof byte[] bytes) {
 			if (FiscalTicketLatin2.isFiscalPrinterTopic(topic)) {
+				if (looksLikeJson(bytes) && isValidUtf8(bytes)) {
+					return new String(bytes, StandardCharsets.UTF_8);
+				}
 				return FiscalTicketLatin2.decodePayload(bytes);
 			}
 			return new String(bytes, StandardCharsets.UTF_8);
 		}
 		return payload.toString();
+	}
+
+	private static boolean looksLikeJson(byte[] bytes) {
+		for (byte value : bytes) {
+			if (Character.isWhitespace(value)) {
+				continue;
+			}
+			return value == '{' || value == '[';
+		}
+		return false;
+	}
+
+	private static boolean isValidUtf8(byte[] bytes) {
+		try {
+			CharsetDecoder decoder = StandardCharsets.UTF_8
+					.newDecoder()
+					.onMalformedInput(CodingErrorAction.REPORT)
+					.onUnmappableCharacter(CodingErrorAction.REPORT);
+			decoder.decode(ByteBuffer.wrap(bytes));
+			return true;
+		} catch (CharacterCodingException ex) {
+			return false;
+		}
 	}
 
 	private static String stringHeader(Message<?> message, String header) {
