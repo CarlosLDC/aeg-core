@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
+import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.aeg.core.mqtt.dto.ToolsFormasPagoItemDto;
 import com.aeg.core.mqtt.dto.ToolsMqttAdditionalInfoDto;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
@@ -190,12 +191,12 @@ public class ToolsMqttResponseParser {
         if (isJsonArrayOfStrings(dataS)) {
             try {
                 List<String> lines = objectMapper.readValue(dataS, new TypeReference<>() {});
-                return String.join("\n", lines);
+                return String.join("\n", FiscalTicketLatin2.normalizeFiscalTicketLines(lines));
             } catch (Exception ex) {
                 throw new ToolsMqttOperationException("No se pudo interpretar el encabezado o pie de página.");
             }
         }
-        return response.dataS();
+        return FiscalTicketLatin2.normalizeFiscalTicketText(response.dataS());
     }
 
     public String parseReprintChunks(List<String> chunks) {

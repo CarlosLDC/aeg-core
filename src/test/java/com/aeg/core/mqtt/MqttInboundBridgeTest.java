@@ -52,4 +52,23 @@ class MqttInboundBridgeTest {
 		verify(eventPublisher).publishEvent(captor.capture());
 		assertThat(captor.getValue().message().payload()).isEqualTo("hola");
 	}
+
+	@Test
+	void decodesFiscalTopicPayloadAsLatin2() {
+		byte[] payload = new byte[] {
+				'{', '"', 'c', 'm', 'd', '"', ':', '"', 'S', 't', 'a', 'I', 'n', 'f', '"', ',',
+				'"', 'd', 'a', 't', 'a', 'S', '"', ':', '"', (byte) 0xed, (byte) 0xf1, '"', '}'
+		};
+		var message = MessageBuilder.withPayload(payload)
+				.setHeader(
+						MqttHeaders.RECEIVED_TOPIC,
+						"/20:6E:F1:88:4C:68/AEG_Fiscal/Integracion/Respuesta")
+				.build();
+
+		bridge.handle(message);
+
+		ArgumentCaptor<MqttInboundReceivedEvent> captor = ArgumentCaptor.forClass(MqttInboundReceivedEvent.class);
+		verify(eventPublisher).publishEvent(captor.capture());
+		assertThat(captor.getValue().message().payload()).contains("íñ");
+	}
 }

@@ -8,6 +8,7 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 
+import com.aeg.core.fiscal.FiscalTicketLatin2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -20,18 +21,21 @@ public class MqttInboundBridge {
 
 	public void handle(Message<?> message) {
 		String topic = stringHeader(message, MqttHeaders.RECEIVED_TOPIC);
-		String payload = stringifyPayload(message.getPayload());
+		String payload = stringifyPayload(message.getPayload(), topic);
 		Integer qos = integerHeader(message, MqttHeaders.RECEIVED_QOS);
 		MqttInboundMessage inbound = new MqttInboundMessage(topic, payload, Instant.now(), qos);
 		log.info("MQTT inbound topic={} payload={}", topic, payload);
 		eventPublisher.publishEvent(new MqttInboundReceivedEvent(this, inbound));
 	}
 
-	private static String stringifyPayload(Object payload) {
+	private static String stringifyPayload(Object payload, String topic) {
 		if (payload == null) {
 			return "";
 		}
 		if (payload instanceof byte[] bytes) {
+			if (FiscalTicketLatin2.isFiscalPrinterTopic(topic)) {
+				return FiscalTicketLatin2.decodePayload(bytes);
+			}
 			return new String(bytes, StandardCharsets.UTF_8);
 		}
 		return payload.toString();

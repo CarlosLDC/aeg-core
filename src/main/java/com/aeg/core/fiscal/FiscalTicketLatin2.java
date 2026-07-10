@@ -142,6 +142,36 @@ public final class FiscalTicketLatin2 {
         return payload.getBytes(StandardCharsets.UTF_8);
     }
 
+    /** Decodifica bytes Latin-2 devueltos por la impresora fiscal vía MQTT. */
+    public static String decodePayload(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(bytes.length);
+        for (byte value : bytes) {
+            int unsigned = value & 0xFF;
+            if (unsigned < 0x80) {
+                out.append((char) unsigned);
+                continue;
+            }
+            if (unsigned == 0xD1) {
+                out.append('Ñ');
+                continue;
+            }
+            if (unsigned == 0xF1) {
+                out.append('ñ');
+                continue;
+            }
+            int index = unsigned - 0x80;
+            if (index >= 0 && index < ISO_8859_2_CODEPOINTS.length) {
+                out.appendCodePoint(ISO_8859_2_CODEPOINTS[index]);
+                continue;
+            }
+            out.append('?');
+        }
+        return out.toString();
+    }
+
     private static byte encodeCodePoint(int codePoint) {
         if (codePoint < 0x80) {
             return (byte) codePoint;

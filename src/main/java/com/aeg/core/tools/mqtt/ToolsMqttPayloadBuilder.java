@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
+import com.aeg.core.fiscal.FiscalTicketLatin2;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -84,19 +85,21 @@ public class ToolsMqttPayloadBuilder {
     public String headerWritePayload(String content) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_W_FILE_SPIFF,
-                "data", content));
+                "data", FiscalTicketLatin2.normalizeFiscalTicketText(content)));
     }
 
     public String footerWritePayload(String content) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_PIE_TI_F,
-                "data", content));
+                "data", FiscalTicketLatin2.normalizeFiscalTicketText(content)));
     }
 
-    public String reprintPayload(String docType, int number) {
+    public String reprintPayload(String tipoRe, int number) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_REIM_REP,
-                "data", java.util.Map.of("tipo", docType, "nro", number)));
+                "data", java.util.Map.of(
+                        "tipoRe", tipoRe,
+                        "nroReg", java.util.List.of(number))));
     }
 
     private String staInfPayload(String status) {

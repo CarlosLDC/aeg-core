@@ -36,6 +36,19 @@ class FiscalTicketLatin2Test {
     }
 
     @Test
+    void decodesSpanishAccentsFromLatin2Bytes() {
+        assertThat(FiscalTicketLatin2.decodePayload(new byte[] {(byte) 0xed, (byte) 0xf1}))
+                .isEqualTo("íñ");
+    }
+
+    @Test
+    void roundTripsSpanishAccentsThroughLatin2PayloadCodec() {
+        String text = "Información técnica";
+        assertThat(FiscalTicketLatin2.decodePayload(FiscalTicketLatin2.encodePayload(text)))
+                .isEqualTo(text);
+    }
+
+    @Test
     void fiscalTopicUsesLatin2BytesInsteadOfUtf8Multibyte() {
         String payload = "{\"line\":\"Sí\"}";
         byte[] bytes = FiscalTicketLatin2.encodeMqttPayload(

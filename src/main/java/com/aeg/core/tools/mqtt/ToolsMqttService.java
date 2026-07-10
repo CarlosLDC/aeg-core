@@ -214,14 +214,17 @@ public class ToolsMqttService {
     }
 
     public ToolsReprintResponse reprint(Long printerId, String docType, Integer number, String mode) {
-        String mappedType = mapReprintDocType(docType);
+        String tipoRe = mapReprintTipoRe(docType);
         int docNumber = number != null ? number : 0;
+        if (docNumber <= 0) {
+            throw new ToolsMqttOperationException("Indique un número de documento válido.");
+        }
         String normalizedMode = mode != null ? mode : "visualize";
 
         if ("reprint".equalsIgnoreCase(normalizedMode)) {
             publishAndAwait(
                     printerId,
-                    payloadBuilder.reprintPayload(mappedType, docNumber),
+                    payloadBuilder.reprintPayload(tipoRe, docNumber),
                     ToolsMqttConstants.CMD_REIM_REP,
                     settings.defaultTimeoutSeconds());
             return ToolsReprintResponse.ack(normalizedMode, docType, number);
@@ -229,7 +232,7 @@ public class ToolsMqttService {
 
         ToolsMqttTextChunksResult chunksResult = publishAndAwaitTextChunks(
                 printerId,
-                payloadBuilder.reprintPayload(mappedType, docNumber),
+                payloadBuilder.reprintPayload(tipoRe, docNumber),
                 ToolsMqttConstants.CMD_REIM_REP,
                 settings.reprintTimeoutSeconds());
         String escPos = responseParser.parseReprintChunks(chunksResult.chunks());
@@ -346,18 +349,22 @@ public class ToolsMqttService {
         return new PrinterContext(compactMac, FiscalMqttTopics.comandoTopic(compactMac));
     }
 
-    private static String mapReprintDocType(String docType) {
+    private static String mapReprintTipoRe(String docType) {
         if (docType == null || docType.isBlank()) {
-            return "FAC";
+            return "rFactura";
         }
-        return switch (docType.trim().toUpperCase()) {
-            case "FACTURA", "FAC" -> "FAC";
-            case "NOTA_CREDITO", "NC" -> "NC";
-            case "NOTA_DEBITO", "ND" -> "ND";
-            case "NO_FISCAL", "NF", "DOCUMENTO-NO-FISCAL", "DOCUMENTO_NO_FISCAL" -> "NF";
-            case "REPORTE_X", "RX", "REPORT-X" -> "RX";
-            case "Z" -> "Z";
-            default -> docType.trim().toUpperCase();
+        String normalized = docType.trim();
+        if (normalized.startsWith("r") && normalized.length() > 1) {
+            return normalized;
+        }
+        return switch (normalized.toUpperCase()) {
+            case "FACTURA", "FAC" -> "rFactura";
+            case "NOTA_CREDITO", "NC" -> "rNotCre";
+            case "NOTA_DEBITO", "ND" -> "rNotDeb";
+            case "NO_FISCAL", "NF", "DOCUMENTO-NO-FISCAL", "DOCUMENTO_NO_FISCAL" -> "rDoNFis";
+            case "Z", "REPORTE_Z", "REPZ", "REP_Z" -> "rReporZ";
+            default -> throw new ToolsMqttOperationException(
+                    "Tipo de documento no soportado para reimpresión: " + docType);
         };
     }
 
