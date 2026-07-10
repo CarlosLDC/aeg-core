@@ -20,6 +20,15 @@ class ToolsMqttPayloadBuilderTest {
         assertThat(node.path("cmd").asText()).isEqualTo("reimRep");
         assertThat(node.path("data").path("tipoRe").asText()).isEqualTo("rFactura");
         assertThat(node.path("data").path("nroReg").get(0).asInt()).isEqualTo(177);
+        assertThat(node.path("data").path("impFis").asInt()).isZero();
+    }
+
+    @Test
+    void buildsReprintPayloadWithImpFisForPhysicalPrint() throws Exception {
+        String payload = builder.reprintPayload("rFactura", 177, true);
+        JsonNode node = new ObjectMapper().readTree(payload);
+
+        assertThat(node.path("data").path("impFis").asInt()).isEqualTo(1);
     }
 
     @Test

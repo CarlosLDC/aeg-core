@@ -15,6 +15,7 @@ class FiscalMqttSyncResponseAwaiterTest {
 
     private static final String MAC = "206EF1884C68";
     private static final String RESPUESTA = "/" + MAC + "/AEG_Fiscal/Integracion/Respuesta";
+    private static final String DOCUMENTO = "/" + MAC + "/AEG_Fiscal/Integracion/Documento";
 
     private FiscalMqttSyncResponseAwaiter awaiter;
 
@@ -89,5 +90,21 @@ class FiscalMqttSyncResponseAwaiterTest {
 
         assertThat(handled).isTrue();
         assertThat(future.get()).hasSize(9);
+    }
+
+    @Test
+    void completesTextChunksWaitFromDocumentoTopic() throws Exception {
+        CompletableFuture<FiscalMqttSyncResponseAwaiter.ToolsMqttTextChunksResult> future =
+                awaiter.registerTextChunks(MAC, "reimRep");
+        String ack = "{\"cmd\":\"reimRep\",\"code\":0,\"dataD\":0}";
+
+        assertThat(awaiter.tryComplete(MAC, RESPUESTA, ack)).isTrue();
+        assertThat(future.isDone()).isFalse();
+
+        assertThat(awaiter.tryComplete(MAC, DOCUMENTO, "LINEA 1")).isTrue();
+        assertThat(awaiter.tryComplete(MAC, DOCUMENTO, "-1")).isTrue();
+
+        assertThat(future.get().chunks()).containsExactly("LINEA 1\n");
+        assertThat(future.get().terminal().code()).isZero();
     }
 }

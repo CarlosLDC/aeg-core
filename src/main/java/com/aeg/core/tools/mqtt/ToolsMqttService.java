@@ -224,7 +224,7 @@ public class ToolsMqttService {
         if ("reprint".equalsIgnoreCase(normalizedMode)) {
             publishAndAwait(
                     printerId,
-                    payloadBuilder.reprintPayload(tipoRe, docNumber),
+                    payloadBuilder.reprintPayload(tipoRe, docNumber, true),
                     ToolsMqttConstants.CMD_REIM_REP,
                     settings.defaultTimeoutSeconds());
             return ToolsReprintResponse.ack(normalizedMode, docType, number);
@@ -232,9 +232,15 @@ public class ToolsMqttService {
 
         ToolsMqttTextChunksResult chunksResult = publishAndAwaitTextChunks(
                 printerId,
-                payloadBuilder.reprintPayload(tipoRe, docNumber),
+                payloadBuilder.reprintPayload(tipoRe, docNumber, false),
                 ToolsMqttConstants.CMD_REIM_REP,
                 settings.reprintTimeoutSeconds());
+        if (chunksResult.terminal().code() != 0) {
+            throw new ToolsMqttOperationException(
+                    "La impresora rechazó la visualización del documento (código "
+                            + chunksResult.terminal().code()
+                            + ").");
+        }
         String escPos = responseParser.parseReprintChunks(chunksResult.chunks());
         if (escPos.isBlank()) {
             throw new EnajenacionProtocolException("La impresora no devolvió contenido del documento.");

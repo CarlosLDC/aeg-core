@@ -161,6 +161,7 @@ public class MqttConfig {
         if (enajenacionEnabled) {
             addFiscalTopicVariants(topics, enajenacionInboundTopic);
             addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Respuesta");
+            addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Documento");
         }
         return topics.toArray(String[]::new);
     }

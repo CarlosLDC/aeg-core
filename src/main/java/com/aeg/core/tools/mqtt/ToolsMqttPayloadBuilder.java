@@ -94,12 +94,17 @@ public class ToolsMqttPayloadBuilder {
                 "data", FiscalTicketLatin2.normalizeFiscalTicketText(content)));
     }
 
-    public String reprintPayload(String tipoRe, int number) {
+    public String reprintPayload(String tipoRe, int number, boolean printPhysically) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_REIM_REP,
                 "data", java.util.Map.of(
                         "tipoRe", tipoRe,
-                        "nroReg", java.util.List.of(number))));
+                        "nroReg", java.util.List.of(number),
+                        "impFis", printPhysically ? 1 : 0)));
+    }
+
+    public String reprintPayload(String tipoRe, int number) {
+        return reprintPayload(tipoRe, number, false);
     }
 
     private String staInfPayload(String status) {

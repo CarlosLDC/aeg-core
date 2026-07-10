@@ -20,7 +20,9 @@ class MqttConfigTest {
                         "+/AEG_Fiscal/Integracion/CmdServer",
                         "/+/AEG_Fiscal/Integracion/CmdServer",
                         "+/AEG_Fiscal/Integracion/Respuesta",
-                        "/+/AEG_Fiscal/Integracion/Respuesta");
+                        "/+/AEG_Fiscal/Integracion/Respuesta",
+                        "+/AEG_Fiscal/Integracion/Documento",
+                        "/+/AEG_Fiscal/Integracion/Documento");
     }
 
     @Test
@@ -35,6 +37,8 @@ class MqttConfigTest {
                         "+/AEG_Fiscal/Integracion/CmdServer",
                         "/+/AEG_Fiscal/Integracion/CmdServer",
                         "+/AEG_Fiscal/Integracion/Respuesta",
-                        "/+/AEG_Fiscal/Integracion/Respuesta");
+                        "/+/AEG_Fiscal/Integracion/Respuesta",
+                        "+/AEG_Fiscal/Integracion/Documento",
+                        "/+/AEG_Fiscal/Integracion/Documento");
     }
 }

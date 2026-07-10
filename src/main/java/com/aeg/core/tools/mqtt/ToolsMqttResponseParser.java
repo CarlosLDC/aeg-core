@@ -200,7 +200,7 @@ public class ToolsMqttResponseParser {
     }
 
     public String parseReprintChunks(List<String> chunks) {
-        return String.join("", chunks);
+        return String.join("", chunks).trim();
     }
 
     public static boolean isStatusResponse(FiscalMqttResponseItem item) {
