@@ -33,23 +33,10 @@ public class ToolsMqttResponseParser {
     private final ObjectMapper objectMapper;
 
     public ToolsMqttStatusResponse parseStatus(FiscalMqttResponseItem response) {
-        if (response.code() != null && response.code() == 0 && response.dataS() != null) {
-            try {
-                JsonNode node = parseStaInfDataNode(response.dataS());
-                if (node != null && node.has("EstatusSeniat")) {
-                    String seniatStatus = normalizeSeniatStatus(node.path("EstatusSeniat").asText(""));
-                    ToolsMqttAdditionalInfoDto info = new ToolsMqttAdditionalInfoDto(
-                            textOrNa(node, "ConexionWifi"),
-                            textOrNa(node, "direccionIP"),
-                            node.path("NroUltZEmit").asInt(0),
-                            node.has("NroUltZTx") && !node.get("NroUltZTx").isNull()
-                                    ? node.get("NroUltZTx").asInt()
-                                    : null,
-                            node.path("DiasSinTx").asInt(0));
-                    return ToolsMqttStatusResponse.ok(seniatStatus, info);
-                }
-            } catch (Exception ignored) {
-                // fall through
+        if (response.dataS() != null && !response.dataS().isBlank()) {
+            ToolsMqttStatusResponse parsed = tryParseStatusInfo(response.dataS());
+            if (parsed != null) {
+                return parsed;
             }
         }
 
@@ -61,6 +48,27 @@ public class ToolsMqttResponseParser {
                 ? response.dataS()
                 : "Error al consultar estado";
         return ToolsMqttStatusResponse.error(errorMessage, response.code());
+    }
+
+    private ToolsMqttStatusResponse tryParseStatusInfo(String dataS) {
+        try {
+            JsonNode node = parseStaInfDataNode(dataS);
+            if (node == null || !node.has("EstatusSeniat")) {
+                return null;
+            }
+            String seniatStatus = normalizeSeniatStatus(node.path("EstatusSeniat").asText(""));
+            ToolsMqttAdditionalInfoDto info = new ToolsMqttAdditionalInfoDto(
+                    textOrNa(node, "ConexionWifi"),
+                    textOrNa(node, "direccionIP"),
+                    node.path("NroUltZEmit").asInt(0),
+                    node.has("NroUltZTx") && !node.get("NroUltZTx").isNull()
+                            ? node.get("NroUltZTx").asInt()
+                            : null,
+                    node.path("DiasSinTx").asInt(0));
+            return ToolsMqttStatusResponse.ok(seniatStatus, info);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     public List<ToolsWifiNetworkDto> parseWifiScan(FiscalMqttResponseItem response) {

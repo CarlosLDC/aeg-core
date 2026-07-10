@@ -60,6 +60,21 @@ class ToolsMqttResponseParserTest {
         assertEquals(42, response.additionalInfo().lastZReport());
     }
 
+  @Test
+  void parseStatusReturnsSeniatOfflineWithNetworkInfoEvenWhenCodeIsNonZero() {
+        String dataS = """
+                {"EstatusSeniat":"SIN CONEXION","ConexionWifi":"AP_IoT_HomeP",\
+                "direccionIP":"192.168.68.120","NroUltZEmit":2,"NroUltZTx":0,"DiasSinTx":1}""";
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem("StaInf", 20, null, dataS);
+
+        ToolsMqttStatusResponse response = parser.parseStatus(item);
+
+        assertTrue(response.success());
+        assertEquals("SIN CONEXION", response.seniatStatus());
+        assertEquals("AP_IoT_HomeP", response.additionalInfo().wifiNetwork());
+        assertEquals("192.168.68.120", response.additionalInfo().ipAddress());
+    }
+
     @Test
     void parseStatusReturnsSinConexionForPrinterMessage() {
         FiscalMqttResponseItem item = new FiscalMqttResponseItem(
