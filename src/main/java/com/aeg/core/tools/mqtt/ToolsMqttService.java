@@ -2,9 +2,11 @@ package com.aeg.core.tools.mqtt;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 import org.springframework.stereotype.Service;
@@ -52,6 +54,7 @@ public class ToolsMqttService {
     private final ToolsMqttPayloadBuilder payloadBuilder;
     private final ToolsMqttResponseParser responseParser;
     private final ToolsMqttSettings settings;
+    private final ConcurrentHashMap<String, ReentrantLock> locksByMac = new ConcurrentHashMap<>();
 
     public ToolsMqttStatusResponse requestStatus(Long printerId) {
         FiscalMqttResponseItem response = publishAndAwaitMatcher(
@@ -242,9 +245,15 @@ public class ToolsMqttService {
             String expectedCmd,
             int timeoutSeconds) {
         PrinterContext ctx = resolvePrinter(printerId);
-        CompletableFuture<FiscalMqttResponseItem> future =
-                syncResponseAwaiter.register(ctx.compactMac(), expectedCmd);
-        return await(ctx, payload, future, timeoutSeconds);
+        ReentrantLock lock = lockFor(ctx.compactMac());
+        lock.lock();
+        try {
+            CompletableFuture<FiscalMqttResponseItem> future =
+                    syncResponseAwaiter.register(ctx.compactMac(), expectedCmd);
+            return await(ctx, payload, future, timeoutSeconds);
+        } finally {
+            lock.unlock();
+        }
     }
 
     private FiscalMqttResponseItem publishAndAwaitMatcher(
@@ -253,9 +262,15 @@ public class ToolsMqttService {
             Predicate<FiscalMqttResponseItem> matcher,
             int timeoutSeconds) {
         PrinterContext ctx = resolvePrinter(printerId);
-        CompletableFuture<FiscalMqttResponseItem> future =
-                syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher);
-        return await(ctx, payload, future, timeoutSeconds);
+        ReentrantLock lock = lockFor(ctx.compactMac());
+        lock.lock();
+        try {
+            CompletableFuture<FiscalMqttResponseItem> future =
+                    syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher);
+            return await(ctx, payload, future, timeoutSeconds);
+        } finally {
+            lock.unlock();
+        }
     }
 
     private ToolsMqttTextChunksResult publishAndAwaitTextChunks(
@@ -264,21 +279,31 @@ public class ToolsMqttService {
             String terminalCmd,
             int timeoutSeconds) {
         PrinterContext ctx = resolvePrinter(printerId);
-        CompletableFuture<ToolsMqttTextChunksResult> future =
-                syncResponseAwaiter.registerTextChunks(ctx.compactMac(), terminalCmd);
+        ReentrantLock lock = lockFor(ctx.compactMac());
+        lock.lock();
         try {
-            mqttService.publish(ctx.topic(), payload);
-            return future.get(timeoutSeconds, TimeUnit.SECONDS);
-        } catch (TimeoutException ex) {
-            throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
-        } catch (ExecutionException ex) {
-            throw wrapExecution(ex);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new EnajenacionProtocolException(ERROR_MESSAGE);
+            CompletableFuture<ToolsMqttTextChunksResult> future =
+                    syncResponseAwaiter.registerTextChunks(ctx.compactMac(), terminalCmd);
+            try {
+                mqttService.publish(ctx.topic(), payload);
+                return future.get(timeoutSeconds, TimeUnit.SECONDS);
+            } catch (TimeoutException ex) {
+                throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
+            } catch (ExecutionException ex) {
+                throw wrapExecution(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new EnajenacionProtocolException(ERROR_MESSAGE);
+            } finally {
+                syncResponseAwaiter.cancel(ctx.compactMac());
+            }
         } finally {
-            syncResponseAwaiter.cancel(ctx.compactMac());
+            lock.unlock();
         }
+    }
+
+    private ReentrantLock lockFor(String compactMac) {
+        return locksByMac.computeIfAbsent(compactMac, ignored -> new ReentrantLock());
     }
 
     private FiscalMqttResponseItem await(

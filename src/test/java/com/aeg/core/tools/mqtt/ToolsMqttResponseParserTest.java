@@ -57,6 +57,40 @@ class ToolsMqttResponseParserTest {
     }
 
     @Test
+    void parseWifiScanUsesQosWhenRssiMissing() {
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem(
+                "StaInf",
+                0,
+                null,
+                "[{\"ssid\":\"AP_IoT_HomeP\",\"qos\":100},{\"ssid\":\"KENMARY\",\"qos\":32}]");
+
+        var networks = parser.parseWifiScan(item);
+
+        assertEquals(2, networks.size());
+        assertEquals("AP_IoT_HomeP", networks.get(0).ssid());
+        assertEquals(100, networks.get(0).signal());
+        assertEquals("KENMARY", networks.get(1).ssid());
+        assertEquals(32, networks.get(1).signal());
+    }
+
+    @Test
+    void parseWifiScanDeduplicatesSsidKeepingBestSignal() {
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem(
+                "StaInf",
+                0,
+                null,
+                """
+                [{"ssid":"AP_IoT_HomeP","qos":44},{"ssid":"AP_IoT_HomeP","qos":100}]\
+                """);
+
+        var networks = parser.parseWifiScan(item);
+
+        assertEquals(1, networks.size());
+        assertEquals("AP_IoT_HomeP", networks.get(0).ssid());
+        assertEquals(100, networks.get(0).signal());
+    }
+
+    @Test
     void isHeaderFooterReadResponseDetectsStringArray() {
         String dataS = """
                 ["CALLE PRINCIPAL CC ORINOKIA MALL NIVEL PB",\

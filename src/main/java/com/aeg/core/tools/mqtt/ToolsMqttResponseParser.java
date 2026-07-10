@@ -1,6 +1,7 @@
 package com.aeg.core.tools.mqtt;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -75,16 +76,20 @@ public class ToolsMqttResponseParser {
         try {
             List<Map<String, Object>> raw = objectMapper.readValue(
                     response.dataS(), new TypeReference<>() {});
-            List<ToolsWifiNetworkDto> networks = new ArrayList<>();
+            LinkedHashMap<String, ToolsWifiNetworkDto> networksBySsid = new LinkedHashMap<>();
             for (Map<String, Object> entry : raw) {
                 Object ssid = entry.get("ssid");
-                if (ssid != null && !ssid.toString().isBlank()) {
-                    Object rssi = entry.get("rssi");
-                    Integer signal = rssi instanceof Number number ? number.intValue() : null;
-                    networks.add(new ToolsWifiNetworkDto(ssid.toString(), signal));
+                if (ssid == null || ssid.toString().isBlank()) {
+                    continue;
+                }
+                Integer signal = readWifiSignal(entry);
+                String ssidValue = ssid.toString();
+                ToolsWifiNetworkDto existing = networksBySsid.get(ssidValue);
+                if (existing == null || compareWifiSignal(signal, existing.signal()) > 0) {
+                    networksBySsid.put(ssidValue, new ToolsWifiNetworkDto(ssidValue, signal));
                 }
             }
-            return networks;
+            return new ArrayList<>(networksBySsid.values());
         } catch (Exception ex) {
             throw new ToolsMqttOperationException("No se pudo interpretar la lista de redes WiFi.");
         }
@@ -251,6 +256,24 @@ public class ToolsMqttResponseParser {
         String trimmed = item.dataS().trim();
         return isJsonArrayOfStrings(trimmed)
                 || "SIN PIE DE TICKET FIJOS".equalsIgnoreCase(trimmed);
+    }
+
+    private static Integer readWifiSignal(Map<String, Object> entry) {
+        Object rssi = entry.get("rssi");
+        if (rssi instanceof Number number) {
+            return number.intValue();
+        }
+        Object qos = entry.get("qos");
+        if (qos instanceof Number qosNumber) {
+            return qosNumber.intValue();
+        }
+        return null;
+    }
+
+    private static int compareWifiSignal(Integer left, Integer right) {
+        int leftValue = left != null ? left : Integer.MIN_VALUE;
+        int rightValue = right != null ? right : Integer.MIN_VALUE;
+        return Integer.compare(leftValue, rightValue);
     }
 
     private static String textOrNa(JsonNode node, String field) {
