@@ -23,6 +23,7 @@ import com.aeg.core.mqtt.dto.ToolsFormasPagoReadResponse;
 import com.aeg.core.mqtt.dto.ToolsHeaderFooterReadResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
+import com.aeg.core.mqtt.dto.ToolsReportXResponse;
 import com.aeg.core.mqtt.dto.ToolsReportZDataDto;
 import com.aeg.core.mqtt.dto.ToolsReportZResponse;
 import com.aeg.core.mqtt.dto.ToolsReprintResponse;
@@ -134,13 +135,23 @@ public class ToolsMqttService {
         return responseParser.parseTransmitZ(response);
     }
 
-    public ToolsMqttSimpleResponse reportX(Long printerId) {
-        publishAndAwait(
+    public ToolsReportXResponse reportX(Long printerId) {
+        ToolsMqttTextChunksResult chunksResult = publishAndAwaitTextChunks(
                 printerId,
                 payloadBuilder.reportXPayload(),
                 ToolsMqttConstants.CMD_IMP_REP_X,
-                settings.defaultTimeoutSeconds());
-        return ToolsMqttSimpleResponse.ok("Reporte X enviado a la impresora.");
+                settings.reprintTimeoutSeconds());
+        if (chunksResult.terminal().code() != 0) {
+            throw new ToolsMqttOperationException(
+                    "La impresora rechazó la generación del reporte X (código "
+                            + chunksResult.terminal().code()
+                            + ").");
+        }
+        String escPos = responseParser.parseReprintChunks(chunksResult.chunks());
+        if (escPos.isBlank()) {
+            throw new EnajenacionProtocolException("La impresora no devolvió contenido del reporte X.");
+        }
+        return ToolsReportXResponse.ok(escPos);
     }
 
     public ToolsFormasPagoReadResponse readFormasPago(Long printerId) {

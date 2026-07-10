@@ -13,6 +13,7 @@ import com.aeg.core.mqtt.dto.ToolsHeaderFooterWriteRequest;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
 import com.aeg.core.mqtt.dto.ToolsPrinterRequest;
+import com.aeg.core.mqtt.dto.ToolsReportXResponse;
 import com.aeg.core.mqtt.dto.ToolsReportZGetRequest;
 import com.aeg.core.mqtt.dto.ToolsReportZResponse;
 import com.aeg.core.mqtt.dto.ToolsReprintRequest;
@@ -77,7 +78,7 @@ public class ToolsMqttController {
     }
 
     @PostMapping("/report-x")
-    public ResponseEntity<ToolsMqttSimpleResponse> reportX(@Valid @RequestBody ToolsPrinterRequest request) {
+    public ResponseEntity<ToolsReportXResponse> reportX(@Valid @RequestBody ToolsPrinterRequest request) {
         return ResponseEntity.ok(toolsMqttService.reportX(request.printerId()));
     }
 
