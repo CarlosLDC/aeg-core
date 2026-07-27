@@ -8,6 +8,8 @@ public final class ToolsMqttConstants {
     public static final String CMD_GET_REP_Z = "getRepZ";
     public static final String CMD_REP_Z = "RepZ";
     public static final String CMD_IMP_REP_X = "impRepX";
+    // TODO(tools-report-x): pending dedicated MQTT command for preview WITHOUT print.
+    // impRepX prints on generate; impFis:0 is not enough. Update reportXPayload when known.
     public static final String CMD_DESC_FP = "descFP";
     public static final String CMD_W_FILE_SPIFF = "wFileSPIFF";
     public static final String CMD_PIE_TI_F = "pieTiF";

@@ -78,6 +78,11 @@ public class ToolsMqttPayloadBuilder {
         return reportXPayload(false);
     }
 
+    /**
+     * TODO(tools-report-x): SECCIÓN INCOMPLETA — falta el comando MQTT para vista previa
+     * sin impresión. {@code impRepX} imprime al generar; {@code impFis:0} no evita el papel.
+     * Cuando el usuario aporte el comando definitivo, actualizar visualize vs print aquí.
+     */
     public String reportXPayload(boolean printPhysically) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_IMP_REP_X,

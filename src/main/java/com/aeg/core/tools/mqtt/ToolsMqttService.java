@@ -139,6 +139,10 @@ public class ToolsMqttService {
         return reportX(printerId, "visualize");
     }
 
+    /**
+     * TODO(tools-report-x): incomplete — visualize still uses impRepX and may print.
+     * Awaiting a dedicated MQTT command for preview-without-print; then wire it here.
+     */
     public ToolsReportXResponse reportX(Long printerId, String mode) {
         boolean printPhysically = mode != null && "print".equalsIgnoreCase(mode.trim());
         if (printPhysically) {
