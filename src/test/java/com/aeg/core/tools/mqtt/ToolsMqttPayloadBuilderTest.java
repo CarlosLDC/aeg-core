@@ -32,6 +32,18 @@ class ToolsMqttPayloadBuilderTest {
     }
 
     @Test
+    void buildsReportXPayloadWithOptionalPrintFlag() throws Exception {
+        JsonNode visualize = new ObjectMapper().readTree(builder.reportXPayload(false));
+        assertThat(visualize.path("cmd").asText()).isEqualTo("impRepX");
+        assertThat(visualize.path("data").isMissingNode() || visualize.path("data").isNull())
+                .isTrue();
+
+        JsonNode print = new ObjectMapper().readTree(builder.reportXPayload(true));
+        assertThat(print.path("cmd").asText()).isEqualTo("impRepX");
+        assertThat(print.path("data").path("impFis").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void buildsFooterWritePayloadAsLineArray() throws Exception {
         String payload = builder.footerWritePayload("LINEA 1\nLINEA 2\n");
         JsonNode node = new ObjectMapper().readTree(payload);

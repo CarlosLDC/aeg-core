@@ -136,9 +136,24 @@ public class ToolsMqttService {
     }
 
     public ToolsReportXResponse reportX(Long printerId) {
+        return reportX(printerId, "visualize");
+    }
+
+    public ToolsReportXResponse reportX(Long printerId, String mode) {
+        boolean printPhysically = mode != null && "print".equalsIgnoreCase(mode.trim());
+        if (printPhysically) {
+            FiscalMqttResponseItem response = publishAndAwait(
+                    printerId,
+                    payloadBuilder.reportXPayload(true),
+                    ToolsMqttConstants.CMD_IMP_REP_X,
+                    settings.defaultTimeoutSeconds());
+            responseParser.parseSimpleAck(response, "Error al imprimir el reporte X");
+            return ToolsReportXResponse.printed();
+        }
+
         ToolsMqttTextChunksResult chunksResult = publishAndAwaitTextChunks(
                 printerId,
-                payloadBuilder.reportXPayload(),
+                payloadBuilder.reportXPayload(false),
                 ToolsMqttConstants.CMD_IMP_REP_X,
                 settings.reprintTimeoutSeconds());
         if (chunksResult.terminal().code() != 0) {
