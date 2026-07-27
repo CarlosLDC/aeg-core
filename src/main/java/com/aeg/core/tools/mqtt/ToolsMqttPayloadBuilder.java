@@ -79,13 +79,9 @@ public class ToolsMqttPayloadBuilder {
     }
 
     public String reportXPayload(boolean printPhysically) {
-        if (!printPhysically) {
-            // Vista previa: payload mínimo compatible con firmwares actuales.
-            return writeJson(java.util.Map.of("cmd", ToolsMqttConstants.CMD_IMP_REP_X));
-        }
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_IMP_REP_X,
-                "data", java.util.Map.of("impFis", 1)));
+                "data", java.util.Map.of("impFis", printPhysically ? 1 : 0)));
     }
 
     public String formasPagoWritePayload(int nroFp, String descripcion) {
