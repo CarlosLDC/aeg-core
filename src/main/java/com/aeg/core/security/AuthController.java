@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +30,7 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final OrganizationCapabilityService organizationCapability;
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
@@ -71,7 +75,8 @@ public class AuthController {
             user.getBranchId(),
             user.getDistributorId(),
             user.getNationalId(),
-            user.isEnabled()
+            user.isEnabled(),
+            organizationCapability.actorHasCapability(OrgCapability.WRITE_ANNUAL_INSPECTION)
         ));
     }
 
@@ -108,5 +113,7 @@ public class AuthController {
         private final Long distributorId;
         private final String nationalId;
         private final Boolean enabled;
+        /** Capacidad efectiva del actor para crear/editar inspecciones anuales. */
+        private final Boolean canWriteAnnualInspection;
     }
 }

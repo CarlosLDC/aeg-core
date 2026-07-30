@@ -28,10 +28,17 @@ public class Distributor {
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
+	/** Si false, los usuarios de esta distribuidora no pueden escribir inspecciones anuales. */
+	@Column(name = "puede_inspeccion_anual", nullable = false)
+	private Boolean canWriteAnnualInspection = true;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
 			createdAt = LocalDateTime.now();
+		}
+		if (canWriteAnnualInspection == null) {
+			canWriteAnnualInspection = true;
 		}
 	}
 
@@ -53,5 +60,17 @@ public class Distributor {
 
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
+	}
+
+	public Boolean getCanWriteAnnualInspection() {
+		return canWriteAnnualInspection;
+	}
+
+	public void setCanWriteAnnualInspection(Boolean canWriteAnnualInspection) {
+		this.canWriteAnnualInspection = canWriteAnnualInspection;
+	}
+
+	public boolean allowsAnnualInspectionWrite() {
+		return !Boolean.FALSE.equals(canWriteAnnualInspection);
 	}
 }

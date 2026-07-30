@@ -97,7 +97,31 @@ public class OrganizationCapabilityService {
 		return OrganizationProfile.NONE;
 	}
 
+	public boolean actorHasCapability(OrgCapability capability) {
+		OrganizationProfile profile = resolveActorProfile();
+		if (!hasCapability(profile, capability)) {
+			return false;
+		}
+		if (capability == OrgCapability.WRITE_ANNUAL_INSPECTION
+				&& profile == OrganizationProfile.DISTRIBUTOR) {
+			return currentDistributorAllowsAnnualInspection();
+		}
+		return true;
+	}
+
 	public void assertActorCan(OrgCapability capability) {
-		assertCapability(resolveActorProfile(), capability);
+		if (!actorHasCapability(capability)) {
+			throw new AccessDeniedException("Organization profile cannot perform: " + capability);
+		}
+	}
+
+	private boolean currentDistributorAllowsAnnualInspection() {
+		User user = securityScope.currentUser();
+		if (user.getDistributorId() == null) {
+			return false;
+		}
+		return distributorRepository.findById(user.getDistributorId())
+				.map(com.aeg.core.distributor.Distributor::allowsAnnualInspectionWrite)
+				.orElse(false);
 	}
 }

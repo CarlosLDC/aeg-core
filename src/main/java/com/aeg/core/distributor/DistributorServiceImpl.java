@@ -83,6 +83,10 @@ public class DistributorServiceImpl implements DistributorService {
 		branchRepository.save(branch);
 		Distributor distributor = new Distributor();
 		distributor.setBranch(branch);
+		distributor.setCanWriteAnnualInspection(
+				request.canWriteAnnualInspection() != null
+						? request.canWriteAnnualInspection()
+						: true);
 		return toResponse(repository.save(distributor));
 	}
 
@@ -93,10 +97,15 @@ public class DistributorServiceImpl implements DistributorService {
 		var branch = branchRepository.findById(request.branchId())
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
 		securityScope.assertBranchInScope(branch.getId());
-		validateDistributorBranch(branch);
-		BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.DISTRIBUTOR);
-		branchRepository.save(branch);
-		distributor.setBranch(branch);
+		if (!request.branchId().equals(distributor.getBranchId())) {
+			validateDistributorBranch(branch);
+			BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.DISTRIBUTOR);
+			branchRepository.save(branch);
+			distributor.setBranch(branch);
+		}
+		if (request.canWriteAnnualInspection() != null) {
+			distributor.setCanWriteAnnualInspection(request.canWriteAnnualInspection());
+		}
 		return toResponse(repository.save(distributor));
 	}
 
@@ -126,6 +135,10 @@ public class DistributorServiceImpl implements DistributorService {
 	}
 
 	private DistributorResponse toResponse(Distributor distributor) {
-		return new DistributorResponse(distributor.getId(), distributor.getBranchId(), distributor.getCreatedAt());
+		return new DistributorResponse(
+				distributor.getId(),
+				distributor.getBranchId(),
+				distributor.getCreatedAt(),
+				distributor.allowsAnnualInspectionWrite());
 	}
 }

@@ -140,6 +140,56 @@ class OrganizationCapabilityServiceTest {
 				.isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
 	}
 
+	@Test
+	void actorHasCapability_deniesAnnualInspectionWhenDistributorFlagDisabled() {
+		Company company = standardCompany();
+		Branch branch = distributorBranch();
+		branch.setId(5L);
+		branch.setCompany(company);
+
+		com.aeg.core.distributor.Distributor distributor = new com.aeg.core.distributor.Distributor();
+		distributor.setId(7L);
+		distributor.setBranch(branch);
+		distributor.setCanWriteAnnualInspection(false);
+
+		User distributorUser = User.builder()
+				.role(Role.DISTRIBUTOR)
+				.distributorId(7L)
+				.build();
+
+		when(securityScope.currentUser()).thenReturn(distributorUser);
+		when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+
+		assertThat(service.resolveActorProfile()).isEqualTo(OrganizationProfile.DISTRIBUTOR);
+		assertThat(service.actorHasCapability(OrgCapability.WRITE_ANNUAL_INSPECTION)).isFalse();
+		assertThat(service.actorHasCapability(OrgCapability.ENAJENAR)).isTrue();
+		assertThatThrownBy(() -> service.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION))
+				.isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+	}
+
+	@Test
+	void actorHasCapability_allowsAnnualInspectionWhenDistributorFlagEnabled() {
+		Company company = standardCompany();
+		Branch branch = distributorBranch();
+		branch.setId(5L);
+		branch.setCompany(company);
+
+		com.aeg.core.distributor.Distributor distributor = new com.aeg.core.distributor.Distributor();
+		distributor.setId(7L);
+		distributor.setBranch(branch);
+		distributor.setCanWriteAnnualInspection(true);
+
+		User distributorUser = User.builder()
+				.role(Role.DISTRIBUTOR)
+				.distributorId(7L)
+				.build();
+
+		when(securityScope.currentUser()).thenReturn(distributorUser);
+		when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+
+		assertThat(service.actorHasCapability(OrgCapability.WRITE_ANNUAL_INSPECTION)).isTrue();
+	}
+
 	private static Company factoryCompany() {
 		Company company = new Company();
 		company.setOrganizationType(OrganizationType.FACTORY);

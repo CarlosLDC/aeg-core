@@ -6,6 +6,7 @@ public record DistributorResponse(
 
 	Long id,
 	Long branchId,
-	LocalDateTime createdAt
+	LocalDateTime createdAt,
+	Boolean canWriteAnnualInspection
 ) {
 }
