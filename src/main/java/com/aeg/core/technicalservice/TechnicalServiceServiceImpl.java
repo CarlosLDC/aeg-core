@@ -58,7 +58,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	@Transactional(readOnly = true)
 	public List<TechnicalServiceResponse> findAll() {
 		if (securityScope.isGlobalReader()) {
-			return repository.findAll().stream().map(this::toResponse).toList();
+			return repository.findAllWithRelations().stream().map(this::toResponse).toList();
 		}
 		List<Long> printerIds = securityScope.visiblePrinterIds();
 		if (printerIds.isEmpty()) {
@@ -120,7 +120,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	}
 
 	private TechnicalServiceVisit findEntity(Long id) {
-		return repository.findById(id)
+		return repository.findWithRelationsById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Technical service not found with id: " + id));
 	}
 
@@ -221,10 +221,13 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	}
 
 	private TechnicalServiceResponse toResponse(TechnicalServiceVisit e) {
+		User technician = e.getReviewedByUser();
 		return new TechnicalServiceResponse(
 				e.getId(),
 				e.getPrinterId(),
 				e.getUserId(),
+				technician != null ? technician.getName() : null,
+				technician != null ? technician.getNationalId() : null,
 				e.getServiceCenterId(),
 				e.getSealTampered(),
 				null,

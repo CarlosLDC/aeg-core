@@ -8,6 +8,8 @@ public record TechnicalServiceResponse(
 		Long id,
 		Long printerId,
 		Long userId,
+		String technicianName,
+		String technicianNationalId,
 		Long serviceCenterId,
 		Boolean sealTampered,
 		String notes,
