@@ -20,13 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SftpFirmwareStorage implements FirmwareStorage {
 
-	/**
-	 * WARNING(TEMP): hardcode de la IP pública del droplet.
-	 * Eliminar cuando FIRMWARE_SFTP_HOST en DigitalOcean App Platform sea 206.189.231.128
-	 * (hoy el env sigue en 10.116.0.4 y no es alcanzable desde App Platform → 504).
-	 */
-	private static final String TEMP_FORCE_PUBLIC_SFTP_HOST = "206.189.231.128";
-
 	/** Fail fast so App Platform returns 503 instead of gateway 504 on unreachable hosts. */
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
 	private static final Duration AUTH_TIMEOUT = Duration.ofSeconds(15);
@@ -44,18 +37,12 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 			@Value("${app.firmware.sftp.username:}") String username,
 			@Value("${app.firmware.sftp.password:}") String password,
 			@Value("${app.firmware.sftp.remote-dir:/var/www/firmware}") String remoteDir) {
-		// WARNING(TEMP): ignora FIRMWARE_SFTP_HOST / app.firmware.sftp.host hasta corregir el env en DO.
-		if (!TEMP_FORCE_PUBLIC_SFTP_HOST.equals(host)) {
-			log.warn(
-					"WARNING(TEMP): overriding firmware SFTP host '{}' with hardcoded public IP {}. Remove TEMP_FORCE_PUBLIC_SFTP_HOST when DO env is fixed.",
-					host,
-					TEMP_FORCE_PUBLIC_SFTP_HOST);
-		}
-		this.host = TEMP_FORCE_PUBLIC_SFTP_HOST;
+		this.host = host;
 		this.port = port;
 		this.username = username;
 		this.password = password;
 		this.remoteDir = trimTrailingSlash(remoteDir);
+		log.info("Firmware SFTP configured host={} port={} remoteDir={}", this.host, this.port, this.remoteDir);
 	}
 
 	@Override
