@@ -4,21 +4,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.core.CoreModuleProperties;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Component
+@Slf4j
 public class SftpFirmwareStorage implements FirmwareStorage {
 
-	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
-	private static final Duration AUTH_TIMEOUT = Duration.ofSeconds(20);
+	/** Fail fast so App Platform returns 503 instead of gateway 504 on unreachable hosts. */
+	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+	private static final Duration AUTH_TIMEOUT = Duration.ofSeconds(15);
 
 	private final String host;
 	private final int port;
@@ -81,12 +85,15 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 	private <T> T withSftp(SftpCallback<T> callback) {
 		ensureConfigured();
 		try (SshClient client = SshClient.setUpDefaultClient()) {
+			// NIO2 socket connect defaults to infinite; without this, unreachable hosts
+			// hang until the App Platform gateway returns 504.
+			CoreModuleProperties.IO_CONNECT_TIMEOUT.set(client, CONNECT_TIMEOUT);
 			client.start();
 			try (ClientSession session = client.connect(username, host, port)
-					.verify(CONNECT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+					.verify(CONNECT_TIMEOUT)
 					.getSession()) {
 				session.addPasswordIdentity(password);
-				session.auth().verify(AUTH_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+				session.auth().verify(AUTH_TIMEOUT);
 				try (SftpClient sftp = SftpClientFactory.instance().createSftpClient(session)) {
 					return callback.apply(sftp);
 				}
@@ -94,6 +101,7 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 		} catch (IllegalStateException e) {
 			throw e;
 		} catch (Exception e) {
+			log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
 			throw new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage(), e);
 		}
 	}
