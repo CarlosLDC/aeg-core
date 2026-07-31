@@ -105,7 +105,10 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 			throw e;
 		} catch (Exception e) {
 			log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
-			throw new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage(), e);
+			String hint = port == 22
+					? " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222)."
+					: "";
+			throw new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage() + hint, e);
 		}
 	}
 
