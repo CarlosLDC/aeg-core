@@ -57,3 +57,17 @@ services:
       # Paso 3a (fiscalAEG / SPIFFS): impresoras reales pueden tardar varios minutos.
       - key: MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF
         value: "300"
+      - key: FIRMWARE_PUBLIC_BASE_URL
+        value: "http://206.189.231.128/downloads"
+      - key: FIRMWARE_SFTP_HOST
+        value: "10.116.0.4"
+      - key: FIRMWARE_SFTP_PORT
+        value: "22"
+      - key: FIRMWARE_SFTP_USER
+        value: SET_IN_APP_PLATFORM
+        type: SECRET
+      - key: FIRMWARE_SFTP_PASSWORD
+        value: SET_IN_APP_PLATFORM
+        type: SECRET
+      - key: FIRMWARE_SFTP_REMOTE_DIR
+        value: "/var/www/firmware"
