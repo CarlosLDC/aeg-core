@@ -16,15 +16,18 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aeg.core.firmware.dto.FirmwareResponse;
+import com.aeg.core.firmware.dto.FirmwareUploadJobResponse;
 
 @RestController
 @RequestMapping("/api/firmwares")
 public class FirmwareController {
 
 	private final FirmwareService service;
+	private final FirmwareUploadJobs uploadJobs;
 
-	public FirmwareController(FirmwareService service) {
+	public FirmwareController(FirmwareService service, FirmwareUploadJobs uploadJobs) {
 		this.service = service;
+		this.uploadJobs = uploadJobs;
 	}
 
 	@GetMapping
@@ -32,19 +35,28 @@ public class FirmwareController {
 		return service.findAll(printerModelId);
 	}
 
+	@GetMapping("/uploads/{jobId}")
+	public FirmwareUploadJobResponse getUploadJob(@PathVariable String jobId) {
+		return uploadJobs.get(jobId);
+	}
+
 	@GetMapping("/{id}")
 	public FirmwareResponse findById(@PathVariable Long id) {
 		return service.findById(id);
 	}
 
+	/**
+	 * Accepts the multipart quickly and runs SFTP+DB in the background so gateways
+	 * do not return 504 while the droplet transfer is in progress.
+	 */
 	@PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
-	@ResponseStatus(HttpStatus.CREATED)
-	public FirmwareResponse create(
+	public ResponseEntity<FirmwareUploadJobResponse> create(
 			@RequestParam("file") MultipartFile file,
 			@RequestParam("version") String version,
 			@RequestParam(value = "printerModelId", required = false) Long printerModelId,
 			@RequestParam(value = "notes", required = false) String notes) {
-		return service.create(file, version, printerModelId, notes);
+		FirmwareUploadJobResponse job = uploadJobs.enqueue(file, version, printerModelId, notes);
+		return ResponseEntity.accepted().body(job);
 	}
 
 	@DeleteMapping("/{id}")

@@ -14,6 +14,13 @@ public interface FirmwareService {
 
 	FirmwareResponse findById(Long id);
 
+	/** Validates input and buffers bytes for a later {@link #completeCreate}. */
+	PreparedFirmwareUpload prepareCreate(MultipartFile file, String version, Long printerModelId, String notes);
+
+	/** SFTP upload + DB persist (runs on upload worker thread). */
+	FirmwareResponse completeCreate(PreparedFirmwareUpload prepared);
+
+	/** Sync create (tests / internal). */
 	FirmwareResponse create(MultipartFile file, String version, Long printerModelId, String notes);
 
 	void delete(Long id);

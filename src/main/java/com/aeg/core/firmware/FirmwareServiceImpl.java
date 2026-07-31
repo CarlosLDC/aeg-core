@@ -65,7 +65,12 @@ public class FirmwareServiceImpl implements FirmwareService {
 	}
 
 	@Override
-	public FirmwareResponse create(MultipartFile file, String version, Long printerModelId, String notes) {
+	@Transactional(readOnly = true)
+	public PreparedFirmwareUpload prepareCreate(
+			MultipartFile file,
+			String version,
+			Long printerModelId,
+			String notes) {
 		if (file == null || file.isEmpty()) {
 			throw new IllegalArgumentException("file is required");
 		}
@@ -80,9 +85,8 @@ public class FirmwareServiceImpl implements FirmwareService {
 		}
 		assertVersionAvailable(normalizedVersion, printerModelId);
 
-		PrinterModel model = null;
 		if (printerModelId != null) {
-			model = printerModelRepository.findById(printerModelId)
+			printerModelRepository.findById(printerModelId)
 					.orElseThrow(() -> new ResourceNotFoundException(
 							"Printer model not found with id: " + printerModelId));
 		}
@@ -97,30 +101,61 @@ public class FirmwareServiceImpl implements FirmwareService {
 			throw new IllegalArgumentException("file is required");
 		}
 
-		String checksum = sha256Hex(bytes);
+		return new PreparedFirmwareUpload(
+				bytes,
+				fileName,
+				normalizedVersion,
+				printerModelId,
+				StringUtils.hasText(notes) ? notes.trim() : null,
+				sha256Hex(bytes));
+	}
+
+	@Override
+	public FirmwareResponse completeCreate(PreparedFirmwareUpload prepared) {
+		PrinterModel model = null;
+		if (prepared.printerModelId() != null) {
+			model = printerModelRepository.findById(prepared.printerModelId())
+					.orElseThrow(() -> new ResourceNotFoundException(
+							"Printer model not found with id: " + prepared.printerModelId()));
+		}
+
+		// Re-check uniqueness in case of concurrent uploads.
+		if (repository.existsByFileName(prepared.fileName())) {
+			throw new IllegalArgumentException("Firmware file name already exists: " + prepared.fileName());
+		}
+		assertVersionAvailable(prepared.version(), prepared.printerModelId());
+
 		boolean uploaded = false;
 		try {
-			storage.upload(fileName, new java.io.ByteArrayInputStream(bytes), bytes.length);
+			storage.upload(
+					prepared.fileName(),
+					new java.io.ByteArrayInputStream(prepared.bytes()),
+					prepared.bytes().length);
 			uploaded = true;
 
 			Firmware entity = new Firmware();
-			entity.setVersion(normalizedVersion);
-			entity.setFileName(fileName);
-			entity.setSizeBytes((long) bytes.length);
-			entity.setChecksumSha256(checksum);
+			entity.setVersion(prepared.version());
+			entity.setFileName(prepared.fileName());
+			entity.setSizeBytes((long) prepared.bytes().length);
+			entity.setChecksumSha256(prepared.checksumSha256());
 			entity.setPrinterModel(model);
-			entity.setNotes(StringUtils.hasText(notes) ? notes.trim() : null);
+			entity.setNotes(prepared.notes());
 			return toResponse(repository.save(entity));
 		} catch (RuntimeException e) {
 			if (uploaded) {
 				try {
-					storage.delete(fileName);
+					storage.delete(prepared.fileName());
 				} catch (RuntimeException cleanup) {
-					log.warn("Failed to clean up remote firmware after DB error: {}", fileName, cleanup);
+					log.warn("Failed to clean up remote firmware after DB error: {}", prepared.fileName(), cleanup);
 				}
 			}
 			throw e;
 		}
+	}
+
+	@Override
+	public FirmwareResponse create(MultipartFile file, String version, Long printerModelId, String notes) {
+		return completeCreate(prepareCreate(file, version, printerModelId, notes));
 	}
 
 	@Override

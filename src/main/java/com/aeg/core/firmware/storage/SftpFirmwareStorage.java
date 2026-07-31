@@ -30,6 +30,7 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 	/** Fail fast so App Platform returns 503 instead of gateway 504 on unreachable hosts. */
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
 	private static final Duration AUTH_TIMEOUT = Duration.ofSeconds(15);
+	private static final Duration IDLE_TIMEOUT = Duration.ofSeconds(60);
 
 	private final String host;
 	private final int port;
@@ -102,6 +103,7 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 			// NIO2 socket connect defaults to infinite; without this, unreachable hosts
 			// hang until the App Platform gateway returns 504.
 			CoreModuleProperties.IO_CONNECT_TIMEOUT.set(client, CONNECT_TIMEOUT);
+			CoreModuleProperties.IDLE_TIMEOUT.set(client, IDLE_TIMEOUT);
 			client.start();
 			try (ClientSession session = client.connect(username, host, port)
 					.verify(CONNECT_TIMEOUT)

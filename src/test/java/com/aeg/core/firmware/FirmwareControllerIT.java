@@ -63,12 +63,17 @@ class FirmwareControllerIT {
 						.build(),
 				HttpResponse.BodyHandlers.ofString());
 
-		assertThat(createRes.statusCode()).isEqualTo(201);
-		assertThat(createRes.body()).contains(fileName);
-		assertThat(createRes.body()).contains("http://206.189.231.128/downloads/" + fileName);
-		assertThat(createRes.body()).contains("\"version\":\"9.9.9\"");
+		assertThat(createRes.statusCode()).isEqualTo(202);
+		assertThat(createRes.body()).contains("\"status\":\"PENDING\"");
+		String jobId = extractJobId(createRes.body());
 
-		Long id = extractId(createRes.body());
+		FirmwareResponseWait wait = waitForUploadJob(client, auth, jobId);
+		assertThat(wait.status()).isEqualTo("SUCCEEDED");
+		assertThat(wait.body()).contains(fileName);
+		assertThat(wait.body()).contains("http://206.189.231.128/downloads/" + fileName);
+		assertThat(wait.body()).contains("\"version\":\"9.9.9\"");
+
+		Long id = extractId(wait.body());
 
 		HttpResponse<String> listRes = client.send(
 				HttpRequest.newBuilder()
@@ -117,6 +122,44 @@ class FirmwareControllerIT {
 		String token = Base64.getEncoder()
 				.encodeToString("admin@test.local:test-admin-password".getBytes(StandardCharsets.UTF_8));
 		return "Basic " + token;
+	}
+
+	private static String extractJobId(String json) {
+		String marker = "\"jobId\":\"";
+		int idx = json.indexOf(marker);
+		assertThat(idx).isGreaterThanOrEqualTo(0);
+		int start = idx + marker.length();
+		int end = json.indexOf('"', start);
+		assertThat(end).isGreaterThan(start);
+		return json.substring(start, end);
+	}
+
+	private record FirmwareResponseWait(String status, String body) {
+	}
+
+	private FirmwareResponseWait waitForUploadJob(HttpClient client, String auth, String jobId)
+			throws Exception {
+		String status = "PENDING";
+		String body = "";
+		for (int i = 0; i < 50; i++) {
+			HttpResponse<String> jobRes = client.send(
+					HttpRequest.newBuilder()
+							.uri(URI.create("http://localhost:" + port + "/api/firmwares/uploads/" + jobId))
+							.header("Authorization", auth)
+							.GET()
+							.build(),
+					HttpResponse.BodyHandlers.ofString());
+			assertThat(jobRes.statusCode()).isEqualTo(200);
+			body = jobRes.body();
+			if (body.contains("\"status\":\"SUCCEEDED\"")) {
+				return new FirmwareResponseWait("SUCCEEDED", body);
+			}
+			if (body.contains("\"status\":\"FAILED\"")) {
+				return new FirmwareResponseWait("FAILED", body);
+			}
+			Thread.sleep(100);
+		}
+		return new FirmwareResponseWait(status, body);
 	}
 
 	private static Long extractId(String json) {
