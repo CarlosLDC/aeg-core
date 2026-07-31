@@ -105,11 +105,42 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 			throw e;
 		} catch (Exception e) {
 			log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
-			String hint = port == 22
-					? " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222)."
-					: "";
+			String hint;
+			if (port == 22) {
+				hint = " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222).";
+			} else if (messageLooksLikeConnectionRefused(e)) {
+				hint = " Nothing is accepting TCP " + port + " on " + host
+						+ ". On the droplet run scripts/setup-firmware-sftp-droplet.sh (sshd Port "
+						+ port + ") and open the firewall.";
+			} else if (messageLooksLikeTimeoutOrUnreachable(e)) {
+				hint = " Host " + host + ":" + port
+						+ " is unreachable from App Platform. Use the droplet public IP unless the app is attached to the same VPC.";
+			} else {
+				hint = "";
+			}
 			throw new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage() + hint, e);
 		}
+	}
+
+	private static boolean messageLooksLikeConnectionRefused(Throwable e) {
+		for (Throwable t = e; t != null; t = t.getCause()) {
+			String msg = t.getMessage();
+			if (msg != null && msg.toLowerCase().contains("connection refused")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean messageLooksLikeTimeoutOrUnreachable(Throwable e) {
+		for (Throwable t = e; t != null; t = t.getCause()) {
+			String msg = t.getMessage() == null ? "" : t.getMessage().toLowerCase();
+			if (msg.contains("timed out") || msg.contains("timeout") || msg.contains("unreachable")
+					|| msg.contains("no route to host")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static String trimTrailingSlash(String path) {

@@ -29,7 +29,7 @@ services:
         value: SET_IN_APP_PLATFORM
         type: SECRET
       - key: APP_CORS_ALLOWED_ORIGINS
-        value: https://aeg-core-admin.vercel.app,https://aeg-libros-fiscales.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech
+        value: https://aeg-core-admin.vercel.app,https://aeg-libros-fiscales.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech,https://aeg-tech.com,https://www.aeg-tech.com,https://*.vercel.app
       - key: SPRING_DATASOURCE_URL
         value: jdbc:postgresql://private-db-postgresql-nyc1-16442-do-user-35225255-0.l.db.ondigitalocean.com:25060/defaultdb?sslmode=require
       - key: SPRING_DATASOURCE_USERNAME
@@ -59,9 +59,10 @@ services:
         value: "300"
       - key: FIRMWARE_PUBLIC_BASE_URL
         value: "http://206.189.231.128/downloads"
-      # Subida desde App Platform por VPC; IoT descarga por FIRMWARE_PUBLIC_BASE_URL.
+      # Misma IP pública que MQTT_URL: App Platform suele no alcanzar la VPC privada.
+      # Si conectas la app al VPC del droplet, puedes volver a 10.116.0.4.
       - key: FIRMWARE_SFTP_HOST
-        value: "10.116.0.4"
+        value: "206.189.231.128"
       # App Platform bloquea outbound TCP/22; el droplet debe exponer sshd en este puerto.
       - key: FIRMWARE_SFTP_PORT
         value: "2222"
