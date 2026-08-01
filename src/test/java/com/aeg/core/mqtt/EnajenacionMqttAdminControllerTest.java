@@ -46,8 +46,28 @@ class EnajenacionMqttAdminControllerTest {
                 preconditionValidator, activityStore, sessionRegistry, testInvoiceService);
     }
 
-    @Test
-    void activityReturnsRecentEntries() {
+  @Test
+  void clearActivityRemovesEntries() {
+    activityStore.record(EnajenacionActivityEntry.create(
+        MAC,
+        1L,
+        "GRA0000017",
+        EnajenacionActivityDirection.INBOUND,
+        "/" + MAC + "/AEG_Fiscal/Integracion/CmdServer",
+        "{\"cmd\":\"ptrEnajenar\"}",
+        EnajenacionActivityResult.RECEIVED,
+        null,
+        null));
+
+    controller.clearActivity();
+
+    var response = controller.activity(10, 0, null, null, null, null, false);
+    assertThat(response.total()).isEqualTo(0);
+    assertThat(response.entries()).isEmpty();
+  }
+
+  @Test
+  void activityReturnsRecentEntries() {
         activityStore.record(EnajenacionActivityEntry.create(
                 MAC,
                 1L,

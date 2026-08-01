@@ -6,13 +6,12 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
 
 import jakarta.persistence.criteria.Predicate;
 
-/**
- * Legacy DB-backed store. Not registered as a Spring bean; activity is kept in memory
- * ({@link InMemoryEnajenacionActivityPersistence}) so logs are not permanent.
- */
+/** Persists Remoto activity until an admin clears it via DELETE /activity. */
+@Component
 public class JpaEnajenacionActivityPersistence implements EnajenacionActivityPersistence {
 
     private final MqttEnajenacionActivityLogRepository repository;

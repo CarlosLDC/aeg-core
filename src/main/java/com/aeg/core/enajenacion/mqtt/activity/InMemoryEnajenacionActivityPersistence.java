@@ -6,13 +6,9 @@ import java.util.Deque;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.springframework.stereotype.Component;
-
 /**
- * Volatile ring buffer for Remoto activity (same idea as fiscalización).
- * Entries are lost on restart and oldest ones are dropped when capacity is reached.
+ * In-memory ring buffer for unit tests (not a Spring bean; production uses JPA).
  */
-@Component
 public class InMemoryEnajenacionActivityPersistence implements EnajenacionActivityPersistence {
 
 	static final int MAX_ENTRIES = 2_000;
