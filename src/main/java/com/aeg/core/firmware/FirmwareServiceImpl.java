@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aeg.core.firmware.dto.FirmwareResponse;
+import com.aeg.core.firmware.dto.FirmwareUpdateRequest;
 import com.aeg.core.firmware.storage.FirmwareStorage;
 import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.printermodel.PrinterModelRepository;
@@ -159,15 +160,37 @@ public class FirmwareServiceImpl implements FirmwareService {
 	}
 
 	@Override
+	public FirmwareResponse update(Long id, FirmwareUpdateRequest request) {
+		Firmware entity = findEntityById(id);
+		if (request == null || !StringUtils.hasText(request.version())
+				|| !VERSION_PATTERN.matcher(request.version().trim()).matches()) {
+			throw new IllegalArgumentException("version must match N.N.N (e.g. 1.2.3)");
+		}
+		String normalizedVersion = request.version().trim();
+		Long printerModelId = request.printerModelId();
+
+		assertVersionAvailable(normalizedVersion, printerModelId, id);
+
+		PrinterModel model = null;
+		if (printerModelId != null) {
+			model = printerModelRepository.findById(printerModelId)
+					.orElseThrow(() -> new ResourceNotFoundException(
+							"Printer model not found with id: " + printerModelId));
+		}
+
+		entity.setVersion(normalizedVersion);
+		entity.setPrinterModel(model);
+		entity.setNotes(StringUtils.hasText(request.notes()) ? request.notes().trim() : null);
+		return toResponse(repository.save(entity));
+	}
+
+	@Override
 	public void delete(Long id) {
 		Firmware entity = findEntityById(id);
 		String fileName = entity.getFileName();
+		// Bucket first: never remove the DB row if remote delete fails.
+		storage.delete(fileName);
 		repository.delete(entity);
-		try {
-			storage.delete(fileName);
-		} catch (RuntimeException e) {
-			log.warn("Firmware DB row deleted but remote file cleanup failed: {}", fileName, e);
-		}
 	}
 
 	@Override
@@ -189,9 +212,20 @@ public class FirmwareServiceImpl implements FirmwareService {
 	}
 
 	private void assertVersionAvailable(String version, Long printerModelId) {
-		boolean exists = printerModelId == null
-				? repository.existsByVersionAndPrinterModelIsNull(version)
-				: repository.existsByVersionAndPrinterModel_Id(version, printerModelId);
+		assertVersionAvailable(version, printerModelId, null);
+	}
+
+	private void assertVersionAvailable(String version, Long printerModelId, Long excludeId) {
+		boolean exists;
+		if (excludeId == null) {
+			exists = printerModelId == null
+					? repository.existsByVersionAndPrinterModelIsNull(version)
+					: repository.existsByVersionAndPrinterModel_Id(version, printerModelId);
+		} else {
+			exists = printerModelId == null
+					? repository.existsByVersionAndPrinterModelIsNullAndIdNot(version, excludeId)
+					: repository.existsByVersionAndPrinterModel_IdAndIdNot(version, printerModelId, excludeId);
+		}
 		if (exists) {
 			throw new IllegalArgumentException(
 					"Firmware version already exists for the given printer model: " + version);

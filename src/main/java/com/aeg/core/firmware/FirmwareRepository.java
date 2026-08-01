@@ -12,6 +12,10 @@ public interface FirmwareRepository extends JpaRepository<Firmware, Long> {
 
 	boolean existsByVersionAndPrinterModelIsNull(String version);
 
+	boolean existsByVersionAndPrinterModel_IdAndIdNot(String version, Long printerModelId, Long id);
+
+	boolean existsByVersionAndPrinterModelIsNullAndIdNot(String version, Long id);
+
 	List<Firmware> findByPrinterModel_IdOrderByCreatedAtDesc(Long printerModelId);
 
 	List<Firmware> findAllByOrderByCreatedAtDesc();

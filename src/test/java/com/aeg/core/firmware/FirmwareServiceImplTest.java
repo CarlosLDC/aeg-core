@@ -29,6 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 
 import com.aeg.core.firmware.dto.FirmwareResponse;
+import com.aeg.core.firmware.dto.FirmwareUpdateRequest;
 import com.aeg.core.firmware.storage.FirmwareStorage;
 import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.printermodel.PrinterModelRepository;
@@ -107,6 +108,24 @@ class FirmwareServiceImplTest {
 	}
 
 	@Test
+	void createDoesNotPersistWhenUploadFails() {
+		byte[] payload = new byte[] {1, 2, 3};
+		MockMultipartFile file = new MockMultipartFile(
+				"file", "fail-upload.bin", "application/octet-stream", payload);
+		when(repository.existsByFileName("fail-upload.bin")).thenReturn(false);
+		when(repository.existsByVersionAndPrinterModelIsNull("4.0.0")).thenReturn(false);
+		doThrow(new IllegalStateException("sftp upload down"))
+				.when(storage)
+				.upload(eq("fail-upload.bin"), any(InputStream.class), eq((long) payload.length));
+
+		assertThatThrownBy(() -> service.create(file, "4.0.0", null, null))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("sftp upload down");
+		verify(repository, never()).save(any(Firmware.class));
+		verify(storage, never()).delete(anyString());
+	}
+
+	@Test
 	void createResolvesPrinterModel() {
 		byte[] payload = new byte[] {1};
 		MockMultipartFile file = new MockMultipartFile("file", "model-fw.bin", "application/octet-stream", payload);
@@ -146,15 +165,31 @@ class FirmwareServiceImplTest {
 	}
 
 	@Test
-	void deleteRemovesRowEvenIfRemoteFails() {
+	void deleteRemovesRemoteThenPersistedRow() {
+		Firmware entity = new Firmware();
+		entity.setId(8L);
+		entity.setFileName("keep-sync.bin");
+		when(repository.findById(8L)).thenReturn(Optional.of(entity));
+
+		service.delete(8L);
+
+		var inOrder = org.mockito.Mockito.inOrder(storage, repository);
+		inOrder.verify(storage).delete("keep-sync.bin");
+		inOrder.verify(repository).delete(entity);
+	}
+
+	@Test
+	void deleteDoesNotRemoveRowWhenRemoteFails() {
 		Firmware entity = new Firmware();
 		entity.setId(9L);
 		entity.setFileName("gone.bin");
 		when(repository.findById(9L)).thenReturn(Optional.of(entity));
 		doThrow(new IllegalStateException("sftp down")).when(storage).delete("gone.bin");
 
-		service.delete(9L);
-		verify(repository).delete(entity);
+		assertThatThrownBy(() -> service.delete(9L))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("sftp down");
+		verify(repository, never()).delete(any());
 	}
 
 	@Test
@@ -162,6 +197,54 @@ class FirmwareServiceImplTest {
 		when(repository.findById(99L)).thenReturn(Optional.empty());
 		assertThatThrownBy(() -> service.findById(99L))
 				.isInstanceOf(ResourceNotFoundException.class);
+	}
+
+	@Test
+	void updateChangesMetadataWithoutTouchingStorage() {
+		Firmware entity = new Firmware();
+		entity.setId(11L);
+		entity.setVersion("1.0.0");
+		entity.setFileName("aeg-1.0.0.bin");
+		entity.setSizeBytes(10L);
+		entity.setChecksumSha256("abc");
+		entity.setNotes("old");
+
+		PrinterModel model = new PrinterModel();
+		model.setId(7L);
+
+		when(repository.findById(11L)).thenReturn(Optional.of(entity));
+		when(repository.existsByVersionAndPrinterModel_IdAndIdNot("2.0.0", 7L, 11L)).thenReturn(false);
+		when(printerModelRepository.findById(7L)).thenReturn(Optional.of(model));
+		when(repository.save(any(Firmware.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		FirmwareResponse response = service.update(
+				11L,
+				new FirmwareUpdateRequest("2.0.0", 7L, "release notes"));
+
+		assertThat(response.version()).isEqualTo("2.0.0");
+		assertThat(response.printerModelId()).isEqualTo(7L);
+		assertThat(response.notes()).isEqualTo("release notes");
+		assertThat(response.fileName()).isEqualTo("aeg-1.0.0.bin");
+		verify(storage, never()).upload(anyString(), any(), anyLong());
+		verify(storage, never()).delete(anyString());
+	}
+
+	@Test
+	void updateRejectsDuplicateVersionForOtherRow() {
+		Firmware entity = new Firmware();
+		entity.setId(12L);
+		entity.setVersion("1.0.0");
+		entity.setFileName("a.bin");
+		entity.setSizeBytes(1L);
+		entity.setChecksumSha256("x");
+
+		when(repository.findById(12L)).thenReturn(Optional.of(entity));
+		when(repository.existsByVersionAndPrinterModelIsNullAndIdNot("1.1.0", 12L)).thenReturn(true);
+
+		assertThatThrownBy(() -> service.update(12L, new FirmwareUpdateRequest("1.1.0", null, null)))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("already exists");
+		verify(repository, never()).save(any(Firmware.class));
 	}
 
 	@Test

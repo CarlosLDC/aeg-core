@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.aeg.core.firmware.dto.FirmwareResponse;
+import com.aeg.core.firmware.dto.FirmwareUpdateRequest;
 
 public interface FirmwareService {
 
@@ -22,6 +23,9 @@ public interface FirmwareService {
 
 	/** Sync create (tests / internal). */
 	FirmwareResponse create(MultipartFile file, String version, Long printerModelId, String notes);
+
+	/** Updates metadata only (version, model, notes). Binary stays on SFTP. */
+	FirmwareResponse update(Long id, FirmwareUpdateRequest request);
 
 	void delete(Long id);
 

@@ -10,6 +10,8 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.core.CoreModuleProperties;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
+import org.apache.sshd.sftp.common.SftpConstants;
+import org.apache.sshd.sftp.common.SftpException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -68,9 +70,35 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 	@Override
 	public void delete(String fileName) {
 		withSftp(sftp -> {
-			sftp.remove(remotePath(fileName));
+			String remotePath = remotePath(fileName);
+			try {
+				sftp.remove(remotePath);
+			} catch (IOException e) {
+				if (isNoSuchFile(e)) {
+					log.info("Firmware remote file already absent, treating delete as success: {}", remotePath);
+					return null;
+				}
+				throw e;
+			}
 			return null;
 		});
+	}
+
+	private static boolean isNoSuchFile(Throwable e) {
+		for (Throwable t = e; t != null; t = t.getCause()) {
+			if (t instanceof java.nio.file.NoSuchFileException) {
+				return true;
+			}
+			if (t instanceof SftpException sftpEx
+					&& sftpEx.getStatus() == SftpConstants.SSH_FX_NO_SUCH_FILE) {
+				return true;
+			}
+			String msg = t.getMessage() == null ? "" : t.getMessage().toLowerCase();
+			if (msg.contains("no such file") || msg.contains("not found") || msg.contains("does not exist")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private String remotePath(String fileName) {
