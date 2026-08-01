@@ -6,13 +6,13 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Component;
-
-import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 
 import jakarta.persistence.criteria.Predicate;
 
-@Component
+/**
+ * Legacy DB-backed store. Not registered as a Spring bean; activity is kept in memory
+ * ({@link InMemoryEnajenacionActivityPersistence}) so logs are not permanent.
+ */
 public class JpaEnajenacionActivityPersistence implements EnajenacionActivityPersistence {
 
     private final MqttEnajenacionActivityLogRepository repository;
@@ -73,30 +73,5 @@ public class JpaEnajenacionActivityPersistence implements EnajenacionActivityPer
             }
             return cb.and(predicates.toArray(Predicate[]::new));
         };
-    }
-
-    static EnajenacionActivityQuery normalizeQuery(EnajenacionActivityQuery query) {
-        String mac = normalizeMacFilter(query.mac());
-        String ptrReg = normalizePtrRegFilter(query.ptrRegContains());
-        return new EnajenacionActivityQuery(
-                mac,
-                query.result(),
-                ptrReg,
-                query.direction(),
-                query.sessionEventsOnly());
-    }
-
-    private static String normalizeMacFilter(String macFilter) {
-        if (macFilter == null || macFilter.isBlank()) {
-            return null;
-        }
-        return MacAddressNormalizer.toCompactForm(macFilter);
-    }
-
-    private static String normalizePtrRegFilter(String ptrRegFilter) {
-        if (ptrRegFilter == null || ptrRegFilter.isBlank()) {
-            return null;
-        }
-        return ptrRegFilter.trim();
     }
 }

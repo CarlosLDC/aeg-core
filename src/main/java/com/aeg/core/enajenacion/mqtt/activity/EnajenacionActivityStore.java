@@ -18,12 +18,12 @@ public class EnajenacionActivityStore {
     }
 
     public List<EnajenacionActivityEntry> find(EnajenacionActivityQuery query, int limit, int page) {
-        EnajenacionActivityQuery normalized = JpaEnajenacionActivityPersistence.normalizeQuery(query);
+        EnajenacionActivityQuery normalized = EnajenacionActivityQuery.normalize(query);
         return persistence.find(normalized, clampLimit(limit), Math.max(0, page));
     }
 
     public long count(EnajenacionActivityQuery query) {
-        EnajenacionActivityQuery normalized = JpaEnajenacionActivityPersistence.normalizeQuery(query);
+        EnajenacionActivityQuery normalized = EnajenacionActivityQuery.normalize(query);
         return persistence.count(normalized);
     }
 
