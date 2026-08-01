@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 public interface SealRepository extends JpaRepository<Seal, Long> {
     boolean existsBySerialIgnoreCase(String serial);
 
+    java.util.Optional<Seal> findBySerialIgnoreCase(String serial);
+
     @Query("SELECT s FROM Seal s WHERE s.printer IS NOT NULL AND s.printer.id IN :printerIds")
     List<Seal> findByPrinter_IdIn(@Param("printerIds") Collection<Long> printerIds);
 

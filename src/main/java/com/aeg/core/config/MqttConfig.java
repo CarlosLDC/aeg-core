@@ -52,6 +52,9 @@ public class MqttConfig {
     @Value("${app.mqtt.enajenacion.inbound-topic:+/AEG_Fiscal/Integracion/CmdServer}")
     private String enajenacionInboundTopic;
 
+    @Value("${app.mqtt.fiscalizacion.enabled:true}")
+    private boolean fiscalizacionEnabled;
+
     @Value("${app.mqtt.inbound.enabled:true}")
     private boolean inboundEnabled;
 
@@ -158,7 +161,7 @@ public class MqttConfig {
     String[] inboundTopics() {
         Set<String> topics = new LinkedHashSet<>();
         addTopic(topics, inboundTopic);
-        if (enajenacionEnabled) {
+        if (enajenacionEnabled || fiscalizacionEnabled) {
             addFiscalTopicVariants(topics, enajenacionInboundTopic);
             addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Respuesta");
             addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Documento");

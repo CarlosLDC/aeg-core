@@ -57,6 +57,10 @@ services:
       # Paso 3a (fiscalAEG / SPIFFS): impresoras reales pueden tardar varios minutos.
       - key: MQTT_ENAJENACION_TIMEOUT_FISCAL_RIF
         value: "300"
+      - key: MQTT_FISCALIZACION_ENABLED
+        value: "true"
+      - key: MQTT_FISCALIZACION_TIMEOUT_RESULT
+        value: "180"
       - key: FIRMWARE_PUBLIC_BASE_URL
         value: "http://206.189.231.128/downloads"
       # Misma IP pública que MQTT_URL: App Platform suele no alcanzar la VPC privada.

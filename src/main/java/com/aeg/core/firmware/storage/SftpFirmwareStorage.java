@@ -34,8 +34,8 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 	private final String remoteDir;
 
 	public SftpFirmwareStorage(
-			@Value("${app.firmware.sftp.host}") String host,
-			@Value("${app.firmware.sftp.port:22}") int port,
+			@Value("${app.firmware.sftp.host:206.189.231.128}") String host,
+			@Value("${app.firmware.sftp.port:2222}") int port,
 			@Value("${app.firmware.sftp.username:}") String username,
 			@Value("${app.firmware.sftp.password:}") String password,
 			@Value("${app.firmware.sftp.remote-dir:/var/www/firmware}") String remoteDir) {

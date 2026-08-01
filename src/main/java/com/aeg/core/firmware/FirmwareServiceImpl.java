@@ -43,7 +43,7 @@ public class FirmwareServiceImpl implements FirmwareService {
 			FirmwareRepository repository,
 			PrinterModelRepository printerModelRepository,
 			FirmwareStorage storage,
-			@Value("${app.firmware.public-base-url}") String publicBaseUrl) {
+			@Value("${app.firmware.public-base-url:http://206.189.231.128/downloads}") String publicBaseUrl) {
 		this.repository = repository;
 		this.printerModelRepository = printerModelRepository;
 		this.storage = storage;
