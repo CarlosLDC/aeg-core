@@ -1,6 +1,7 @@
 package com.aeg.core.security;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
+import com.aeg.core.printer.PrinterDeleteBlockedException;
 import com.aeg.core.tools.mqtt.ToolsMqttOperationException;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import jakarta.persistence.EntityNotFoundException;
@@ -67,6 +68,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
         return buildResponse(HttpStatus.FORBIDDEN, "Acceso denegado", mapAccessDeniedMessage(e.getMessage()));
+    }
+
+    @ExceptionHandler(PrinterDeleteBlockedException.class)
+    public ResponseEntity<Map<String, Object>> handlePrinterDeleteBlocked(PrinterDeleteBlockedException e) {
+        Map<String, Object> body = buildBody(HttpStatus.CONFLICT, "Conflicto de datos", e.getMessage());
+        body.put("dependencies", e.getDependencies().stream()
+                .map(dep -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("type", dep.type());
+                    item.put("id", dep.id());
+                    item.put("label", dep.label());
+                    return item;
+                })
+                .toList());
+        body.put("consequences", e.getConsequences());
+        body.put("forceAllowed", true);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -155,6 +173,12 @@ public class GlobalExceptionHandler {
         if (message.contains("modification_requests_requested_by_fkey")) {
             return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
                     "No se puede eliminar el usuario porque tiene solicitudes de modificación registradas.");
+        }
+        if (message.contains("precintos_id_impresora_fkey")
+                || message.contains("servicios_tecnicos_id_impresora_fkey")
+                || message.contains("inspecciones_anuales_id_impresora_fkey")) {
+            return buildResponse(HttpStatus.CONFLICT, "Conflicto de datos",
+                    "No se puede eliminar la impresora porque tiene precintos, servicios técnicos o inspecciones anuales vinculadas. Elimina esas referencias primero.");
         }
         if (message.contains("violates foreign key constraint") || message.contains("fk_")) {
             return buildResponse(HttpStatus.BAD_REQUEST, "Error de integridad referencial", 

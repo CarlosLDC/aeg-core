@@ -1,11 +1,14 @@
 package com.aeg.core.printer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
+import com.aeg.core.printer.dto.PrinterDependencyRef;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
@@ -18,8 +21,15 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.client.Client;
 import com.aeg.core.company.Company;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
+import com.aeg.core.inspection.AnnualInspection;
+import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.organization.OrgCapability;
 import com.aeg.core.organization.OrganizationCapabilityService;
+import com.aeg.core.seal.Seal;
+import com.aeg.core.seal.SealRepository;
+import com.aeg.core.seal.SealStatus;
+import com.aeg.core.technicalservice.TechnicalServiceVisit;
+import com.aeg.core.technicalservice.TechnicalServiceVisitRepository;
 
 @Service
 @Transactional
@@ -30,6 +40,9 @@ public class PrinterServiceImpl implements PrinterService {
     private final com.aeg.core.software.SoftwareRepository softwareRepository;
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
     private final com.aeg.core.client.ClientRepository clientRepository;
+    private final SealRepository sealRepository;
+    private final AnnualInspectionRepository annualInspectionRepository;
+    private final TechnicalServiceVisitRepository technicalServiceVisitRepository;
     private final SecurityScopeService securityScope;
     private final OrganizationCapabilityService organizationCapability;
 
@@ -38,6 +51,9 @@ public class PrinterServiceImpl implements PrinterService {
                               com.aeg.core.software.SoftwareRepository softwareRepository,
                               com.aeg.core.distributor.DistributorRepository distributorRepository,
                               com.aeg.core.client.ClientRepository clientRepository,
+                              SealRepository sealRepository,
+                              AnnualInspectionRepository annualInspectionRepository,
+                              TechnicalServiceVisitRepository technicalServiceVisitRepository,
                               SecurityScopeService securityScope,
                               OrganizationCapabilityService organizationCapability) {
         this.repository = repository;
@@ -45,6 +61,9 @@ public class PrinterServiceImpl implements PrinterService {
         this.softwareRepository = softwareRepository;
         this.distributorRepository = distributorRepository;
         this.clientRepository = clientRepository;
+        this.sealRepository = sealRepository;
+        this.annualInspectionRepository = annualInspectionRepository;
+        this.technicalServiceVisitRepository = technicalServiceVisitRepository;
         this.securityScope = securityScope;
         this.organizationCapability = organizationCapability;
     }
@@ -192,10 +211,133 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     @Override
-    public void delete(Long id) {
+    @Transactional(readOnly = true)
+    public PrinterDeleteImpactResponse deleteImpact(Long id) {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
+        List<PrinterDependencyRef> dependencies = collectDeleteDependencies(p);
+        List<String> consequences = buildDeleteConsequences(dependencies);
+        return new PrinterDeleteImpactResponse(
+                p.getId(),
+                p.getFiscalSerial(),
+                dependencies,
+                consequences,
+                hasBlockingDependencies(dependencies));
+    }
+
+    @Override
+    public void delete(Long id, boolean force) {
+        Printer p = findEntityById(id);
+        securityScope.assertPrinterInScope(p);
+        List<PrinterDependencyRef> dependencies = collectDeleteDependencies(p);
+        boolean blocked = hasBlockingDependencies(dependencies);
+        if (blocked && !force) {
+            throw new PrinterDeleteBlockedException(
+                    "Esta impresora tiene registros vinculados. "
+                            + "Puedes forzar la eliminación si aceptas las consecuencias listadas.",
+                    dependencies,
+                    buildDeleteConsequences(dependencies));
+        }
+        if (force && blocked) {
+            detachAndRemoveDependencies(p.getId());
+        }
         repository.delete(p);
+    }
+
+    private static boolean hasBlockingDependencies(List<PrinterDependencyRef> dependencies) {
+        return dependencies.stream().anyMatch(d -> !"client".equals(d.type()));
+    }
+
+    private void detachAndRemoveDependencies(Long printerId) {
+        List<TechnicalServiceVisit> visits =
+                technicalServiceVisitRepository.findByPrinter_IdOrderByCreatedAtAsc(printerId);
+        for (TechnicalServiceVisit visit : visits) {
+            visit.setInstalledSeal(null);
+            visit.setRemovedSeal(null);
+        }
+        if (!visits.isEmpty()) {
+            technicalServiceVisitRepository.saveAll(visits);
+            technicalServiceVisitRepository.deleteAll(visits);
+        }
+
+        List<AnnualInspection> inspections =
+                annualInspectionRepository.findByPrinter_IdOrderByCreatedAtAsc(printerId);
+        if (!inspections.isEmpty()) {
+            annualInspectionRepository.deleteAll(inspections);
+        }
+
+        List<Seal> seals = sealRepository.findByPrinter_Id(printerId);
+        for (Seal seal : seals) {
+            seal.setPrinter(null);
+            seal.setInstallationDate(null);
+            seal.setRemovalDate(null);
+            seal.setStatus(SealStatus.DISPONIBLE);
+        }
+        if (!seals.isEmpty()) {
+            sealRepository.saveAll(seals);
+        }
+    }
+
+    private List<PrinterDependencyRef> collectDeleteDependencies(Printer printer) {
+        Long printerId = printer.getId();
+        List<PrinterDependencyRef> deps = new ArrayList<>();
+
+        if (printer.getClient() != null && printer.getClient().getId() != null) {
+            Client client = printer.getClient();
+            deps.add(new PrinterDependencyRef(
+                    "client",
+                    client.getId(),
+                    "Cliente #" + client.getId() + " (no se elimina; solo se desvincula)"));
+        }
+
+        for (Seal seal : sealRepository.findByPrinter_Id(printerId)) {
+            deps.add(new PrinterDependencyRef(
+                    "seal",
+                    seal.getId(),
+                    "Precinto " + seal.getSerial() + " (se desvincula y vuelve a disponible)"));
+        }
+        for (TechnicalServiceVisit visit : technicalServiceVisitRepository.findByPrinter_IdOrderByCreatedAtAsc(printerId)) {
+            deps.add(new PrinterDependencyRef(
+                    "technicalService",
+                    visit.getId(),
+                    "Servicio técnico #" + visit.getId() + " (se elimina)"));
+        }
+        for (AnnualInspection inspection : annualInspectionRepository.findByPrinter_IdOrderByCreatedAtAsc(printerId)) {
+            String dateLabel = inspection.getInspectionDate() != null
+                    ? inspection.getInspectionDate().toString()
+                    : String.valueOf(inspection.getId());
+            deps.add(new PrinterDependencyRef(
+                    "annualInspection",
+                    inspection.getId(),
+                    "Inspección anual " + dateLabel + " (se elimina)"));
+        }
+        return deps;
+    }
+
+    private static List<String> buildDeleteConsequences(List<PrinterDependencyRef> dependencies) {
+        List<String> consequences = new ArrayList<>();
+        boolean hasClient = dependencies.stream().anyMatch(d -> "client".equals(d.type()));
+        boolean hasSeal = dependencies.stream().anyMatch(d -> "seal".equals(d.type()));
+        boolean hasService = dependencies.stream().anyMatch(d -> "technicalService".equals(d.type()));
+        boolean hasInspection = dependencies.stream().anyMatch(d -> "annualInspection".equals(d.type()));
+
+        consequences.add("La impresora desaparecerá del catálogo y de Tools/Remoto.");
+        if (hasClient) {
+            consequences.add("El cliente vinculado NO se eliminará; solo perderá esta impresora.");
+        }
+        if (hasSeal) {
+            consequences.add("Los precintos instalados se desvincularán y quedarán disponibles.");
+        }
+        if (hasService) {
+            consequences.add("Los servicios técnicos de esta impresora se borrarán de forma permanente.");
+        }
+        if (hasInspection) {
+            consequences.add("Las inspecciones anuales de esta impresora se borrarán de forma permanente.");
+        }
+        if (!hasClient && !hasSeal && !hasService && !hasInspection) {
+            consequences.add("No hay registros vinculados adicionales.");
+        }
+        return consequences;
     }
 
     private Printer findEntityById(Long id) {

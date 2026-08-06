@@ -2,6 +2,7 @@ package com.aeg.core.printer;
 
 import java.util.List;
 
+import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
@@ -14,5 +15,6 @@ public interface PrinterService {
     PrinterResponse update(Long id, PrinterRequest request);
     PrinterResponse dispose(Long id, PrinterDispositionRequest request);
     PrinterEnajenacionTicketResponse previewEnajenacionTicket(Long printerId, Long clientId);
-    void delete(Long id);
+    PrinterDeleteImpactResponse deleteImpact(Long id);
+    void delete(Long id, boolean force);
 }

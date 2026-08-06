@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
@@ -39,6 +40,11 @@ public class PrinterController {
     @GetMapping("/{id}")
     public PrinterResponse findById(@PathVariable Long id) {
         return service.findById(id);
+    }
+
+    @GetMapping("/{id}/delete-impact")
+    public PrinterDeleteImpactResponse deleteImpact(@PathVariable Long id) {
+        return service.deleteImpact(id);
     }
 
     @PostMapping
@@ -66,7 +72,9 @@ public class PrinterController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        service.delete(id);
+    public void delete(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean force) {
+        service.delete(id, force);
     }
 }
