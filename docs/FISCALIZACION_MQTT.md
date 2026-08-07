@@ -87,7 +87,7 @@ Core verifica:
 {
   "cmd": "RxPtrFiscalizarRemoto",
   "code": 0,
-  "data": { "msj": "Impresora Lista a Fiscalizar" }
+  "data": { "msj": "Impresora Lista a Fiscalizar", "Access": "config" }
 }
 ```
 

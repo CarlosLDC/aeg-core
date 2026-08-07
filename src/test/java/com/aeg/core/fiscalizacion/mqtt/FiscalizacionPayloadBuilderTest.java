@@ -30,11 +30,13 @@ class FiscalizacionPayloadBuilderTest {
         assertThat(ok.path("cmd").asText()).isEqualTo("RxPtrFiscalizarRemoto");
         assertThat(ok.path("code").asInt()).isZero();
         assertThat(ok.path("data").path("msj").asText()).isEqualTo(FiscalizacionConstants.MSG_LISTA);
+        assertThat(ok.path("data").path("Access").asText()).isEqualTo("config");
 
         JsonNode err = objectMapper.readTree(
                 payloadBuilder.buildAckError(FiscalizacionConstants.MSG_MAC_EXISTE));
         assertThat(err.path("code").asInt()).isEqualTo(1);
         assertThat(err.path("data").path("msj").asText()).isEqualTo(FiscalizacionConstants.MSG_MAC_EXISTE);
+        assertThat(err.path("data").path("Access").isMissingNode()).isTrue();
     }
 
     @Test

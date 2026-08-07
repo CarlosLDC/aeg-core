@@ -16,20 +16,23 @@ public class FiscalizacionPayloadBuilder {
     }
 
     public String buildAckSuccess() {
-        return buildAck(0, FiscalizacionConstants.MSG_LISTA);
+        return buildAck(0, FiscalizacionConstants.MSG_LISTA, true);
     }
 
     public String buildAckError(String msj) {
-        return buildAck(1, msj == null ? "Error de validación" : msj);
+        return buildAck(1, msj == null ? "Error de validación" : msj, false);
     }
 
-    private String buildAck(int code, String msj) {
+    private String buildAck(int code, String msj, boolean includeAccess) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("cmd", FiscalizacionConstants.CMD_RX_PTR_FISCALIZAR_REMOTO);
             root.put("code", code);
             ObjectNode data = root.putObject("data");
             data.put("msj", msj);
+            if (includeAccess) {
+                data.put("Access", "config");
+            }
             return objectMapper.writeValueAsString(root);
         } catch (Exception ex) {
             throw new FiscalizacionProtocolException("Failed to build RxPtrFiscalizarRemoto payload");
