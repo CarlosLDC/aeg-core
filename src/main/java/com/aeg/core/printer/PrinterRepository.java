@@ -23,9 +23,19 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
 
     @Query("""
             SELECT p FROM Printer p
-            WHERE REPLACE(UPPER(p.macAddress), ':', '') = :compactMac
+            WHERE REPLACE(UPPER(TRIM(p.macAddress)), ':', '') = :compactMac
             """)
     Optional<Printer> findByMacAddressCompact(@Param("compactMac") String compactMac);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(p) > 0 THEN TRUE ELSE FALSE END
+            FROM Printer p
+            WHERE REPLACE(UPPER(TRIM(p.macAddress)), ':', '') = :compactMac
+              AND (:excludeId IS NULL OR p.id <> :excludeId)
+            """)
+    boolean existsByMacAddressCompactExcludingId(
+            @Param("compactMac") String compactMac,
+            @Param("excludeId") Long excludeId);
 
     /** Navega la relación {@code distributor}, no un atributo {@code distributorId}. */
     List<Printer> findByDistributor_Id(Long distributorId);

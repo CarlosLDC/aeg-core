@@ -184,6 +184,13 @@ public class GlobalExceptionHandler {
             return buildResponse(HttpStatus.BAD_REQUEST, "Error de integridad referencial", 
                 "No se puede realizar la operación porque el registro está siendo referenciado o hace referencia a un registro inexistente.");
         }
+        if (message.contains("impresoras_direccion_mac_compact_uq")
+                || message.contains("impresoras_serial_fiscal_key")) {
+            String detail = message.contains("impresoras_direccion_mac_compact_uq")
+                    ? "Ya existe una impresora con esa dirección MAC."
+                    : "Ya existe una impresora con ese serial fiscal.";
+            return buildResponse(HttpStatus.CONFLICT, "Registro duplicado", detail);
+        }
         if (message.contains("duplicate key value") || message.contains("unique constraint")) {
             return buildResponse(HttpStatus.CONFLICT, "Registro duplicado", 
                 "Ya existe un registro con estos datos únicos.");
@@ -230,6 +237,12 @@ public class GlobalExceptionHandler {
     private static String mapBusinessMessage(String raw) {
         if (raw == null || raw.isBlank()) {
             return "Petición inválida.";
+        }
+        if (raw.contains("fiscalSerial already exists")) {
+            return "Ya existe una impresora con ese serial fiscal.";
+        }
+        if (raw.contains("macAddress already exists")) {
+            return "Ya existe una impresora con esa dirección MAC.";
         }
         if (raw.contains("branch already linked to another distributor")) {
             return "Esta sucursal ya es cliente de otra distribuidora.";

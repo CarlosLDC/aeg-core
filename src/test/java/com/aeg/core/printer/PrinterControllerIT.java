@@ -139,6 +139,33 @@ public class PrinterControllerIT {
     }
 
     @Test
+    void createRejectsDuplicateMacAddress() throws Exception {
+        PrinterModel model = createPrinterModel();
+        String mac = nextMacAddress();
+        String firstBody = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"laboratorio\","
+                + "\"deviceType\":\"interno\","
+                + "\"macAddress\":\"" + mac + "\""
+                + "}";
+        assertThat(postPrinter(firstBody).statusCode()).isEqualTo(201);
+
+        String duplicateBody = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"laboratorio\","
+                + "\"deviceType\":\"interno\","
+                + "\"macAddress\":\"" + mac + "\""
+                + "}";
+        var res = postPrinter(duplicateBody);
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(res.body()).containsIgnoringCase("MAC");
+    }
+
+    @Test
     void adminCanDisposeAssignedPaidPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);

@@ -62,7 +62,7 @@ Cliente (USB, HTTP o MQTT Comando):
 Core verifica:
 
 1. `ptrReg` no existe en impresoras → `"Registro de Impresora ya Existe"`
-2. MAC no existe → `"Mac Address de Impresora ya Existe"`
+2. MAC no existe (única por impresora; índice `impresoras_direccion_mac_compact_uq`) → `"Mac Address de Impresora ya Existe"`
 3. Existe precinto con serial `PrecintoNro` → `"Precinto de Impresora no Existe"`
 4. Precinto `DISPONIBLE` y sin impresora → `"Precinto de Impresora ya está Asignado"`
 

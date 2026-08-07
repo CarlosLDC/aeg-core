@@ -21,6 +21,7 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.client.Client;
 import com.aeg.core.company.Company;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
+import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.inspection.AnnualInspection;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.organization.OrgCapability;
@@ -87,6 +88,8 @@ public class PrinterServiceImpl implements PrinterService {
         if (repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
         }
+        String normalizedMac = normalizeMacOrNull(request.macAddress());
+        assertMacAvailable(normalizedMac, null);
         Printer p = new Printer();
         if (request.modelId() != null) {
             p.setModel(modelRepository.findById(request.modelId())
@@ -111,7 +114,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setPaid(request.paid());
         p.setInstallationDate(request.installationDate());
         p.setVersionFirmware(request.versionFirmware());
-        p.setMacAddress(request.macAddress());
+        p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
         p.setCreationBatchId(request.creationBatchId());
@@ -129,6 +132,8 @@ public class PrinterServiceImpl implements PrinterService {
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
         }
+        String normalizedMac = normalizeMacOrNull(request.macAddress());
+        assertMacAvailable(normalizedMac, p.getId());
         if (request.modelId() != null) {
             p.setModel(modelRepository.findById(request.modelId())
                 .orElseThrow(() -> new ResourceNotFoundException("Printer model not found with id: " + request.modelId())));
@@ -165,7 +170,7 @@ public class PrinterServiceImpl implements PrinterService {
             p.setInstallationDate(request.installationDate());
         }
         p.setVersionFirmware(request.versionFirmware());
-        p.setMacAddress(request.macAddress());
+        p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
         reconcileDistributorPaymentStatus(p);
@@ -338,6 +343,23 @@ public class PrinterServiceImpl implements PrinterService {
             consequences.add("No hay registros vinculados adicionales.");
         }
         return consequences;
+    }
+
+    private void assertMacAvailable(String normalizedColonMac, Long excludePrinterId) {
+        if (normalizedColonMac == null) {
+            return;
+        }
+        String compactMac = MacAddressNormalizer.requireCompactForm(normalizedColonMac);
+        if (repository.existsByMacAddressCompactExcludingId(compactMac, excludePrinterId)) {
+            throw new IllegalArgumentException("macAddress already exists: " + normalizedColonMac);
+        }
+    }
+
+    private static String normalizeMacOrNull(String macAddress) {
+        if (macAddress == null || macAddress.isBlank()) {
+            return null;
+        }
+        return MacAddressNormalizer.toColonForm(macAddress.trim());
     }
 
     private Printer findEntityById(Long id) {
