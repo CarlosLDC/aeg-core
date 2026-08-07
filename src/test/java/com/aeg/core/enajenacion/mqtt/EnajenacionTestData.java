@@ -60,7 +60,6 @@ final class EnajenacionTestData {
         client = clientRepository.save(client);
 
         PrinterModel model = new PrinterModel();
-        model.setBrand("AEG");
         model.setModelCode("TEST-MQTT");
         model.setPrice(BigDecimal.ZERO);
         model = modelRepository.save(model);

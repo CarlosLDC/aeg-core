@@ -220,7 +220,6 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 		}
 		return new FiscalBookModelResponse(
 				model.getId(),
-				model.getBrand(),
 				model.getModelCode(),
 				model.getProvidencia(),
 				model.getApprovalDate(),

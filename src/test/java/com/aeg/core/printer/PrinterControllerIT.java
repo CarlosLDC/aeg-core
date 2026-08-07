@@ -76,7 +76,6 @@ public class PrinterControllerIT {
         testClient = clientRepository.save(testClient);
 
         PrinterModel model = new PrinterModel();
-        model.setBrand("TestBrand");
         model.setModelCode("TST-1");
         model.setPrice(new BigDecimal("0.00"));
         model = modelRepository.save(model);
@@ -387,7 +386,6 @@ public class PrinterControllerIT {
 
     private PrinterModel createPrinterModel() {
         PrinterModel model = new PrinterModel();
-        model.setBrand("DispBrand");
         model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());
         model.setPrice(new BigDecimal("0.00"));
         return modelRepository.save(model);

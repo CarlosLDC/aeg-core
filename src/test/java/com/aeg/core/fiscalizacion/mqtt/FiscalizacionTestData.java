@@ -39,7 +39,6 @@ final class FiscalizacionTestData {
             String precintoNro) {
         PrinterModel model = modelRepository.findFirstByModelCodeIgnoreCaseOrderByIdAsc("AEG-R1").orElseGet(() -> {
             PrinterModel created = new PrinterModel();
-            created.setBrand("AEG");
             created.setModelCode("AEG-R1");
             created.setPrice(BigDecimal.ZERO);
             return modelRepository.save(created);

@@ -1561,7 +1561,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"brand\": \"Epson\",\n  \"modelCode\": \"L3150\",\n  \"providencia\": \"PROV-2025-001\",\n  \"approvalDate\": \"2025-01-15\",\n  \"price\": 1250.50\n}",
+              "raw": "{\n  \"modelCode\": \"Epson-L3150\",\n  \"providencia\": \"PROV-2025-001\",\n  \"approvalDate\": \"2025-01-15\",\n  \"price\": 1250.50\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1582,10 +1582,9 @@
                   "",
                   "const schema = {",
                   "  'type': 'object',",
-                  "  'required': ['id', 'brand', 'modelCode', 'providencia'],",
+                  "  'required': ['id', 'modelCode', 'providencia'],",
                   "  'properties': {",
                   "    'id': { 'type': ['number', 'string'] },",
-                  "    'brand': { 'type': 'string' },",
                   "    'modelCode': { 'type': 'string' },",
                   "    'providencia': { 'type': 'string' },",
                   "    'price': { 'type': 'number' }",
@@ -1594,8 +1593,7 @@
                   "pm.test('Schema is valid', () => pm.response.to.have.jsonSchema(schema));",
                   "",
                   "pm.test('Data integrity', () => {",
-                  "    pm.expect(json.brand).to.eql('Epson');",
-                  "    pm.expect(json.modelCode).to.eql('L3150');",
+                  "    pm.expect(json.modelCode).to.eql('Epson-L3150');",
                   "});",
                   "",
                   "pm.environment.set('printerModelId', String(json.id));"

@@ -74,8 +74,7 @@ public class PrinterModelServiceImpl implements PrinterModelService {
     @Override
     public PrinterModelResponse create(PrinterModelRequest request) {
         PrinterModel m = new PrinterModel();
-        m.setBrand(request.brand());
-        m.setModelCode(request.modelCode());
+        m.setModelCode(request.modelCode().trim());
         m.setProvidencia(request.providencia());
         m.setApprovalDate(request.approvalDate());
         m.setPrice(request.price());
@@ -85,8 +84,7 @@ public class PrinterModelServiceImpl implements PrinterModelService {
     @Override
     public PrinterModelResponse update(Long id, PrinterModelRequest request) {
         PrinterModel m = findEntityById(id);
-        m.setBrand(request.brand());
-        m.setModelCode(request.modelCode());
+        m.setModelCode(request.modelCode().trim());
         m.setProvidencia(request.providencia());
         m.setApprovalDate(request.approvalDate());
         m.setPrice(request.price());
@@ -104,6 +102,12 @@ public class PrinterModelServiceImpl implements PrinterModelService {
     }
 
     private PrinterModelResponse toResponse(PrinterModel m) {
-        return new PrinterModelResponse(m.getId(), m.getBrand(), m.getModelCode(), m.getProvidencia(), m.getApprovalDate(), m.getCreatedAt(), m.getPrice());
+        return new PrinterModelResponse(
+                m.getId(),
+                m.getModelCode(),
+                m.getProvidencia(),
+                m.getApprovalDate(),
+                m.getCreatedAt(),
+                m.getPrice());
     }
 }

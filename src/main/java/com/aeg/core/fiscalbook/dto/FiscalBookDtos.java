@@ -79,7 +79,6 @@ public final class FiscalBookDtos {
 
 	public record FiscalBookModelResponse(
 			Long id,
-			String brand,
 			String modelCode,
 			String providencia,
 			LocalDate approvalDate,
