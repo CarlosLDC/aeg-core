@@ -30,4 +30,10 @@ public interface FirmwareService {
 	void delete(Long id);
 
 	ResponseEntity<Resource> download(Long id);
+
+	/**
+	 * Downloads every firmware binary from SFTP whose {@code checksum_md5} is null,
+	 * computes the MD5 and persists it. Returns the number of records updated.
+	 */
+	int backfillMd5Checksums();
 }

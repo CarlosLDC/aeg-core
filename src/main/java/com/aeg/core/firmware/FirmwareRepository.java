@@ -21,4 +21,6 @@ public interface FirmwareRepository extends JpaRepository<Firmware, Long> {
 	List<Firmware> findAllByOrderByCreatedAtDesc();
 
 	java.util.Optional<Firmware> findFirstByPrinterModel_ModelCodeIgnoreCaseOrderByCreatedAtDesc(String modelCode);
+
+	List<Firmware> findByChecksumMd5IsNull();
 }

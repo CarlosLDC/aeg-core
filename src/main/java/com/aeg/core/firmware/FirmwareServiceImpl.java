@@ -234,6 +234,25 @@ public class FirmwareServiceImpl implements FirmwareService {
 		}
 	}
 
+	@Override
+	public int backfillMd5Checksums() {
+		List<Firmware> pending = repository.findByChecksumMd5IsNull();
+		int updated = 0;
+		for (Firmware entity : pending) {
+			try {
+				byte[] bytes = storage.download(entity.getFileName());
+				entity.setChecksumMd5(md5Hex(bytes));
+				repository.save(entity);
+				updated++;
+				log.info("Backfilled MD5 checksum for firmware id={} file={}", entity.getId(), entity.getFileName());
+			} catch (Exception e) {
+				log.warn("Could not backfill MD5 for firmware id={} file={}: {}",
+						entity.getId(), entity.getFileName(), e.getMessage());
+			}
+		}
+		return updated;
+	}
+
 	private Firmware findEntityById(Long id) {
 		return repository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Firmware not found with id: " + id));

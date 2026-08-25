@@ -81,4 +81,21 @@ public class FirmwareController {
 	public ResponseEntity<Resource> download(@PathVariable Long id) {
 		return service.download(id);
 	}
+
+	/**
+	 * Backfills the MD5 checksum for every firmware record that has a null checksum_md5.
+	 * This is needed for firmware uploaded before the checksum_md5 column was added.
+	 * Downloads each binary from SFTP, computes the MD5 and persists it.
+	 *
+	 * @return number of records updated
+	 */
+	@PostMapping("/backfill-md5")
+	public java.util.Map<String, Object> backfillMd5() {
+		int updated = service.backfillMd5Checksums();
+		return java.util.Map.of(
+				"updated", updated,
+				"message", updated == 0
+						? "No firmware records needed backfilling."
+						: "MD5 checksum backfilled for " + updated + " firmware record(s).");
+	}
 }
