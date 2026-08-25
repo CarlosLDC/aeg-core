@@ -19,4 +19,6 @@ public interface FirmwareRepository extends JpaRepository<Firmware, Long> {
 	List<Firmware> findByPrinterModel_IdOrderByCreatedAtDesc(Long printerModelId);
 
 	List<Firmware> findAllByOrderByCreatedAtDesc();
+
+	java.util.Optional<Firmware> findFirstByPrinterModel_ModelCodeIgnoreCaseOrderByCreatedAtDesc(String modelCode);
 }

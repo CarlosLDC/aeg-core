@@ -108,7 +108,8 @@ public class FirmwareServiceImpl implements FirmwareService {
 				normalizedVersion,
 				printerModelId,
 				StringUtils.hasText(notes) ? notes.trim() : null,
-				sha256Hex(bytes));
+				sha256Hex(bytes),
+				md5Hex(bytes));
 	}
 
 	@Override
@@ -139,6 +140,7 @@ public class FirmwareServiceImpl implements FirmwareService {
 			entity.setFileName(prepared.fileName());
 			entity.setSizeBytes((long) prepared.bytes().length);
 			entity.setChecksumSha256(prepared.checksumSha256());
+			entity.setChecksumMd5(prepared.checksumMd5());
 			entity.setPrinterModel(model);
 			entity.setNotes(prepared.notes());
 			return toResponse(repository.save(entity));
@@ -257,6 +259,15 @@ public class FirmwareServiceImpl implements FirmwareService {
 			return HexFormat.of().formatHex(digest.digest(bytes));
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("SHA-256 not available", e);
+		}
+	}
+
+	static String md5Hex(byte[] bytes) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("MD5");
+			return HexFormat.of().formatHex(digest.digest(bytes));
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("MD5 not available", e);
 		}
 	}
 }

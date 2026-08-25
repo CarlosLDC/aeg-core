@@ -9,5 +9,6 @@ public record PreparedFirmwareUpload(
 		String version,
 		Long printerModelId,
 		String notes,
-		String checksumSha256) {
+		String checksumSha256,
+		String checksumMd5) {
 }

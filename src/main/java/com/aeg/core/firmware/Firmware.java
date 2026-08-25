@@ -35,6 +35,9 @@ public class Firmware {
 	@Column(name = "checksum_sha256", nullable = false)
 	private String checksumSha256;
 
+	@Column(name = "checksum_md5", length = 32)
+	private String checksumMd5;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "id_modelo_impresora")
 	private PrinterModel printerModel;
@@ -83,6 +86,14 @@ public class Firmware {
 
 	public void setChecksumSha256(String checksumSha256) {
 		this.checksumSha256 = checksumSha256;
+	}
+
+	public String getChecksumMd5() {
+		return checksumMd5;
+	}
+
+	public void setChecksumMd5(String checksumMd5) {
+		this.checksumMd5 = checksumMd5;
 	}
 
 	public PrinterModel getPrinterModel() {
