@@ -25,7 +25,8 @@ import com.aeg.core.seal.SealStatus;
         "app.mqtt.inbound.enabled=false",
         "app.mqtt.enajenacion.enabled=false",
         "app.mqtt.fiscalizacion.enabled=true",
-        "app.mqtt.fiscalizacion.timeout.result-seconds=2"
+        "app.mqtt.fiscalizacion.timeout.result-seconds=2",
+        "app.mqtt.fiscalizacion.timeout.config-seconds=2"
 })
 class FiscalizacionMqttIT {
 
@@ -74,9 +75,18 @@ class FiscalizacionMqttIT {
         assertThat(payloadCaptor.getValue()).contains(FiscalizacionConstants.MSG_LISTA);
         assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isTrue();
 
+        // Device confirms physical fiscalization -> server creates printer and sends wFileSPIFF
         orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.resultSuccess());
 
-        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isTrue();
+        var session = sessionRegistry.find(fixture.compactMac()).orElseThrow();
+        assertThat(session.state()).isEqualTo(FiscalizacionSessionState.CONFIG_SPIFFS_SENT);
+
+        ArgumentCaptor<String> configPayloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mqttService, times(2)).publish(eq(fixture.comandoTopic()), configPayloadCaptor.capture());
+        assertThat(configPayloadCaptor.getAllValues().get(1)).contains("\"cmd\":\"wFileSPIFF\"");
+        assertThat(configPayloadCaptor.getAllValues().get(1)).contains("configSPIFFS.json");
+
         var printer = printerRepository.findAll().stream()
                 .filter(p -> fixture.ptrReg().equalsIgnoreCase(p.getFiscalSerial()))
                 .findFirst()
@@ -90,6 +100,25 @@ class FiscalizacionMqttIT {
         assertThat(sealStatus).isEqualTo(SealStatus.EN_IMPRESORA);
         assertThat(sealRepository.findById(fixture.seal().getId()).orElseThrow().getPrinterId())
                 .isEqualTo(printer.getId());
+
+        // Device confirms wFileSPIFF -> session completed
+        orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.configSpiffsSuccess());
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
+    }
+
+    @Test
+    void configSpiffsFailureMarksSessionFailed() {
+        var fixture = FiscalizacionTestData.seed(
+                modelRepository, sealRepository, "GRA0000199", "AA:BB:CC:DD:EE:98", "G1B0199");
+
+        orchestrator.handleInbound(fixture.cmdServerTopic(), FiscalizacionTestData.ptrFiscalizar(
+                fixture.ptrReg(), fixture.colonMac(), fixture.precintoNro(), "Azul", "1.1.0", "AEG-R1"));
+
+        orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.resultSuccess());
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isTrue();
+
+        orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.configSpiffsError());
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
     }
 
     @Test

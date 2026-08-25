@@ -31,7 +31,8 @@ public class FiscalizacionSseNotifier {
     }
 
     public void notifyResultAccepted(
-            FiscalizacionSession session, String topic, String payload) {
+            FiscalizacionSession session, String respuestaTopic, String respuestaPayload,
+            String comandoTopic, String comandoPayload) {
         broadcaster.broadcast(
                 session.compactMac(),
                 FiscalizacionSseEvent.stepTransition(
@@ -39,9 +40,26 @@ public class FiscalizacionSseNotifier {
                         session.printerId(),
                         session.context().ptrReg(),
                         FiscalizacionConstants.STEP_RESULT,
+                        FiscalizacionConstants.STEP_CONFIG_SPIFFS,
+                        respuestaTopic,
+                        respuestaPayload,
+                        comandoTopic,
+                        comandoPayload,
+                        session.state()));
+    }
+
+    public void notifyConfigAccepted(
+            FiscalizacionSession session, String respuestaTopic, String respuestaPayload) {
+        broadcaster.broadcast(
+                session.compactMac(),
+                FiscalizacionSseEvent.stepTransition(
+                        session.compactMac(),
+                        session.printerId(),
+                        session.context().ptrReg(),
+                        FiscalizacionConstants.STEP_CONFIG_SPIFFS,
                         null,
-                        topic,
-                        payload,
+                        respuestaTopic,
+                        respuestaPayload,
                         null,
                         null,
                         session.state()));

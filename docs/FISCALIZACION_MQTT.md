@@ -91,19 +91,20 @@ Core verifica:
 }
 ```
 
-### Paso 4 — Resultado (impresora → Respuesta)
+### Paso 4 — Resultado físico (impresora → Respuesta)
 
-Puede tardar **más de 1 minuto**. Timeout configurado: `app.mqtt.fiscalizacion.timeout.result-seconds` (default 180).
+Puede tardar **más de 1 minuto** (~90s). Timeout configurado: `app.mqtt.fiscalizacion.timeout.result-seconds` (default 180).
 
-**Éxito** — Core crea la impresora `SIN_ASIGNAR` y asigna el precinto:
+**Éxito** — Core crea la impresora `SIN_ASIGNAR`, asigna el precinto (`EN_IMPRESORA`) y procede al Paso 5:
 
 ```json
 {
   "cmd": "RxPtrFiscalizarRemoto",
   "code": 0,
-  "dataS": { "error": "Impresora Fiscalizando" }
+  "dataD": 0
 }
 ```
+*(También se acepta `dataS: { "error": "Impresora Fiscalizando" }`).*
 
 **Error:**
 
@@ -115,18 +116,75 @@ Puede tardar **más de 1 minuto**. Timeout configurado: `app.mqtt.fiscalizacion.
 }
 ```
 
+### Paso 5 — Configuración de impuestos y pagos (servidor → Comando / Respuesta)
+
+Tras el resultado físico exitoso, Core envía automáticamente la plantilla fija de impuestos y medios de pago `configSPIFFS.json` a Comando:
+
+```json
+{
+  "cmd": "wFileSPIFF",
+  "data": {
+    "nameFile": "configSPIFFS.json",
+    "contenido": {
+      "simMonL": "Bs",
+      "impArt": {
+        "desc": ["Exonerado", "IVA", "Reducido", "Lujo", "Percibido"],
+        "abrev": ["(E)", "(G)", "(R)", "(A)", "(P)"],
+        "valor": [0, 1600, 800, 3100, 0],
+        "impMontoPtr": [
+          "EXENTO (E)",
+          "BI G (16.00%)",
+          "BI R (8.00%)",
+          "BI A (31.00%)",
+          "PERCIBIDO"
+        ],
+        "impMontoImp": ["", "IVA G (16.00%)", "IVA R (8.00%)", "IVA A (31.00%)", ""]
+      },
+      "formPago": {
+        "tituloFormPag": "FORMA DE PAGO",
+        "desc": [
+          "EFECTIVO", "T. DEBITO", "T. CREDITO", "TRANSFERENCIA", "PAGO MOVIL", "BIOPAGO",
+          "EFECTIVO 7", "EFECTIVO 8", "EFECTIVO 9", "EFECTIVO 10",
+          "DIVISA 1", "DIVISA 2", "DIVISA 3", "DIVISA 4", "DIVISA 5", "DIVISA 6"
+        ],
+        "impG": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 300, 300, 300, 300, 300, 300],
+        "impMontoPtr": [
+          "", "", "", "", "", "", "", "", "", "",
+          "BI IGTF (3.00%)", "BI IGTF (3.00%)", "BI IGTF (3.00%)",
+          "BI IGTF (3.00%)", "BI IGTF (3.00%)", "BI IGTF (3.00%)"
+        ],
+        "impMontoImp": [
+          "", "", "", "", "", "", "", "", "", "",
+          "IGTF (3.00%)", "IGTF (3.00%)", "IGTF (3.00%)",
+          "IGTF (3.00%)", "IGTF (3.00%)", "IGTF (3.00%)"
+        ]
+      }
+    }
+  }
+}
+```
+
+La impresora responde en Respuesta:
+
+```json
+{
+  "cmd": "wFileSPIFF",
+  "code": 0,
+  "dataD": 0
+}
+```
+
+Timeout configurado: `app.mqtt.fiscalizacion.timeout.config-seconds` (default 60). Al recibir `code: 0`, Core marca la sesión como **`COMPLETED`**.
+
 ---
 
-## 2–5. Operaciones posteriores (Tools)
+## 2–4. Operaciones posteriores (Tools)
 
-Tras el alta, usar Tools / Remoto para:
+Tras el alta y configuración inicial, usar Tools / Remoto para:
 
-2. `wFileSPIFF` (`configSPIFFS.json`) — impuestos y formas de pago  
-3. `StaInf` — consulta de registro  
-4. Factura de prueba (`proF` / `subToF` / `fpaF` / `endFac`)  
-5. `genImpRepZ` — Reporte Z  
-
-No se orquestan en el ritual de fiscalización.
+2. `StaInf` — consulta de registro
+3. Factura de prueba (`proF` / `subToF` / `fpaF` / `endFac`)
+4. `genImpRepZ` — Reporte Z
 
 ---
 
@@ -135,9 +193,10 @@ No se orquestan en el ritual de fiscalización.
 | Capacidad | Detalle |
 |-----------|---------|
 | Flag | `app.mqtt.fiscalizacion.enabled` / `MQTT_FISCALIZACION_ENABLED` |
-| Timeout resultado | `app.mqtt.fiscalizacion.timeout.result-seconds` (default 180) |
+| Timeout resultado físico | `app.mqtt.fiscalizacion.timeout.result-seconds` (default 180) |
+| Timeout configuración SPIFFS | `app.mqtt.fiscalizacion.timeout.config-seconds` (default 60) |
 | Admin API | `/api/mqtt/fiscalizacion/sessions`, `/activity`, `/stream` |
 | Panel | Remoto → pestaña Fiscalización |
 | Simulador | `scripts/fiscalizacion_printer_simulator.py` |
 
-Estado final al éxito: `PrinterStatus.SIN_ASIGNAR`, precinto `SealStatus.EN_IMPRESORA`.
+Estado final al éxito: `PrinterStatus.SIN_ASIGNAR`, precinto `SealStatus.EN_IMPRESORA`, SPIFFS cargado.

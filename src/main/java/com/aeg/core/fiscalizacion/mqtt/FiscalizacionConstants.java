@@ -5,6 +5,7 @@ public final class FiscalizacionConstants {
     public static final String CMD_PTR_FISCALIZAR = "ptrFiscalizar";
     public static final String CMD_PTR_FISCALIZAR_REMOTO = "ptrFiscalizarRemoto";
     public static final String CMD_RX_PTR_FISCALIZAR_REMOTO = "RxPtrFiscalizarRemoto";
+    public static final String CMD_W_FILE_SPIFF = "wFileSPIFF";
 
     public static final String MSG_REGISTRO_EXISTE = "Registro de Impresora ya Existe";
     public static final String MSG_MAC_EXISTE = "Mac Address de Impresora ya Existe";
@@ -16,6 +17,7 @@ public final class FiscalizacionConstants {
     public static final String STEP_REQUEST = "request";
     public static final String STEP_ACK = "ack";
     public static final String STEP_RESULT = "result";
+    public static final String STEP_CONFIG_SPIFFS = "config_spiffs";
 
     private FiscalizacionConstants() {
     }

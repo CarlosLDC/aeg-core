@@ -107,6 +107,20 @@ def result_error() -> str:
     )
 
 
+def config_spiffs_success() -> str:
+    return json.dumps(
+        {"cmd": "wFileSPIFF", "code": 0, "dataD": 0},
+        separators=(",", ":"),
+    )
+
+
+def config_spiffs_error() -> str:
+    return json.dumps(
+        {"cmd": "wFileSPIFF", "code": 1, "dataD": 0},
+        separators=(",", ":"),
+    )
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     load_env_file(root / ".env")
@@ -140,6 +154,11 @@ def main() -> int:
         "--fail-result",
         action="store_true",
         help="Publica resultado con code=1 en lugar de éxito",
+    )
+    parser.add_argument(
+        "--fail-config",
+        action="store_true",
+        help="Publica respuesta de configSPIFFS con code=1",
     )
     parser.add_argument("--client-id", default=None)
     args = parser.parse_args()
@@ -188,22 +207,31 @@ def main() -> int:
         except json.JSONDecodeError as ex:
             print(f"JSON inválido: {ex}", file=sys.stderr)
             return
-        if not isinstance(data, dict) or data.get("cmd") != "RxPtrFiscalizarRemoto":
-            print("Ignorado (no es RxPtrFiscalizarRemoto)")
+        if not isinstance(data, dict):
             return
-        code = data.get("code")
-        msj = (data.get("data") or {}).get("msj")
-        print(f"ACK code={code} msj={msj}")
-        if code != 0:
-            print("Validación falló en servidor; no se publica resultado.")
-            return
-        delay_s = max(0, args.delay_result_ms) / 1000.0
-        if delay_s > 0:
-            print(f"… esperando {delay_s:.1f}s antes de responder resultado")
-            time.sleep(delay_s)
-        response = result_error() if args.fail_result else result_success()
-        client.publish(respuesta, response, qos=1)
-        print(f">> Resultado publicado en {respuesta}")
+        cmd = data.get("cmd")
+        if cmd == "RxPtrFiscalizarRemoto":
+            code = data.get("code")
+            msj = (data.get("data") or {}).get("msj")
+            print(f"ACK code={code} msj={msj}")
+            if code != 0:
+                print("Validación falló en servidor; no se publica resultado.")
+                return
+            delay_s = max(0, args.delay_result_ms) / 1000.0
+            if delay_s > 0:
+                print(f"… esperando {delay_s:.1f}s antes de responder resultado")
+                time.sleep(delay_s)
+            response = result_error() if args.fail_result else result_success()
+            client.publish(respuesta, response, qos=1)
+            print(f">> Resultado publicado en {respuesta}")
+        elif cmd == "wFileSPIFF":
+            name_file = (data.get("data") or {}).get("nameFile")
+            print(f"wFileSPIFF recibido nameFile={name_file}")
+            response = config_spiffs_error() if args.fail_config else config_spiffs_success()
+            client.publish(respuesta, response, qos=1)
+            print(f">> Confirmación de wFileSPIFF publicada en {respuesta}")
+        else:
+            print(f"Ignorado (comando desconocido: {cmd})")
 
     if hasattr(mqtt, "CallbackAPIVersion"):
         client = mqtt.Client(

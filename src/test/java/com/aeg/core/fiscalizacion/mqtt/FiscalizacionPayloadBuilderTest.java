@@ -46,4 +46,13 @@ class FiscalizacionPayloadBuilderTest {
         assertThat(FiscalizacionPreconditionValidator.resolveSealColor("verde_neon"))
                 .isEqualTo(com.aeg.core.seal.SealColor.VERDE_NEON);
     }
+
+    @Test
+    void buildsConfigSpiffsPayload() throws Exception {
+        String payload = payloadBuilder.buildConfigSpiffsPayload();
+        JsonNode root = objectMapper.readTree(payload);
+        assertThat(root.path("cmd").asText()).isEqualTo("wFileSPIFF");
+        assertThat(root.path("data").path("nameFile").asText()).isEqualTo("configSPIFFS.json");
+        assertThat(root.path("data").path("contenido").path("impArt").isObject()).isTrue();
+    }
 }

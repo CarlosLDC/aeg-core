@@ -96,4 +96,16 @@ final class FiscalizacionTestData {
                 {"cmd":"RxPtrFiscalizarRemoto","code":1,"dataS":{"error":"ERROR Fiscalizando"}}
                 """.strip();
     }
+
+    static String configSpiffsSuccess() {
+        return """
+                {"cmd":"wFileSPIFF","code":0,"dataD":0}
+                """.strip();
+    }
+
+    static String configSpiffsError() {
+        return """
+                {"cmd":"wFileSPIFF","code":1,"dataD":0}
+                """.strip();
+    }
 }

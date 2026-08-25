@@ -120,7 +120,7 @@ public class FiscalizacionMqttOrchestrator {
             session.setAwaitingResponse(true);
             session.setAwaitingSince(Instant.now());
             session.setAwaitingTimeoutSeconds(settings.resultTimeoutSeconds());
-            scheduleTimeout(session);
+            scheduleTimeout(session, settings.resultTimeoutSeconds());
 
             activityStore.recordOutbound(
                     comandoTopic, ackPayload, session,
@@ -167,7 +167,7 @@ public class FiscalizacionMqttOrchestrator {
                 JsonNode root = objectMapper.readTree(payload);
                 if (!root.isObject()) {
                     activityStore.recordInbound(
-                            topic, payload, session.compactMac(), null, session.context().ptrReg(),
+                            topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
                             FiscalizacionActivityResult.IGNORED, "Expected object response", session.state());
                     return;
                 }
@@ -175,55 +175,116 @@ public class FiscalizacionMqttOrchestrator {
                 if (cmd != null) {
                     cmd = cmd.trim();
                 }
-                if (!FiscalizacionConstants.CMD_RX_PTR_FISCALIZAR_REMOTO.equalsIgnoreCase(cmd)) {
+
+                if (session.state() == FiscalizacionSessionState.ACK_SENT) {
+                    handleAckSentResponse(session, topic, payload, cmd, root);
+                } else if (session.state() == FiscalizacionSessionState.CONFIG_SPIFFS_SENT) {
+                    handleConfigSpiffsResponse(session, topic, payload, cmd, root);
+                } else {
                     activityStore.recordInbound(
-                            topic, payload, session.compactMac(), null, session.context().ptrReg(),
+                            topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
                             FiscalizacionActivityResult.IGNORED,
-                            "Mismatched object response cmd=" + cmd, session.state());
-                    log.warn(
-                            "Fiscalizacion ignored device response mac={} state={} cmd={} payloadSnippet={}",
-                            session.compactMac(), session.state(), cmd, snippet(payload));
-                    return;
+                            "Unexpected session state for response: " + session.state(), session.state());
                 }
-                int code = root.path("code").asInt(-1);
-                cancelTimeout(session);
-                session.clearAwaiting();
-                activityStore.recordInbound(
-                        topic, payload, session.compactMac(), null, session.context().ptrReg(),
-                        FiscalizacionActivityResult.PROCESSED,
-                        "Device response accepted code=" + code, session.state());
-
-                if (code != 0) {
-                    failSession(session, "Fiscalización falló en impresora (code=" + code + ")");
-                    return;
-                }
-
-                Printer printer = completionService.complete(session.context());
-                session.setPrinterId(printer.getId());
-                session.setState(FiscalizacionSessionState.COMPLETED);
-                sseNotifier.notifyResultAccepted(session, topic, payload);
-                sseNotifier.notifySessionCompleted(session);
-                activityStore.recordSessionEvent(
-                        session, FiscalizacionActivityResult.COMPLETED,
-                        "Printer created id=" + printer.getId(), FiscalizacionSessionState.COMPLETED);
-                log.info(
-                        "Fiscalizacion completed printerId={} ptrReg={} mac={}",
-                        printer.getId(), session.context().ptrReg(), session.compactMac());
-                sessionRegistry.remove(session.compactMac());
             } catch (FiscalizacionProtocolException ex) {
                 failSession(session, ex.getMessage());
             } catch (IOException ex) {
                 activityStore.recordInbound(
-                        topic, payload, session.compactMac(), null, session.context().ptrReg(),
+                        topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
                         FiscalizacionActivityResult.IGNORED, "Invalid JSON response", session.state());
             }
         }
     }
 
-    private void scheduleTimeout(FiscalizacionSession session) {
+    private void handleAckSentResponse(
+            FiscalizacionSession session, String topic, String payload, String cmd, JsonNode root) {
+        if (!FiscalizacionConstants.CMD_RX_PTR_FISCALIZAR_REMOTO.equalsIgnoreCase(cmd)) {
+            activityStore.recordInbound(
+                    topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
+                    FiscalizacionActivityResult.IGNORED,
+                    "Mismatched object response cmd=" + cmd, session.state());
+            log.warn(
+                    "Fiscalizacion ignored device response mac={} state={} cmd={} payloadSnippet={}",
+                    session.compactMac(), session.state(), cmd, snippet(payload));
+            return;
+        }
+        int code = root.path("code").asInt(-1);
+        cancelTimeout(session);
+        session.clearAwaiting();
+        activityStore.recordInbound(
+                topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
+                FiscalizacionActivityResult.PROCESSED,
+                "Device response accepted code=" + code, session.state());
+
+        if (code != 0) {
+            failSession(session, "Fiscalización falló en impresora (code=" + code + ")");
+            return;
+        }
+
+        Printer printer = completionService.complete(session.context());
+        session.setPrinterId(printer.getId());
+
+        String configPayload = payloadBuilder.buildConfigSpiffsPayload();
+        String comandoTopic = FiscalMqttTopics.comandoTopic(session.compactMac());
+        mqttService.publish(comandoTopic, configPayload);
+
+        session.setState(FiscalizacionSessionState.CONFIG_SPIFFS_SENT);
+        session.setAwaitingResponse(true);
+        session.setAwaitingSince(Instant.now());
+        session.setAwaitingTimeoutSeconds(settings.configTimeoutSeconds());
+        scheduleTimeout(session, settings.configTimeoutSeconds());
+
+        activityStore.recordOutbound(
+                comandoTopic, configPayload, session,
+                FiscalizacionActivityResult.PUBLISHED, "Published configSPIFFS (impuestos y pagos)");
+        sseNotifier.notifyResultAccepted(session, topic, payload, comandoTopic, configPayload);
+        log.info(
+                "Fiscalizacion result accepted, published configSPIFFS printerId={} ptrReg={} mac={}",
+                printer.getId(), session.context().ptrReg(), session.compactMac());
+    }
+
+    private void handleConfigSpiffsResponse(
+            FiscalizacionSession session, String topic, String payload, String cmd, JsonNode root) {
+        if (!FiscalizacionConstants.CMD_W_FILE_SPIFF.equalsIgnoreCase(cmd)) {
+            activityStore.recordInbound(
+                    topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
+                    FiscalizacionActivityResult.IGNORED,
+                    "Mismatched object response cmd=" + cmd, session.state());
+            log.warn(
+                    "Fiscalizacion ignored device response mac={} state={} cmd={} payloadSnippet={}",
+                    session.compactMac(), session.state(), cmd, snippet(payload));
+            return;
+        }
+        int code = root.path("code").asInt(-1);
+        cancelTimeout(session);
+        session.clearAwaiting();
+        activityStore.recordInbound(
+                topic, payload, session.compactMac(), session.printerId(), session.context().ptrReg(),
+                FiscalizacionActivityResult.PROCESSED,
+                "Config response accepted code=" + code, session.state());
+
+        if (code != 0) {
+            failSession(session, "Configuración de impuestos falló en impresora (code=" + code + ")");
+            return;
+        }
+
+        session.setState(FiscalizacionSessionState.COMPLETED);
+        sseNotifier.notifyConfigAccepted(session, topic, payload);
+        sseNotifier.notifySessionCompleted(session);
+        activityStore.recordSessionEvent(
+                session, FiscalizacionActivityResult.COMPLETED,
+                "Printer created and configured id=" + session.printerId(), FiscalizacionSessionState.COMPLETED);
+        log.info(
+                "Fiscalizacion completed printerId={} ptrReg={} mac={}",
+                session.printerId(), session.context().ptrReg(), session.compactMac());
+        sessionRegistry.remove(session.compactMac());
+    }
+
+    private void scheduleTimeout(FiscalizacionSession session, int timeoutSeconds) {
+        cancelTimeout(session);
         ScheduledFuture<?> task = taskScheduler.schedule(
                 () -> onTimeout(session.compactMac()),
-                Instant.now().plusSeconds(settings.resultTimeoutSeconds()));
+                Instant.now().plusSeconds(timeoutSeconds));
         session.setTimeoutTask(task);
     }
 
@@ -233,7 +294,7 @@ public class FiscalizacionMqttOrchestrator {
                 if (session.isTerminal() || !session.isAwaitingResponse()) {
                     return;
                 }
-                failSession(session, "Timeout waiting for response at step ACK_SENT");
+                failSession(session, "Timeout waiting for response at step " + session.state());
             }
         });
     }

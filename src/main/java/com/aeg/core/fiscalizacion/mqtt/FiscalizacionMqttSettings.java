@@ -12,11 +12,18 @@ public class FiscalizacionMqttSettings {
     @Value("${app.mqtt.fiscalizacion.timeout.result-seconds:180}")
     private int resultTimeoutSeconds = 180;
 
+    @Value("${app.mqtt.fiscalizacion.timeout.config-seconds:60}")
+    private int configTimeoutSeconds = 60;
+
     public boolean enabled() {
         return enabled;
     }
 
     public int resultTimeoutSeconds() {
         return resultTimeoutSeconds;
+    }
+
+    public int configTimeoutSeconds() {
+        return configTimeoutSeconds;
     }
 }
