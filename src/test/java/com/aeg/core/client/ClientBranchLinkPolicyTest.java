@@ -49,8 +49,6 @@ class ClientBranchLinkPolicyTest {
 		branch.setId(10L);
 		branch.setOrganizationRole(BranchOrganizationRole.SERVICE_CENTER);
 		when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
-		when(distributorRepository.findByBranch_Id(10L)).thenReturn(Optional.empty());
-		when(serviceCenterRepository.findByBranch_Id(10L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> policy.assertFieldUserMayLinkClient(10L, 5L))
 				.isInstanceOf(IllegalArgumentException.class)

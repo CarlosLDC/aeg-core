@@ -50,10 +50,14 @@ public class UserRoleAssignmentService {
 		}
 		Long distributorId = null;
 		Long branchId = null;
-		if (Role.isDistributorScoped(requestedRole)) {
+		if (requestedRole == Role.DISTRIBUTOR) {
 			distributorId = request.getDistributorId();
 		} else if (requestedRole == Role.TECHNICIAN) {
-			branchId = request.getBranchId();
+			if (request.getDistributorId() != null && request.getBranchId() == null) {
+				distributorId = request.getDistributorId();
+			} else {
+				branchId = request.getBranchId();
+			}
 		}
 		return resolveOperational(requestedRole, distributorId, branchId);
 	}
@@ -73,14 +77,18 @@ public class UserRoleAssignmentService {
 		}
 		Long distributorId = null;
 		Long branchId = null;
-		if (Role.isDistributorScoped(requestedRole)) {
+		if (requestedRole == Role.DISTRIBUTOR) {
 			distributorId = request.getDistributorId() != null
 					? request.getDistributorId()
 					: existing.getDistributorId();
 		} else if (requestedRole == Role.TECHNICIAN) {
-			branchId = request.getBranchId() != null
-					? request.getBranchId()
-					: existing.getBranchId();
+			if (request.getDistributorId() != null && request.getBranchId() == null) {
+				distributorId = request.getDistributorId();
+			} else {
+				branchId = request.getBranchId() != null
+						? request.getBranchId()
+						: existing.getBranchId();
+			}
 		}
 		return resolveOperational(requestedRole, distributorId, branchId);
 	}

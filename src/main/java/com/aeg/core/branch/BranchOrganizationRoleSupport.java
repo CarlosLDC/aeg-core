@@ -30,8 +30,10 @@ public final class BranchOrganizationRoleSupport {
 			return;
 		}
 		if (company != null && company.getOrganizationType() == OrganizationType.FACTORY) {
-			throw new IllegalArgumentException(
-					"Las sucursales de la empresa fábrica no pueden ser distribuidora ni centro de servicio");
+			if (role == BranchOrganizationRole.SERVICE_CENTER) {
+				throw new IllegalArgumentException(
+						"Las sucursales de la empresa fábrica no pueden ser centro de servicio");
+			}
 		}
 	}
 

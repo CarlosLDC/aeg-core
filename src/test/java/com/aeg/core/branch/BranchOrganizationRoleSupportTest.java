@@ -10,12 +10,22 @@ import com.aeg.core.company.OrganizationType;
 class BranchOrganizationRoleSupportTest {
 
 	@Test
-	void rejectsOperationalRoleOnFactoryCompany() {
+	void allowsDistributorRoleOnFactoryCompany() {
+		Company company = new Company();
+		company.setOrganizationType(OrganizationType.FACTORY);
+
+		// Should not throw
+		BranchOrganizationRoleSupport.assertOperationalRoleAllowed(
+				company, BranchOrganizationRole.DISTRIBUTOR);
+	}
+
+	@Test
+	void rejectsServiceCenterRoleOnFactoryCompany() {
 		Company company = new Company();
 		company.setOrganizationType(OrganizationType.FACTORY);
 
 		assertThatThrownBy(() -> BranchOrganizationRoleSupport.assertOperationalRoleAllowed(
-				company, BranchOrganizationRole.DISTRIBUTOR))
+				company, BranchOrganizationRole.SERVICE_CENTER))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("fábrica");
 	}
