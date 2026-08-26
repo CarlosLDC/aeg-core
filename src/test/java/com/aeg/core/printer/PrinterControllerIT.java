@@ -160,7 +160,7 @@ public class PrinterControllerIT {
                 + "\"macAddress\":\"" + mac + "\""
                 + "}";
         var res = postPrinter(duplicateBody);
-        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(res.statusCode()).isEqualTo(409);
         assertThat(res.body()).containsIgnoringCase("MAC");
     }
 
@@ -283,6 +283,69 @@ public class PrinterControllerIT {
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(updated.getClientId()).isNull();
         assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
+    }
+
+    @Test
+    void adminCanRollbackEnajenadaPrinterToSinAsignar() throws Exception {
+        Distributor distributor = createDistributor();
+        Client client = createClient();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.ENAJENADA, true);
+        printer.setClient(client);
+        printer.setInstallationDate(java.time.OffsetDateTime.now());
+        printer.setHeader(new com.aeg.core.printer.PrinterTicketSection(java.util.List.of("HEADER LINE")));
+        printer.setTrailer(new com.aeg.core.printer.PrinterTicketSection(java.util.List.of("TRAILER LINE")));
+        printer = printerRepository.save(printer);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"sin_asignar\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":null,"
+                + "\"clientId\":null"
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.SIN_ASIGNAR);
+        assertThat(updated.getClientId()).isNull();
+        assertThat(updated.getDistributorId()).isNull();
+        assertThat(updated.getInstallationDate()).isNull();
+        assertThat(updated.getHeader()).isNull();
+        assertThat(updated.getTrailer()).isNull();
+    }
+
+    @Test
+    void adminCanRollbackEnajenadaPrinterToAsignada() throws Exception {
+        Distributor distributor = createDistributor();
+        Client client = createClient();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.ENAJENADA, true);
+        printer.setClient(client);
+        printer.setInstallationDate(java.time.OffsetDateTime.now());
+        printer.setHeader(new com.aeg.core.printer.PrinterTicketSection(java.util.List.of("HEADER LINE")));
+        printer = printerRepository.save(printer);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":true,"
+                + "\"status\":\"asignada\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId() + ","
+                + "\"clientId\":null"
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
+        assertThat(updated.getDistributorId()).isEqualTo(distributor.getId());
+        assertThat(updated.getClientId()).isNull();
+        assertThat(updated.getHeader()).isNull();
     }
 
     private static String sampleDispositionBody(Long clientId) {

@@ -151,24 +151,31 @@ public class PrinterServiceImpl implements PrinterService {
             assertPrinterAssignmentAllowed(p, previousDistributorId, resolvedDistributorId);
             applyDistributor(p, resolvedDistributorId);
         }
-        if (request.clientId() != null) {
+        if (request.clientId() != null && request.status() != PrinterStatus.SIN_ASIGNAR && request.status() != PrinterStatus.DE_FABRICA) {
             var client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
             securityScope.assertClientInScope(client);
             p.setClient(client);
         } else {
-            if (p.getStatus() == PrinterStatus.ENAJENADA) {
-                throw new IllegalArgumentException(
-                        "No se puede quitar el cliente de una impresora enajenada.");
-            }
             p.setClient(null);
+        }
+        if (request.status() == PrinterStatus.SIN_ASIGNAR
+                || request.status() == PrinterStatus.DE_FABRICA) {
+            p.setHeader(null);
+            p.setTrailer(null);
+            p.setInstallationDate(null);
+        } else if (request.status() != PrinterStatus.ENAJENADA) {
+            if (p.getStatus() == PrinterStatus.ENAJENADA || p.getClient() == null) {
+                p.setHeader(null);
+                p.setTrailer(null);
+            }
+            p.setInstallationDate(request.installationDate());
+        } else if (request.installationDate() != null) {
+            p.setInstallationDate(request.installationDate());
         }
         p.setFiscalSerial(request.fiscalSerial());
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
-        if (request.installationDate() != null) {
-            p.setInstallationDate(request.installationDate());
-        }
         p.setVersionFirmware(request.versionFirmware());
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
