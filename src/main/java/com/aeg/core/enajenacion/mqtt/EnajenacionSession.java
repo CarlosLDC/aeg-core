@@ -19,6 +19,7 @@ public final class EnajenacionSession {
     private volatile String lastError;
     private volatile int invoiceNumber = 1;
     private volatile LocalDate invoiceDate = LocalDate.now();
+    private volatile String encryptionKey;
 
     public EnajenacionSession(String compactMac, Long printerId, EnajenacionContext context) {
         this.compactMac = compactMac;
@@ -103,6 +104,14 @@ public final class EnajenacionSession {
 
     public LocalDate invoiceDate() {
         return invoiceDate;
+    }
+
+    public String encryptionKey() {
+        return encryptionKey;
+    }
+
+    public void setEncryptionKey(String encryptionKey) {
+        this.encryptionKey = encryptionKey;
     }
 
     public boolean isTerminal() {

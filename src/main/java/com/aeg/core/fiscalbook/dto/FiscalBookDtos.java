@@ -49,11 +49,44 @@ public final class FiscalBookDtos {
 			FiscalBookModelResponse model,
 			FiscalBookSoftwareResponse software,
 			FiscalBookDistributorResponse distributor,
-			/** Sucursal del enajenador (distribuidor, centro de servicio o fabricante AEG). */
 			FiscalBookBranchResponse enajenador,
 			List<FiscalBookSealResponse> seals,
 			List<FiscalBookTechnicalServiceResponse> technicalServices,
-			List<FiscalBookAnnualInspectionResponse> annualInspections) {
+			List<FiscalBookAnnualInspectionResponse> annualInspections,
+			String encryptionKey) {
+
+		public FiscalBookDetailResponse(
+				Long id,
+				String fiscalSerial,
+				String status,
+				String deviceType,
+				BigDecimal finalSalePrice,
+				Boolean paid,
+				String versionFirmware,
+				String macAddress,
+				OffsetDateTime createdAt,
+				OffsetDateTime installationDate,
+				Long modelId,
+				Long softwareId,
+				Long clientId,
+				Long distributorId,
+				String businessName,
+				String rif,
+				String taxpayerType,
+				String address,
+				FiscalBookBranchResponse branch,
+				FiscalBookModelResponse model,
+				FiscalBookSoftwareResponse software,
+				FiscalBookDistributorResponse distributor,
+				FiscalBookBranchResponse enajenador,
+				List<FiscalBookSealResponse> seals,
+				List<FiscalBookTechnicalServiceResponse> technicalServices,
+				List<FiscalBookAnnualInspectionResponse> annualInspections) {
+			this(id, fiscalSerial, status, deviceType, finalSalePrice, paid, versionFirmware, macAddress,
+					createdAt, installationDate, modelId, softwareId, clientId, distributorId, businessName,
+					rif, taxpayerType, address, branch, model, software, distributor, enajenador, seals,
+					technicalServices, annualInspections, null);
+		}
 	}
 
 	public record FiscalBookBranchResponse(

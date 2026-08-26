@@ -25,5 +25,25 @@ public record PrinterRequest(
         @Pattern(regexp = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$") String macAddress,
         @NotNull PrinterStatus status,
         @NotNull DeviceType deviceType,
-        UUID creationBatchId
-) {}
+        UUID creationBatchId,
+        String encryptionKey
+) {
+    public PrinterRequest(
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            Long distributorId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            String versionFirmware,
+            String macAddress,
+            PrinterStatus status,
+            DeviceType deviceType,
+            UUID creationBatchId) {
+        this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
+                paid, installationDate, versionFirmware, macAddress, status, deviceType,
+                creationBatchId, null);
+    }
+}

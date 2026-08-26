@@ -149,12 +149,20 @@ public class EnajenacionMqttOrchestrator {
                 throw new EnajenacionProtocolException("Printer id not resolved for ptrReg " + ptrReg);
             }
             EnajenacionSession session = new EnajenacionSession(compactMac, printerId, context);
+            String initialKey = message.llaveEncrip();
+            if (initialKey == null || initialKey.isBlank()) {
+                initialKey = extractLlaveEncrip(payload);
+            }
+            if (initialKey != null && !initialKey.isBlank()) {
+                session.setEncryptionKey(initialKey);
+            }
             sessionRegistry.register(session);
             log.info(
-                    "Enajenacion session started printerId={} ptrReg={} mac={}",
+                    "Enajenacion session started printerId={} ptrReg={} mac={} encryptionKey={}",
                     printerId,
                     ptrReg,
-                    compactMac);
+                    compactMac,
+                    session.encryptionKey());
             PublishedMqttCommand dnfCommand = publishDnf(session);
             sseNotifier.notifySessionStarted(session, dnfCommand.topic(), dnfCommand.payload());
             return EnajenacionStartOutcome.started();
@@ -203,6 +211,10 @@ public class EnajenacionMqttOrchestrator {
                         payload,
                         "Session not awaiting response in state " + session.state());
                 return;
+            }
+            String incomingKey = extractLlaveEncrip(payload);
+            if (incomingKey != null && !incomingKey.isBlank()) {
+                session.setEncryptionKey(incomingKey);
             }
             boolean arrayPayload = isJsonArrayPayload(payload);
             if (session.awaitingKind() == EnajenacionAwaitingKind.ARRAY && !arrayPayload) {
@@ -472,13 +484,14 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateReportZResponse(item);
                 sseNotifier.notifyReportZAccepted(session, respuestaTopic, respuestaPayload);
-                completionService.markEnajenada(session.printerId());
+                completionService.markEnajenada(session.printerId(), session.encryptionKey());
                 session.setState(EnajenacionSessionState.COMPLETED);
                 log.info(
-                        "Enajenacion completed printerId={} ptrReg={} mac={}",
+                        "Enajenacion completed printerId={} ptrReg={} mac={} encryptionKey={}",
                         session.printerId(),
                         session.context().fiscalSerial(),
-                        session.compactMac());
+                        session.compactMac(),
+                        session.encryptionKey());
                 sseNotifier.notifySessionCompleted(session);
                 activityRecorder.recordSessionEvent(
                         session,
@@ -647,5 +660,46 @@ public class EnajenacionMqttOrchestrator {
         } catch (IOException ex) {
             return Optional.empty();
         }
+    }
+
+    private String extractLlaveEncrip(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(payload);
+            return findLlaveEncripInTree(root);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static String findLlaveEncripInTree(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return null;
+        }
+        if (node.hasNonNull("llaveEncrip")) {
+            String val = node.get("llaveEncrip").asText();
+            if (val != null && !val.isBlank()) {
+                return val.trim();
+            }
+        }
+        if (node.isObject()) {
+            var it = node.elements();
+            while (it.hasNext()) {
+                String found = findLlaveEncripInTree(it.next());
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                String found = findLlaveEncripInTree(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 }

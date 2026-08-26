@@ -83,6 +83,9 @@ public class Printer {
     @Column(name = "trailer")
     private PrinterTicketSection trailer;
 
+    @Column(name = "llave_encriptacion")
+    private String encryptionKey;
+
     // Getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -137,6 +140,11 @@ public class Printer {
 
     public PrinterTicketSection getTrailer() { return trailer; }
     public void setTrailer(PrinterTicketSection trailer) { this.trailer = trailer; }
+
+    public String getEncryptionKey() { return encryptionKey; }
+    public void setEncryptionKey(String encryptionKey) { this.encryptionKey = encryptionKey; }
+    public String getLlaveEncrip() { return encryptionKey; }
+    public void setLlaveEncrip(String llaveEncrip) { this.encryptionKey = llaveEncrip; }
 
     @PrePersist
     public void prePersist() {

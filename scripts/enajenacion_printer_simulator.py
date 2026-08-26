@@ -151,11 +151,14 @@ def sta_inf_success(fiscal_serial: str) -> dict:
     return {"cmd": " StaInf ", "code": 0, "dataS": fiscal_serial}
 
 
-def build_response(kind: str, fiscal_serial: str) -> str:
+def build_response(kind: str, fiscal_serial: str, encryption_key: str | None = None) -> str:
     if kind == "dnf":
         return json.dumps(dnf_success(), separators=(",", ":"))
     if kind == "fiscal_rif":
-        return json.dumps(object_success("fiscalAEG"), separators=(",", ":"))
+        resp = object_success("fiscalAEG")
+        if encryption_key:
+            resp["llaveEncrip"] = encryption_key
+        return json.dumps(resp, separators=(",", ":"))
     if kind in ("header", "config"):
         return json.dumps(object_success("wFileSPIFF"), separators=(",", ":"))
     if kind == "reg_status":
@@ -165,14 +168,20 @@ def build_response(kind: str, fiscal_serial: str) -> str:
     if kind == "credit_note":
         return json.dumps(credit_note_success(), separators=(",", ":"))
     if kind == "report_z":
-        return json.dumps(object_success("genImpRepZ"), separators=(",", ":"))
+        resp = object_success("genImpRepZ")
+        if encryption_key:
+            resp["llaveEncrip"] = encryption_key
+        return json.dumps(resp, separators=(",", ":"))
     raise ValueError(f"Comando no soportado por el simulador: {kind}")
 
 
-def ptr_enajenar_payload(fiscal_serial: str, mac: str) -> str:
+def ptr_enajenar_payload(fiscal_serial: str, mac: str, encryption_key: str | None = None) -> str:
+    data: dict[str, str] = {"ptrReg": fiscal_serial, "macAddr": colon_mac(mac)}
+    if encryption_key:
+        data["llaveEncrip"] = encryption_key
     body = {
         "cmd": "ptrEnajenar",
-        "data": {"ptrReg": fiscal_serial, "macAddr": colon_mac(mac)},
+        "data": data,
     }
     return json.dumps(body, separators=(",", ":"))
 
@@ -209,6 +218,11 @@ def main() -> int:
         default=None,
         help="Retraso (ms) solo para fiscalAEG (paso 3a); por defecto usa --delay-ms",
     )
+    parser.add_argument(
+        "--encryption-key",
+        default="55a42534f4d2d8b9",
+        help="Llave de encriptación generada durante enajenación (default: 55a42534f4d2d8b9)",
+    )
     args = parser.parse_args()
 
     def response_delay_seconds(kind: str) -> float:
@@ -240,7 +254,7 @@ def main() -> int:
         client.subscribe(comando, qos=1)
         print("Conectado y suscrito.")
         if args.initiate:
-            payload = ptr_enajenar_payload(args.fiscal_serial, args.mac)
+            payload = ptr_enajenar_payload(args.fiscal_serial, args.mac, args.encryption_key)
             client.publish(cmd_server, payload, qos=1)
             print(f"Publicado ptrEnajenar -> {cmd_server}")
 
@@ -254,7 +268,7 @@ def main() -> int:
             if delay_s > 0:
                 print(f"… esperando {delay_s:.1f}s antes de responder ({kind})")
                 time.sleep(delay_s)
-            response = build_response(kind, args.fiscal_serial)
+            response = build_response(kind, args.fiscal_serial, args.encryption_key)
             client.publish(respuesta, response, qos=1)
             print(f">> Respuesta ({kind}) publicada en {respuesta}")
         except Exception as ex:

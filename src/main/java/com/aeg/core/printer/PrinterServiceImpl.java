@@ -118,6 +118,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
         p.setCreationBatchId(request.creationBatchId());
+        p.setEncryptionKey(request.encryptionKey());
         reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
@@ -180,6 +181,9 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
+        if (request.encryptionKey() != null) {
+            p.setEncryptionKey(request.encryptionKey().isBlank() ? null : request.encryptionKey());
+        }
         reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
@@ -496,7 +500,8 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getMacAddress(),
                 p.getDeviceType(),
                 p.getHeader(),
-                p.getTrailer()
+                p.getTrailer(),
+                p.getEncryptionKey()
         );
     }
 }

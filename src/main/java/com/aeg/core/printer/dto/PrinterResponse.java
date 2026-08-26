@@ -25,5 +25,29 @@ public record PrinterResponse(
         String macAddress,
         DeviceType deviceType,
         PrinterTicketSection header,
-        PrinterTicketSection trailer
-) {}
+        PrinterTicketSection trailer,
+        String encryptionKey
+) {
+    public PrinterResponse(
+            Long id,
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            OffsetDateTime createdAt,
+            UUID creationBatchId,
+            PrinterStatus status,
+            Long distributorId,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            String versionFirmware,
+            String macAddress,
+            DeviceType deviceType,
+            PrinterTicketSection header,
+            PrinterTicketSection trailer) {
+        this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
+                creationBatchId, status, distributorId, paid, installationDate,
+                versionFirmware, macAddress, deviceType, header, trailer, null);
+    }
+}

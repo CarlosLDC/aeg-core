@@ -15,4 +15,11 @@ public record PtrEnajenarMessage(
     public String macAddr() {
         return data != null && data.hasNonNull("macAddr") ? data.get("macAddr").asText() : null;
     }
+
+    public String llaveEncrip() {
+        if (data != null && data.hasNonNull("llaveEncrip")) {
+            return data.get("llaveEncrip").asText();
+        }
+        return null;
+    }
 }
