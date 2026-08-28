@@ -71,17 +71,17 @@ class OtaFirmwareTest {
     class ControllerTests {
 
         @Test
-        @DisplayName("Controller getLatest delegates to service")
-        void getLatestDelegatesToService() {
+        @DisplayName("Controller getLatest passes header token to service")
+        void getLatestPassesHeaderTokenToService() {
             OtaFirmwareService mockService = mock(OtaFirmwareService.class);
             OtaFirmwareController c = new OtaFirmwareController(mockService);
             OtaMetadataResponse expected = new OtaMetadataResponse(MODEL_CODE, null, "1.1.0", 12345L, "md5", 100L);
-            when(mockService.getLatestMetadata(MODEL_CODE)).thenReturn(expected);
+            when(mockService.getLatestMetadata(MODEL_CODE, SECRET_TOKEN)).thenReturn(expected);
 
-            OtaMetadataResponse result = c.getLatest(MODEL_CODE);
+            OtaMetadataResponse result = c.getLatest(MODEL_CODE, SECRET_TOKEN);
 
             assertThat(result).isSameAs(expected);
-            verify(mockService).getLatestMetadata(MODEL_CODE);
+            verify(mockService).getLatestMetadata(MODEL_CODE, SECRET_TOKEN);
         }
 
         @Test
@@ -104,13 +104,13 @@ class OtaFirmwareTest {
     class ServiceTests {
 
         @Test
-        @DisplayName("getLatestMetadata returns metadata for existing firmware")
+        @DisplayName("getLatestMetadata returns metadata for existing firmware with valid token")
         void getLatestMetadataSuccess() {
             Firmware fw = createSampleFirmware();
             when(repository.findFirstByPrinterModel_ModelCodeIgnoreCaseOrderByCreatedAtDesc(MODEL_CODE))
                     .thenReturn(Optional.of(fw));
 
-            OtaMetadataResponse metadata = service.getLatestMetadata(MODEL_CODE);
+            OtaMetadataResponse metadata = service.getLatestMetadata(MODEL_CODE, SECRET_TOKEN);
 
             assertThat(metadata.modelPtr()).isEqualTo(MODEL_CODE);
             assertThat(metadata.firmVer()).isEqualTo("1.1.0");
@@ -120,12 +120,44 @@ class OtaFirmwareTest {
         }
 
         @Test
-        @DisplayName("getLatestMetadata throws 404 when no firmware is found")
+        @DisplayName("getLatestMetadata throws 401 Unauthorized when token is invalid")
+        void getLatestMetadataInvalidToken() {
+            assertThatThrownBy(() -> service.getLatestMetadata(MODEL_CODE, "wrong-token"))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                        assertThat(rse.getReason()).isEqualTo("Token inválido");
+                    });
+        }
+
+        @Test
+        @DisplayName("getLatestMetadata throws 401 Unauthorized when token is null or blank")
+        void getLatestMetadataNullOrBlankToken() {
+            assertThatThrownBy(() -> service.getLatestMetadata(MODEL_CODE, null))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                        assertThat(rse.getReason()).isEqualTo("Token inválido");
+                    });
+
+            assertThatThrownBy(() -> service.getLatestMetadata(MODEL_CODE, "   "))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                        assertThat(rse.getReason()).isEqualTo("Token inválido");
+                    });
+        }
+
+        @Test
+        @DisplayName("getLatestMetadata throws 404 when token is valid but no firmware is found")
         void getLatestMetadataNotFound() {
             when(repository.findFirstByPrinterModel_ModelCodeIgnoreCaseOrderByCreatedAtDesc(MODEL_CODE))
                     .thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> service.getLatestMetadata(MODEL_CODE))
+            assertThatThrownBy(() -> service.getLatestMetadata(MODEL_CODE, SECRET_TOKEN))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("No se encontró firmware para el modelo: " + MODEL_CODE);
         }

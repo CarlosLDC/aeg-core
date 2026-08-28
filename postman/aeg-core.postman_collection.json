@@ -2830,7 +2830,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{otaDownloadToken}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/ota/latest?model={{otaModel}}",
               "host": ["{{baseUrl}}"],
@@ -2839,7 +2845,7 @@
                 { "key": "model", "value": "{{otaModel}}", "description": "Código del modelo de impresora (ej. AEG-R1)" }
               ]
             },
-            "description": "Devuelve el JSON de metadata del firmware más reciente para el modelo indicado.\n\nCampos de respuesta:\n- modelPtr: código del modelo\n- hardVer: versión de hardware (null, no implementado)\n- firmVer: versión semántica del firmware\n- buildDate: Unix timestamp (segundos) de la fecha de subida\n- checksum: MD5 hex del binario (el ESP32 lo valida tras descargar)\n- fileSize: tamaño en bytes del binario"
+            "description": "Devuelve el JSON de metadata del firmware más reciente para el modelo indicado.\n\nRequiere el header `x-auth-token` con el token secreto.\n\nCampos de respuesta:\n- modelPtr: código del modelo\n- hardVer: versión de hardware (null, no implementado)\n- firmVer: versión semántica del firmware\n- buildDate: Unix timestamp (segundos) de la fecha de subida\n- checksum: MD5 hex del binario (el ESP32 lo valida tras descargar)\n- fileSize: tamaño en bytes del binario"
           },
           "event": [
             {
@@ -2976,7 +2982,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{otaDownloadToken}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/ota/latest?model=MODELO-INEXISTENTE",
               "host": ["{{baseUrl}}"],
@@ -2994,6 +3006,44 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status code is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get metadata (token incorrecto)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "token-invalido",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ota/latest?model={{otaModel}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ota", "latest"],
+              "query": [
+                { "key": "model", "value": "{{otaModel}}" }
+              ]
+            },
+            "description": "Verifica que el endpoint rechaza peticiones con token incorrecto con 401."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message present', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.equal('Token inválido');",
+                  "});"
                 ]
               }
             }

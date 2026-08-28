@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Public endpoints consumed by the ESP32 for OTA firmware updates.
  *
  * <p>These endpoints are permit-all in {@code SecurityConfig} and do NOT require a JWT.
- * The download endpoint is protected by a static token passed in the {@code x-auth-token} header.</p>
+ * Both metadata and download endpoints are protected by a static token passed in the {@code x-auth-token} header.</p>
  */
 @RestController
 @RequestMapping("/ota")
@@ -29,6 +29,7 @@ public class OtaFirmwareController {
      *
      * <pre>
      * GET /ota/latest?model=AEG-R1
+     * Header: x-auth-token: &lt;TOKEN&gt;
      * </pre>
      *
      * Response example:
@@ -42,10 +43,14 @@ public class OtaFirmwareController {
      *   "fileSize": 1188512
      * }
      * </pre>
+     *
+     * <p>Returns {@code 401 Unauthorized} if the token is missing or incorrect.</p>
      */
     @GetMapping("/latest")
-    public OtaMetadataResponse getLatest(@RequestParam String model) {
-        return service.getLatestMetadata(model);
+    public OtaMetadataResponse getLatest(
+            @RequestParam String model,
+            @RequestHeader(value = "x-auth-token", required = false) String token) {
+        return service.getLatestMetadata(model, token);
     }
 
     /**

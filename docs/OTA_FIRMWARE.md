@@ -43,6 +43,9 @@ Esta guía describe los pasos en Postman para iniciar sesión, consultar la info
      https://core-xgfvw.ondigitalocean.app/ota/latest?model=AEG-R1
      ```
      *(Reemplaza `AEG-R1` por el código del modelo correspondiente).*
+   - **Headers:**
+     - Key: `x-auth-token`
+     - Value: `<TU_OTA_DOWNLOAD_TOKEN>`
 3. Haz clic en **Send**.
 4. Respuesta esperada (`200 OK`):
    ```json

@@ -34,16 +34,15 @@ public class OtaFirmwareServiceImpl implements OtaFirmwareService {
     }
 
     @Override
-    public OtaMetadataResponse getLatestMetadata(String modelCode) {
+    public OtaMetadataResponse getLatestMetadata(String modelCode, String token) {
+        validateToken(token);
         Firmware fw = findLatest(modelCode);
         return toMetadata(modelCode, fw);
     }
 
     @Override
     public ResponseEntity<Resource> downloadLatest(String modelCode, String token) {
-        if (token == null || token.isBlank() || !downloadToken.equals(token)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
-        }
+        validateToken(token);
         Firmware fw = findLatest(modelCode);
         byte[] bytes = storage.download(fw.getFileName());
         ByteArrayResource resource = new ByteArrayResource(bytes) {
@@ -60,6 +59,12 @@ public class OtaFirmwareServiceImpl implements OtaFirmwareService {
     }
 
     // -------------------------------------------------------------------------
+
+    private void validateToken(String token) {
+        if (token == null || token.isBlank() || !downloadToken.equals(token)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
+        }
+    }
 
     private Firmware findLatest(String modelCode) {
         return repository
