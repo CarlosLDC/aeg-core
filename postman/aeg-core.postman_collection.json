@@ -2868,17 +2868,22 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "{{otaDownloadToken}}",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/ota/download?model={{otaModel}}&token={{otaDownloadToken}}",
+              "raw": "{{baseUrl}}/ota/download?model={{otaModel}}",
               "host": ["{{baseUrl}}"],
               "path": ["ota", "download"],
               "query": [
-                { "key": "model", "value": "{{otaModel}}", "description": "Código del modelo de impresora (ej. AEG-R1)" },
-                { "key": "token", "value": "{{otaDownloadToken}}", "description": "Token estático configurado en APP_OTA_DOWNLOAD_TOKEN" }
+                { "key": "model", "value": "{{otaModel}}", "description": "Código del modelo de impresora (ej. AEG-R1)" }
               ]
             },
-            "description": "Descarga el binario .bin del firmware más reciente para el modelo indicado.\n\nPara guardar el archivo en disco: en el panel de respuesta haz clic en **Save response → Save to a file**.\n\nResponde 401 si el token es incorrecto, 404 si no hay firmware para ese modelo."
+            "description": "Descarga el binario .bin del firmware más reciente para el modelo indicado.\n\nRequiere el header `x-auth-token` configurado con el token secreto.\n\nPara guardar el archivo en disco: en el panel de respuesta haz clic en **Save response → Save to a file**.\n\nResponde 401 si el token es incorrecto o ausente, 404 si no hay firmware para ese modelo."
           },
           "event": [
             {
@@ -2901,17 +2906,54 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "x-auth-token",
+                "value": "token-invalido",
+                "type": "text"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/ota/download?model={{otaModel}}&token=token-invalido",
+              "raw": "{{baseUrl}}/ota/download?model={{otaModel}}",
               "host": ["{{baseUrl}}"],
               "path": ["ota", "download"],
               "query": [
-                { "key": "model", "value": "{{otaModel}}" },
-                { "key": "token", "value": "token-invalido" }
+                { "key": "model", "value": "{{otaModel}}" }
               ]
             },
             "description": "Verifica que el endpoint rechaza tokens incorrectos con 401."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error message present', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.equal('Token inválido');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download firmware binary (token ausente)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ota/download?model={{otaModel}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["ota", "download"],
+              "query": [
+                { "key": "model", "value": "{{otaModel}}" }
+              ]
+            },
+            "description": "Verifica que el endpoint rechaza peticiones sin header x-auth-token con 401."
           },
           "event": [
             {

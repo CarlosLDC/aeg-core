@@ -41,7 +41,7 @@ public class OtaFirmwareServiceImpl implements OtaFirmwareService {
 
     @Override
     public ResponseEntity<Resource> downloadLatest(String modelCode, String token) {
-        if (!downloadToken.equals(token)) {
+        if (token == null || token.isBlank() || !downloadToken.equals(token)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
         }
         Firmware fw = findLatest(modelCode);

@@ -68,9 +68,11 @@ Esta guía describe los pasos en Postman para iniciar sesión, consultar la info
    - **Método:** `GET`
    - **URL:** 
      ```text
-     https://core-xgfvw.ondigitalocean.app/ota/download?model=AEG-R1&token=<TU_OTA_DOWNLOAD_TOKEN>
+     https://core-xgfvw.ondigitalocean.app/ota/download?model=AEG-R1
      ```
      - Parámetro `model`: Código del modelo (ej. `AEG-R1`).
-     - Parámetro `token`: Token estático de descarga configurado en el servidor.
+   - **Headers:**
+     - Key: `x-auth-token`
+     - Value: `<TU_OTA_DOWNLOAD_TOKEN>`
 3. Haz clic en **Send**.
 4. Para guardar el binario en tu computadora: en el panel de respuesta de Postman, haz clic en **Save response → Save to a file** (nombrarlo por ejemplo `firmware.bin`).
