@@ -207,7 +207,9 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 			Seal removed = visit.getRemovedSeal();
 			removed.setStatus(SealStatus.SUSTITUIDO);
 			removed.setRemovalDate(endAt);
-			removed.setPrinter(null);
+			if (removed.getPrinter() == null) {
+				removed.setPrinter(printer);
+			}
 			sealRepository.save(removed);
 		}
 
