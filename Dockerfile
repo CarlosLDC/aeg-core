@@ -15,6 +15,17 @@ COPY --from=build /app/target/core-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:MaxRAMPercentage=60.0", \
+  "-XX:InitialRAMPercentage=30.0", \
+  "-XX:MinRAMPercentage=15.0", \
+  "-XX:+UseG1GC", \
+  "-XX:MaxGCPauseMillis=200", \
+  "-XX:G1HeapRegionSize=4m", \
+  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:CompressedClassSpaceSize=64m", \
+  "-XX:ReservedCodeCacheSize=64m", \
+  "-XX:TieredStopAtLevel=1", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Xss256k", \
   "-Djava.security.egd=file:/dev/./urandom", \
   "-jar", "app.jar"]
