@@ -21,6 +21,8 @@ ENTRYPOINT ["java", \
   "-XX:+UseG1GC", \
   "-XX:MaxGCPauseMillis=200", \
   "-XX:G1HeapRegionSize=4m", \
+  "-XX:G1PeriodicGCInterval=30000", \
+  "-XX:G1PeriodicGCSystemLoadThreshold=0.5", \
   "-XX:MaxMetaspaceSize=128m", \
   "-XX:CompressedClassSpaceSize=64m", \
   "-XX:ReservedCodeCacheSize=64m", \
