@@ -31,7 +31,7 @@ services:
       - key: APP_CORS_ALLOWED_ORIGINS
         value: https://aeg-core-admin.vercel.app,https://aeg-libros-fiscales.vercel.app,https://aeg-admin.tech,https://www.aeg-admin.tech,https://aeg-tech.com,https://www.aeg-tech.com,https://*.vercel.app
       - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://private-db-postgresql-nyc1-16442-do-user-35225255-0.l.db.ondigitalocean.com:25060/defaultdb?sslmode=require
+        value: jdbc:postgresql://10.116.0.5:5432/defaultdb?sslmode=require
       - key: SPRING_DATASOURCE_USERNAME
         value: doadmin
       - key: SPRING_DATASOURCE_PASSWORD

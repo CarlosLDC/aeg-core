@@ -35,6 +35,9 @@ build/
 # Environment files
 .env
 
+# Configuración de base de datos local para agentes
+DB_CONNECTION.md
+
 # Python
 __pycache__/
 *.py[cod]
