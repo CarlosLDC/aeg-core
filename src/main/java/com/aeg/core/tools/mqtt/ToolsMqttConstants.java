@@ -39,6 +39,22 @@ public final class ToolsMqttConstants {
 
     public static final int RESET_MF_DATA = 5555;
 
+    // Broker migration commands
+    public static final String CMD_STAT_FIRM_SIN_DNF = "statFirmSinDNF";
+    public static final String CMD_UPD_FIRM_DOWN     = "updFirmDown";
+    public static final String CMD_CONFIG_MQTT_AEG   = "configMqttAEG";
+    public static final String STA_EST_CRED_MQTT1    = "EstCredMqtt1";
+
+    // Legacy broker (for migration connection)
+    public static final String LEGACY_BROKER_HOST = "13.51.138.105";
+    public static final int    LEGACY_BROKER_PORT  = 1883;
+
+    // New broker credentials
+    public static final String NEW_BROKER_HOST     = "206.189.231.128";
+    public static final int    NEW_BROKER_PORT      = 1883;
+    public static final String NEW_BROKER_USER      = "aegptrfiscal2024";
+    public static final String NEW_BROKER_PASSWORD  = "aegseniat2024";
+
     private ToolsMqttConstants() {
     }
 }
