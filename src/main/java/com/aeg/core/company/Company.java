@@ -37,13 +37,28 @@ public class Company {
     @Column(name = "organization_type", nullable = false)
     private OrganizationType organizationType = OrganizationType.STANDARD;
 
+    public static String toStandardRif(String rif) {
+        if (rif == null || rif.isBlank()) {
+            return rif;
+        }
+        String clean = rif.trim().toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (clean.length() > 1 && clean.matches("^[VEJPG][0-9]+$")) {
+            return clean.charAt(0) + "-" + clean.substring(1);
+        }
+        return clean;
+    }
+
     @PrePersist
+    @jakarta.persistence.PreUpdate
     void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
         if (organizationType == null) {
             organizationType = OrganizationType.STANDARD;
+        }
+        if (rif != null) {
+            rif = toStandardRif(rif);
         }
     }
 
@@ -76,7 +91,7 @@ public class Company {
     }
 
     public void setRif(String rif) {
-        this.rif = rif;
+        this.rif = toStandardRif(rif);
     }
 
     public ContributorType getContributorType() {

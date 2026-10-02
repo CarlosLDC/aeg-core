@@ -206,8 +206,8 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 			throw new ResourceNotFoundException("Company not found for branch id: " + branch.getId());
 		}
 
-		String rif = proposed.rif() == null ? "" : proposed.rif().trim();
-		if (!rif.equalsIgnoreCase(company.getRif()) && companyRepository.existsByRif(rif)) {
+		String rif = proposed.rif() == null ? "" : Company.toStandardRif(proposed.rif().trim());
+		if (!rif.equalsIgnoreCase(company.getRif()) && (companyRepository.existsByRif(rif) || companyRepository.findByNormalizedRif(normalizeRif(rif)).isPresent())) {
 			throw new IllegalArgumentException("rif already exists: " + rif);
 		}
 
@@ -269,7 +269,7 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 	private Map<String, Object> toProposedDataMap(ClientModificationProposedData proposed) {
 		Map<String, Object> map = new LinkedHashMap<>();
 		map.put("businessName", proposed.businessName());
-		map.put("rif", proposed.rif());
+		map.put("rif", Company.toStandardRif(proposed.rif()));
 		map.put("contributorType", proposed.contributorType() == null ? null : proposed.contributorType().getValue());
 		map.put("city", proposed.city());
 		map.put("state", proposed.state());
@@ -279,6 +279,11 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 		map.put("email", proposed.email());
 		map.put("distributorId", proposed.distributorId());
 		return map;
+	}
+
+	private static String normalizeRif(String rif) {
+		if (rif == null) return "";
+		return rif.trim().toUpperCase().replaceAll("[^A-Z0-9]", "");
 	}
 
 	private ClientModificationProposedData toProposedData(Map<String, Object> proposedData) {

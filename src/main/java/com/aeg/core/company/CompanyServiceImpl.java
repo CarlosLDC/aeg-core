@@ -76,12 +76,13 @@ public class CompanyServiceImpl implements CompanyService {
         if (currentUser.getRole() != Role.ADMIN && !Role.isDistributorScoped(currentUser.getRole())) {
             return Optional.empty();
         }
+        String standard = Company.toStandardRif(rif);
         String normalized = normalizeRif(rif);
-        if (normalized.isEmpty()) {
+        if (standard.isEmpty() && normalized.isEmpty()) {
             return Optional.empty();
         }
         return repository
-                .findByRif(normalized)
+                .findByRif(standard)
                 .or(() -> repository.findByNormalizedRif(normalized))
                 .map(this::toResponse);
     }
@@ -98,12 +99,13 @@ public class CompanyServiceImpl implements CompanyService {
         if (request.contributorType() == null) {
             throw new IllegalArgumentException("El tipo de contribuyente es obligatorio.");
         }
-        if (repository.existsByRif(request.rif())) {
+        String standardRif = Company.toStandardRif(request.rif());
+        if (repository.existsByRif(standardRif) || repository.findByNormalizedRif(normalizeRif(request.rif())).isPresent()) {
             throw new IllegalArgumentException("rif already exists: " + request.rif());
         }
         Company c = new Company();
         c.setBusinessName(request.businessName());
-        c.setRif(request.rif());
+        c.setRif(standardRif);
         c.setContributorType(request.contributorType());
         return toResponse(repository.save(c));
     }
@@ -116,11 +118,12 @@ public class CompanyServiceImpl implements CompanyService {
                 && clientRepository.existsByBranch_Company_Id(c.getId())) {
             throw new IllegalArgumentException("client updates must be requested for review");
         }
-        if (!c.getRif().equals(request.rif()) && repository.existsByRif(request.rif())) {
+        String standardRif = Company.toStandardRif(request.rif());
+        if (!c.getRif().equalsIgnoreCase(standardRif) && (repository.existsByRif(standardRif) || repository.findByNormalizedRif(normalizeRif(request.rif())).isPresent())) {
             throw new IllegalArgumentException("rif already exists: " + request.rif());
         }
         c.setBusinessName(request.businessName());
-        c.setRif(request.rif());
+        c.setRif(standardRif);
         c.setContributorType(request.contributorType());
         return toResponse(repository.save(c));
     }

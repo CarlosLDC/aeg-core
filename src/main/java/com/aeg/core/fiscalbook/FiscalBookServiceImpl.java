@@ -47,7 +47,7 @@ import com.aeg.core.technicalservice.TechnicalServiceDescription;
 public class FiscalBookServiceImpl implements FiscalBookService {
 
 	private static final Pattern SERIAL_PATTERN = Pattern.compile("^[A-Z]{3}[0-9]{7}$", Pattern.CASE_INSENSITIVE);
-	private static final Pattern RIF_PATTERN = Pattern.compile("^[VEJPG][0-9]{7,9}$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern RIF_PATTERN = Pattern.compile("^[VEJPG]-?[0-9]{7,9}$", Pattern.CASE_INSENSITIVE);
 
 	private final SecurityScopeService securityScope;
 	private final TechnicalServiceVisitRepository technicalServiceRepository;

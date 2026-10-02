@@ -10,7 +10,7 @@ import com.aeg.core.fiscalbook.dto.FiscalBookDtos.FiscalBookCompanyResponse;
 public final class AegManufacturerProfile {
 
 	public static final String BUSINESS_NAME = "ALPHA ENGINEER GROUP, C.A.";
-	public static final String RIF = "J504594369";
+	public static final String RIF = "J-504594369";
 	public static final String STATE = "MIRANDA";
 	public static final String CITY = "LOS TEQUES";
 	public static final String ADDRESS =

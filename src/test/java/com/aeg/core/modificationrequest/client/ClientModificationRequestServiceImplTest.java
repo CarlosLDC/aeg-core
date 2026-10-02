@@ -102,7 +102,7 @@ class ClientModificationRequestServiceImplTest {
 		assertThat(stored.getTargetId()).isEqualTo(25L);
 		assertThat(stored.getActionType()).isEqualTo(ModificationActionType.UPDATE);
 		Map<String, Object> data = stored.getProposedData();
-		assertThat(data.get("rif")).isEqualTo("J123456789");
+		assertThat(data.get("rif")).isEqualTo("J-123456789");
 		assertThat(data.get("city")).isEqualTo("Caracas");
 	}
 

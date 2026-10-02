@@ -7,7 +7,7 @@ public record CompanyRequest(
     String businessName,
 
     @NotNull(message = "rif is required")
-    @Pattern(regexp = "^[VEJPG][0-9]{7,9}$", message = "rif must match pattern ^[VEJPG][0-9]{7,9}$")
+    @Pattern(regexp = "^[VEJPG]-?[0-9]{7,9}$", message = "rif must match pattern ^[VEJPG]-?[0-9]{7,9}$")
     String rif,
 
     @NotNull(message = "contributorType is required")
