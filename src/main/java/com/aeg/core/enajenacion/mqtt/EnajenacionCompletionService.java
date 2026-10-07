@@ -30,6 +30,13 @@ public class EnajenacionCompletionService {
             if (encryptionKey != null && !encryptionKey.isBlank()) {
                 printer.setEncryptionKey(encryptionKey);
                 printerRepository.save(printer);
+            } else if (printer.getEncryptionKey() == null) {
+                String gen = com.aeg.core.printer.PrinterEncryptionKeyGenerator.generateKey(
+                        printer.getFiscalSerial(), printer.getMacAddress());
+                if (gen != null) {
+                    printer.setEncryptionKey(gen);
+                    printerRepository.save(printer);
+                }
             }
             return;
         }
@@ -42,6 +49,9 @@ public class EnajenacionCompletionService {
         }
         if (encryptionKey != null && !encryptionKey.isBlank()) {
             printer.setEncryptionKey(encryptionKey);
+        } else if (printer.getEncryptionKey() == null) {
+            printer.setEncryptionKey(com.aeg.core.printer.PrinterEncryptionKeyGenerator.generateKey(
+                    printer.getFiscalSerial(), printer.getMacAddress()));
         }
         printerRepository.save(printer);
     }

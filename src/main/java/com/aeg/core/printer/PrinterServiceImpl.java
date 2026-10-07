@@ -118,7 +118,11 @@ public class PrinterServiceImpl implements PrinterService {
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
         p.setCreationBatchId(request.creationBatchId());
-        p.setEncryptionKey(request.encryptionKey());
+        String encryptionKey = request.encryptionKey();
+        if ((encryptionKey == null || encryptionKey.isBlank()) && normalizedMac != null && request.fiscalSerial() != null) {
+            encryptionKey = PrinterEncryptionKeyGenerator.generateKey(request.fiscalSerial(), normalizedMac);
+        }
+        p.setEncryptionKey(encryptionKey);
         reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));
     }
@@ -178,11 +182,16 @@ public class PrinterServiceImpl implements PrinterService {
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
         p.setVersionFirmware(request.versionFirmware());
+        boolean macChanged = !java.util.Objects.equals(p.getMacAddress(), normalizedMac);
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
         if (request.encryptionKey() != null) {
             p.setEncryptionKey(request.encryptionKey().isBlank() ? null : request.encryptionKey());
+        } else if (macChanged || p.getEncryptionKey() == null) {
+            if (normalizedMac != null && p.getFiscalSerial() != null) {
+                p.setEncryptionKey(PrinterEncryptionKeyGenerator.generateKey(p.getFiscalSerial(), normalizedMac));
+            }
         }
         reconcileDistributorPaymentStatus(p);
         return toResponse(repository.save(p));

@@ -502,4 +502,43 @@ class EnajenacionMqttOrchestratorTest {
         assertThat(session.state()).isEqualTo(EnajenacionSessionState.COMPLETED);
         assertThat(session.encryptionKey()).isEqualTo("55a42534f4d2d8b9");
     }
+
+    @Test
+    void ptrEnajenarAutogeneratesLlaveEncripWhenOmitted() {
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+
+        EnajenacionContext context = new EnajenacionContext(
+                "GRA0000017",
+                "20:6E:F1:88:4C:68",
+                1L,
+                "J-12345678-9",
+                "ACME",
+                "CONTRIBUYENTE ORDINARIO",
+                "Address",
+                "Line 2",
+                "Caracas, DC",
+                java.util.List.of("Address", "Line 2", "Caracas, DC", "CONTRIBUYENTE ORDINARIO"),
+                java.util.List.of());
+        when(preconditionValidator.validateAndBuildContext("GRA0000017", MAC, "20:6E:F1:88:4C:68"))
+                .thenReturn(context);
+        when(preconditionValidator.resolvePrinterId("GRA0000017")).thenReturn(10L);
+
+        String payload = """
+                {
+                  "cmd": "ptrEnajenar",
+                  "data": {
+                    "ptrReg": "GRA0000017",
+                    "macAddr": "20:6E:F1:88:4C:68"
+                  }
+                }
+                """;
+
+        var outcome = orchestrator.handleInboundWithOutcome(CMD_SERVER, payload);
+        assertThat(outcome).isPresent();
+        assertThat(outcome.get().status()).isEqualTo(EnajenacionStartStatus.STARTED);
+
+        EnajenacionSession session = registry.find(MAC).orElseThrow();
+        assertThat(session.encryptionKey()).isEqualTo("482266916ca28364");
+    }
 }

@@ -155,6 +155,9 @@ public class EnajenacionMqttOrchestrator {
             }
             if (initialKey != null && !initialKey.isBlank()) {
                 session.setEncryptionKey(initialKey);
+            } else {
+                session.setEncryptionKey(com.aeg.core.printer.PrinterEncryptionKeyGenerator.generateKey(
+                        ptrReg, context.macAddress()));
             }
             sessionRegistry.register(session);
             log.info(
@@ -484,6 +487,12 @@ public class EnajenacionMqttOrchestrator {
                 EnajenacionSessionState acceptedFrom = session.state();
                 responseValidator.validateReportZResponse(item);
                 sseNotifier.notifyReportZAccepted(session, respuestaTopic, respuestaPayload);
+                if (item.llaveEncrip() != null && !item.llaveEncrip().isBlank()) {
+                    session.setEncryptionKey(item.llaveEncrip().trim());
+                } else if (session.encryptionKey() == null) {
+                    session.setEncryptionKey(com.aeg.core.printer.PrinterEncryptionKeyGenerator.generateKey(
+                            session.context().fiscalSerial(), session.context().macAddress()));
+                }
                 completionService.markEnajenada(session.printerId(), session.encryptionKey());
                 session.setState(EnajenacionSessionState.COMPLETED);
                 log.info(

@@ -447,6 +447,66 @@ public class PrinterControllerIT {
         return printerRepository.save(printer);
     }
 
+    @Test
+    void createPrinterAutogeneratesEncryptionKey() throws Exception {
+        PrinterModel model = createPrinterModel();
+        String serial = nextFiscalSerial();
+        String mac = nextMacAddress();
+        String expectedKey = PrinterEncryptionKeyGenerator.generateKey(serial, mac);
+
+        String body = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + serial + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"laboratorio\","
+                + "\"deviceType\":\"interno\","
+                + "\"macAddress\":\"" + mac + "\""
+                + "}";
+
+        var res = postPrinter(body);
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.body()).contains("\"encryptionKey\":\"" + expectedKey + "\"");
+    }
+
+    @Test
+    void updatePrinterWithNewMacUpdatesEncryptionKey() throws Exception {
+        PrinterModel model = createPrinterModel();
+        String serial = nextFiscalSerial();
+        String initialMac = nextMacAddress();
+        String initialKey = PrinterEncryptionKeyGenerator.generateKey(serial, initialMac);
+
+        String createBody = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + serial + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"laboratorio\","
+                + "\"deviceType\":\"interno\","
+                + "\"macAddress\":\"" + initialMac + "\""
+                + "}";
+        var createRes = postPrinter(createBody);
+        assertThat(createRes.statusCode()).isEqualTo(201);
+        assertThat(createRes.body()).contains("\"encryptionKey\":\"" + initialKey + "\"");
+
+        com.fasterxml.jackson.databind.JsonNode root = new com.fasterxml.jackson.databind.ObjectMapper().readTree(createRes.body());
+        long printerId = root.get("id").asLong();
+
+        String updatedMac = nextMacAddress();
+        String expectedUpdatedKey = PrinterEncryptionKeyGenerator.generateKey(serial, updatedMac);
+
+        String updateBody = "{"
+                + "\"modelId\":" + model.getId() + ","
+                + "\"fiscalSerial\":\"" + serial + "\","
+                + "\"paid\":false,"
+                + "\"status\":\"laboratorio\","
+                + "\"deviceType\":\"interno\","
+                + "\"macAddress\":\"" + updatedMac + "\""
+                + "}";
+
+        var updateRes = putPrinter(printerId, updateBody);
+        assertThat(updateRes.statusCode()).isEqualTo(200);
+        assertThat(updateRes.body()).contains("\"encryptionKey\":\"" + expectedUpdatedKey + "\"");
+    }
+
     private PrinterModel createPrinterModel() {
         PrinterModel model = new PrinterModel();
         model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());

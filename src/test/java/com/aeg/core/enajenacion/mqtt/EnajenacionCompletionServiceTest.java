@@ -60,4 +60,21 @@ class EnajenacionCompletionServiceTest {
         assertThat(printer.getEncryptionKey()).isEqualTo("55a42534f4d2d8b9");
         verify(printerRepository).save(printer);
     }
+
+    @Test
+    void markEnajenadaAutogeneratesKeyWhenNull() {
+        Printer printer = new Printer();
+        printer.setId(3L);
+        printer.setStatus(PrinterStatus.ASIGNADA);
+        printer.setFiscalSerial("GRA0000017");
+        printer.setMacAddress("20:6E:F1:88:4C:68");
+
+        when(printerRepository.findById(3L)).thenReturn(Optional.of(printer));
+
+        service.markEnajenada(3L, null);
+
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(printer.getEncryptionKey()).isEqualTo("482266916ca28364");
+        verify(printerRepository).save(printer);
+    }
 }
