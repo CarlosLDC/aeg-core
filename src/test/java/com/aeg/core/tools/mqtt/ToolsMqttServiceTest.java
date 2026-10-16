@@ -53,7 +53,8 @@ class ToolsMqttServiceTest {
         mqttService = mock(MqttService.class);
         ToolsMqttPayloadBuilder payloadBuilder = new ToolsMqttPayloadBuilder(objectMapper);
         ToolsMqttResponseParser responseParser = new ToolsMqttResponseParser(objectMapper);
-        ToolsMqttSettings settings = new ToolsMqttSettings(5, 2, 5, 5, 5);
+        ToolsMqttSettings settings = mock(ToolsMqttSettings.class);
+        when(settings.statusTimeoutSeconds()).thenReturn(2);
 
         service = new ToolsMqttService(
                 repo,
