@@ -55,15 +55,16 @@ public class ToolsMqttService {
     private final ToolsMqttPayloadBuilder payloadBuilder;
     private final ToolsMqttResponseParser responseParser;
     private final ToolsMqttSettings settings;
+    private final BrokerMigrationLegacyClient legacyClient;
     private final ConcurrentHashMap<String, ReentrantLock> locksByMac = new ConcurrentHashMap<>();
 
     public ToolsMqttStatusResponse requestStatus(Long printerId) {
-        FiscalMqttResponseItem response = publishAndAwaitMatcher(
+        StatusBrokerReply reply = publishAndAwaitStatusOnAnyBroker(
                 printerId,
                 payloadBuilder.statusPayload(),
                 ToolsMqttResponseParser::isStatusResponse,
                 settings.statusTimeoutSeconds());
-        return responseParser.parseStatus(response);
+        return responseParser.parseStatus(reply.item()).withLegacyBroker(reply.legacyBroker());
     }
 
     public ToolsWifiScanResponse scanWifi(Long printerId) {
@@ -301,6 +302,97 @@ public class ToolsMqttService {
         }
     }
 
+    private StatusBrokerReply publishAndAwaitStatusOnAnyBroker(
+            Long printerId,
+            String payload,
+            Predicate<FiscalMqttResponseItem> matcher,
+            int timeoutSeconds) {
+        PrinterContext ctx = resolvePrinter(printerId);
+        ReentrantLock lock = lockFor(ctx.compactMac());
+        lock.lock();
+        try {
+            CompletableFuture<FiscalMqttResponseItem> newBrokerFuture =
+                    syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher);
+            CompletableFuture<FiscalMqttResponseItem> legacyBrokerFuture = new CompletableFuture<>();
+            CompletableFuture<StatusBrokerReply> winnerFuture = new CompletableFuture<>();
+
+            newBrokerFuture.whenComplete((item, ex) -> {
+                if (ex == null && item != null) {
+                    winnerFuture.complete(new StatusBrokerReply(item, false));
+                } else if (legacyBrokerFuture.isDone()) {
+                    completeWhenBothUnsuccessful(winnerFuture, ex, failureCause(legacyBrokerFuture));
+                }
+            });
+
+            legacyBrokerFuture.whenComplete((item, ex) -> {
+                if (ex == null && item != null) {
+                    winnerFuture.complete(new StatusBrokerReply(item, true));
+                } else if (newBrokerFuture.isDone()) {
+                    completeWhenBothUnsuccessful(winnerFuture, failureCause(newBrokerFuture), ex);
+                }
+            });
+
+            Thread legacyThread = Thread.ofVirtual()
+                    .name("tools-legacy-status-" + ctx.compactMac())
+                    .start(() -> {
+                        try {
+                            FiscalMqttResponseItem item = legacyClient.publishAndAwaitItem(
+                                    ctx.compactMac(), payload, matcher, timeoutSeconds);
+                            legacyBrokerFuture.complete(item);
+                        } catch (Throwable t) {
+                            legacyBrokerFuture.completeExceptionally(t);
+                        }
+                    });
+
+            try {
+                try {
+                    mqttService.publish(ctx.topic(), payload);
+                } catch (Throwable publishEx) {
+                    newBrokerFuture.completeExceptionally(publishEx);
+                }
+                return winnerFuture.get(timeoutSeconds, TimeUnit.SECONDS);
+            } catch (TimeoutException ex) {
+                throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
+            } catch (ExecutionException ex) {
+                if (ex.getCause() instanceof TimeoutException
+                        || ex.getCause() instanceof BrokerMigrationLegacyClient.LegacyBrokerTimeoutException) {
+                    throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
+                }
+                throw wrapExecution(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new EnajenacionProtocolException(ERROR_MESSAGE);
+            } finally {
+                syncResponseAwaiter.cancel(ctx.compactMac());
+                legacyThread.interrupt();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static void completeWhenBothUnsuccessful(
+            CompletableFuture<StatusBrokerReply> winnerFuture,
+            Throwable primaryError,
+            Throwable secondaryError) {
+        if (primaryError != null) {
+            winnerFuture.completeExceptionally(primaryError);
+        } else if (secondaryError != null) {
+            winnerFuture.completeExceptionally(secondaryError);
+        } else {
+            winnerFuture.completeExceptionally(new TimeoutException());
+        }
+    }
+
+    private static Throwable failureCause(CompletableFuture<?> future) {
+        try {
+            future.getNow(null);
+            return null;
+        } catch (Throwable t) {
+            return t.getCause() != null ? t.getCause() : t;
+        }
+    }
+
     private FiscalMqttResponseItem publishAndAwaitMatcher(
             Long printerId,
             String payload,
@@ -411,4 +503,6 @@ public class ToolsMqttService {
     }
 
     private record PrinterContext(String compactMac, String topic) {}
+
+    private record StatusBrokerReply(FiscalMqttResponseItem item, boolean legacyBroker) {}
 }

@@ -19,14 +19,16 @@ import org.springframework.stereotype.Component;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttTopics;
+import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Cliente MQTT efímero contra el broker legacy (anónimo, sin credenciales) usado
- * únicamente por el protocolo de migración de broker.
+ * para migración de broker y consulta de estado legacy.
  */
 @Slf4j
 @Component
@@ -58,6 +60,49 @@ public class BrokerMigrationLegacyClient {
         return publishAndAwaitExtract(compactMac, payload, raw -> responseMatcher.test(raw) ? raw : null, timeoutSeconds);
     }
 
+    public FiscalMqttResponseItem publishAndAwaitItem(
+            String compactMac,
+            String payload,
+            Predicate<FiscalMqttResponseItem> itemMatcher,
+            int timeoutSeconds) {
+        return publishAndAwaitExtract(
+                compactMac,
+                payload,
+                raw -> extractMatchingResponseItem(raw, itemMatcher),
+                timeoutSeconds);
+    }
+
+    FiscalMqttResponseItem extractMatchingResponseItem(String raw, Predicate<FiscalMqttResponseItem> itemMatcher) {
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (node.isObject()) {
+                FiscalMqttResponseItem item = toResponseItem(node);
+                return item != null && itemMatcher.test(item) ? item : null;
+            }
+            if (node.isArray()) {
+                for (JsonNode element : node) {
+                    if (element.isObject()) {
+                        FiscalMqttResponseItem item = toResponseItem(element);
+                        if (item != null && itemMatcher.test(item)) {
+                            return item;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Ignoring non-JSON message on legacy broker: {}", raw);
+        }
+        return null;
+    }
+
+    private FiscalMqttResponseItem toResponseItem(JsonNode node) throws Exception {
+        ObjectNode copy = ((ObjectNode) node).deepCopy();
+        if (copy.has("dataS") && !copy.get("dataS").isTextual() && !copy.get("dataS").isNull()) {
+            copy.put("dataS", objectMapper.writeValueAsString(copy.get("dataS")));
+        }
+        return objectMapper.treeToValue(copy, FiscalMqttResponseItem.class);
+    }
+
     private String extractMatchingItem(String raw, String expectedCmd) {
         try {
             JsonNode node = objectMapper.readTree(raw);
@@ -82,8 +127,8 @@ public class BrokerMigrationLegacyClient {
         return cmd != null && cmd.isTextual() && cmd.asText().trim().equalsIgnoreCase(expectedCmd.trim());
     }
 
-    private String publishAndAwaitExtract(
-            String compactMac, String payload, Function<String, String> extractor, int timeoutSeconds) {
+    private <T> T publishAndAwaitExtract(
+            String compactMac, String payload, Function<String, T> extractor, int timeoutSeconds) {
         String broker = "tcp://" + ToolsMqttConstants.LEGACY_BROKER_HOST + ":" + ToolsMqttConstants.LEGACY_BROKER_PORT;
         String clientId = "aeg-migr-" + UUID.randomUUID();
 
@@ -102,7 +147,7 @@ public class BrokerMigrationLegacyClient {
             String commandTopic = FiscalMqttTopics.comandoTopic(compactMac);
 
             CountDownLatch latch = new CountDownLatch(1);
-            AtomicReference<String> matchedResponse = new AtomicReference<>();
+            AtomicReference<T> matchedResponse = new AtomicReference<>();
 
             client.setCallback(new MqttCallback() {
                 @Override
@@ -114,7 +159,7 @@ public class BrokerMigrationLegacyClient {
                 public void messageArrived(String topic, MqttMessage message) {
                     String msg = new String(message.getPayload(), StandardCharsets.UTF_8);
                     log.info("Received message on legacy topic {}: {}", topic, msg);
-                    String extracted = extractor.apply(msg);
+                    T extracted = extractor.apply(msg);
                     if (extracted != null && matchedResponse.compareAndSet(null, extracted)) {
                         latch.countDown();
                     }
