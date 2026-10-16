@@ -62,6 +62,18 @@ public class SoftwareServiceImpl implements SoftwareService {
     }
 
     private SoftwareResponse toResponse(Software s) {
-        return new SoftwareResponse(s.getId(), s.getName(), s.getVersion(), s.getCreatedAt(), s.getProgrammingLanguages(), s.getOperatingSystems());
+        List<String> programmingLanguages = s.getProgrammingLanguages() == null
+                ? List.of()
+                : List.copyOf(s.getProgrammingLanguages());
+        List<String> operatingSystems = s.getOperatingSystems() == null
+                ? List.of()
+                : List.copyOf(s.getOperatingSystems());
+        return new SoftwareResponse(
+                s.getId(),
+                s.getName(),
+                s.getVersion(),
+                s.getCreatedAt(),
+                programmingLanguages,
+                operatingSystems);
     }
 }

@@ -507,6 +507,28 @@ public class PrinterControllerIT {
         assertThat(updateRes.body()).contains("\"encryptionKey\":\"" + expectedUpdatedKey + "\"");
     }
 
+    @Test
+    void updatePrinterAllowsReassigningAndClearingDistributorAndClient() throws Exception {
+        Distributor distributor = createDistributor();
+        Client client = createClient();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.ENAJENADA, true);
+
+        String assignClientAndClearDistributorBody = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":true,"
+                + "\"status\":\"enajenada\","
+                + "\"deviceType\":\"interno\","
+                + "\"clientId\":" + client.getId()
+                + "}";
+
+        var res = putPrinter(printer.getId(), assignClientAndClearDistributorBody);
+        assertThat(res.statusCode()).isEqualTo(200);
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getDistributorId()).isNull();
+        assertThat(updated.getClientId()).isEqualTo(client.getId());
+    }
+
     private PrinterModel createPrinterModel() {
         PrinterModel model = new PrinterModel();
         model.setModelCode("DSP-" + SERIAL_SEQUENCE.incrementAndGet());

@@ -150,9 +150,10 @@ public class PrinterServiceImpl implements PrinterService {
         Long resolvedDistributorId = resolveDistributorIdForWrite(request.distributorId());
         Long previousDistributorId = p.getDistributorId();
         if (request.status() == PrinterStatus.SIN_ASIGNAR
-                || request.status() == PrinterStatus.DE_FABRICA) {
+                || request.status() == PrinterStatus.DE_FABRICA
+                || resolvedDistributorId == null) {
             applyDistributor(p, null);
-        } else if (resolvedDistributorId != null) {
+        } else {
             assertPrinterAssignmentAllowed(p, previousDistributorId, resolvedDistributorId);
             applyDistributor(p, resolvedDistributorId);
         }
