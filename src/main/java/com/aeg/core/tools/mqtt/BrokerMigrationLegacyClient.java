@@ -1,9 +1,11 @@
 package com.aeg.core.tools.mqtt;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -22,9 +24,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Cliente MQTT efímero contra el broker legacy (anónimo, sin credenciales) usado
+ * únicamente por el protocolo de migración de broker.
+ */
 @Slf4j
 @Component
 public class BrokerMigrationLegacyClient {
+
+    /** La conexión al broker legacy funcionó pero la impresora no respondió a tiempo. */
+    public static class LegacyBrokerTimeoutException extends EnajenacionProtocolException {
+        public LegacyBrokerTimeoutException(String message) {
+            super(message);
+        }
+    }
 
     private final ObjectMapper objectMapper;
 
@@ -32,40 +45,65 @@ public class BrokerMigrationLegacyClient {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Publica {@code payload} en el topic Comando de la impresora y espera la respuesta cuyo
+     * {@code cmd} coincida (sin distinguir mayúsculas). Acepta respuestas en objeto o en array;
+     * en el caso de array devuelve el JSON del elemento que coincide.
+     */
     public String publishAndAwait(String compactMac, String payload, String expectedResponseCmd, int timeoutSeconds) {
-        return publishAndAwaitMatcher(compactMac, payload, responseJson -> {
-            try {
-                JsonNode node = objectMapper.readTree(responseJson);
-                if (node.has("cmd") && node.get("cmd").isTextual()) {
-                    return expectedResponseCmd.equals(node.get("cmd").asText());
-                }
-            } catch (Exception e) {
-                log.warn("Error parsing response JSON for match", e);
-            }
-            return false;
-        }, timeoutSeconds);
+        return publishAndAwaitExtract(compactMac, payload, raw -> extractMatchingItem(raw, expectedResponseCmd), timeoutSeconds);
     }
 
     public String publishAndAwaitMatcher(String compactMac, String payload, Predicate<String> responseMatcher, int timeoutSeconds) {
+        return publishAndAwaitExtract(compactMac, payload, raw -> responseMatcher.test(raw) ? raw : null, timeoutSeconds);
+    }
+
+    private String extractMatchingItem(String raw, String expectedCmd) {
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (node.isObject()) {
+                return cmdMatches(node, expectedCmd) ? raw : null;
+            }
+            if (node.isArray()) {
+                for (JsonNode item : node) {
+                    if (item.isObject() && cmdMatches(item, expectedCmd)) {
+                        return objectMapper.writeValueAsString(item);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Ignoring non-JSON message on legacy broker: {}", raw);
+        }
+        return null;
+    }
+
+    private static boolean cmdMatches(JsonNode node, String expectedCmd) {
+        JsonNode cmd = node.get("cmd");
+        return cmd != null && cmd.isTextual() && cmd.asText().trim().equalsIgnoreCase(expectedCmd.trim());
+    }
+
+    private String publishAndAwaitExtract(
+            String compactMac, String payload, Function<String, String> extractor, int timeoutSeconds) {
         String broker = "tcp://" + ToolsMqttConstants.LEGACY_BROKER_HOST + ":" + ToolsMqttConstants.LEGACY_BROKER_PORT;
-        String clientId = UUID.randomUUID().toString();
-        
+        String clientId = "aeg-migr-" + UUID.randomUUID();
+
         MqttClient client = null;
         try {
             client = new MqttClient(broker, clientId, new MemoryPersistence());
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(true);
             connOpts.setConnectionTimeout(10);
-            
+            connOpts.setAutomaticReconnect(false);
+
             client.connect(connOpts);
             log.info("Connected to legacy broker at {} with clientId {}", broker, clientId);
-            
+
             String responseTopic = FiscalMqttTopics.respuestaTopic(compactMac);
             String commandTopic = FiscalMqttTopics.comandoTopic(compactMac);
-            
+
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<String> matchedResponse = new AtomicReference<>();
-            
+
             client.setCallback(new MqttCallback() {
                 @Override
                 public void connectionLost(Throwable cause) {
@@ -74,10 +112,10 @@ public class BrokerMigrationLegacyClient {
 
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
-                    String msg = new String(message.getPayload());
-                    log.info("Received message on topic {}: {}", topic, msg);
-                    if (responseMatcher.test(msg)) {
-                        matchedResponse.set(msg);
+                    String msg = new String(message.getPayload(), StandardCharsets.UTF_8);
+                    log.info("Received message on legacy topic {}: {}", topic, msg);
+                    String extracted = extractor.apply(msg);
+                    if (extracted != null && matchedResponse.compareAndSet(null, extracted)) {
                         latch.countDown();
                     }
                 }
@@ -86,26 +124,30 @@ public class BrokerMigrationLegacyClient {
                 public void deliveryComplete(IMqttDeliveryToken token) {
                 }
             });
-            
-            client.subscribe(responseTopic);
-            
-            MqttMessage message = new MqttMessage(payload.getBytes());
+
+            client.subscribe(responseTopic, 1);
+
+            MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(0);
-            
+
             log.info("Publishing payload to legacy broker topic {}: {}", commandTopic, payload);
             client.publish(commandTopic, message);
-            
+
             boolean received = latch.await(timeoutSeconds, TimeUnit.SECONDS);
             if (!received) {
-                throw new EnajenacionProtocolException("Timeout waiting for expected response on legacy broker.");
+                throw new LegacyBrokerTimeoutException(
+                        "La impresora no respondió en el broker antiguo (timeout " + timeoutSeconds + "s).");
             }
-            
+
             return matchedResponse.get();
         } catch (EnajenacionProtocolException e) {
             throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new EnajenacionProtocolException("Operación interrumpida esperando al broker antiguo.");
         } catch (Exception e) {
             log.error("Error communicating with legacy broker", e);
-            throw new EnajenacionProtocolException("Error communicating with legacy broker: " + e.getMessage());
+            throw new EnajenacionProtocolException("Error comunicándose con el broker antiguo: " + e.getMessage());
         } finally {
             if (client != null) {
                 try {

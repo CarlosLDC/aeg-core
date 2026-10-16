@@ -45,6 +45,17 @@ public final class ToolsMqttConstants {
     public static final String CMD_CONFIG_MQTT_AEG   = "configMqttAEG";
     public static final String STA_EST_CRED_MQTT1    = "EstCredMqtt1";
 
+    // statFirmSinDNF: 1.1.0 = credenciales de descarga del servidor viejo (requiere updFirmDown);
+    // 1.1.1 = credenciales del servidor nuevo.
+    public static final String FIRMWARE_VERSION_LEGACY   = "1.1.0";
+    public static final String FIRMWARE_VERSION_MIGRATED = "1.1.1";
+    public static final int    UPD_FIRM_DOWN_DATA        = 1;
+
+    // configMqttAEG: sufijos de topic (el firmware antepone /<MAC>/AEG_Fiscal/Integracion/)
+    public static final String CONFIG_MQTT_TOPIC_RX  = "Comando";
+    public static final String CONFIG_MQTT_TOPIC_TX  = "Respuesta";
+    public static final String CONFIG_MQTT_TOPIC_DOC = "Documento";
+
     // Legacy broker (for migration connection)
     public static final String LEGACY_BROKER_HOST = "13.51.138.105";
     public static final int    LEGACY_BROKER_PORT  = 1883;

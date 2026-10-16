@@ -15,6 +15,7 @@ import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.BrokerMigrationBrokerConfigResult;
+import com.aeg.core.mqtt.dto.BrokerMigrationBrokerConfigResult.Outcome;
 import com.aeg.core.mqtt.dto.BrokerMigrationBrokerResult;
 import com.aeg.core.mqtt.dto.BrokerMigrationFirmwareResult;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
@@ -22,14 +23,35 @@ import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
+import com.aeg.core.tools.mqtt.BrokerMigrationLegacyClient.LegacyBrokerTimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Protocolo de migración de una impresora AEG del broker antiguo ({@value ToolsMqttConstants#LEGACY_BROKER_HOST})
+ * al broker actual ({@value ToolsMqttConstants#NEW_BROKER_HOST}):
+ * <ol>
+ *   <li>{@code statFirmSinDNF}: 1.1.0 → requiere {@code updFirmDown}; 1.1.1 → firmware ya actualizado.</li>
+ *   <li>{@code updFirmDown} (solo por broker antiguo) y esperar reinicio.</li>
+ *   <li>{@code StaInf/EstCredMqtt1}: identifica a qué broker está conectada.</li>
+ *   <li>{@code configMqttAEG} (por broker antiguo) con las credenciales del broker nuevo.</li>
+ * </ol>
+ */
 @Slf4j
 @Service
 public class BrokerMigrationService {
+
+    static final int LEGACY_TIMEOUT_SECONDS = 20;
+    static final int NEW_BROKER_TIMEOUT_SECONDS = 15;
+    static final int UPD_FIRM_TIMEOUT_SECONDS = 30;
+    static final int VERIFY_ATTEMPTS = 4;
+    static final int VERIFY_ATTEMPT_TIMEOUT_SECONDS = 10;
+    static final long VERIFY_INITIAL_DELAY_MS = 5_000;
+
+    private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)+)\\s*$");
 
     private final PrinterRepository printerRepository;
     private final SecurityScopeService securityScope;
@@ -53,150 +75,278 @@ public class BrokerMigrationService {
         this.objectMapper = objectMapper;
     }
 
+    // ---------------------------------------------------------------- 1. Firmware
+
     public BrokerMigrationFirmwareResult checkFirmware(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        String payload = "{\"cmd\":\"statFirmSinDNF\",\"data\":0}";
         log.info("Checking firmware for printer {}", printerId);
-        
-        String responseJson = legacyClient.publishAndAwait(ctx.compactMac(), payload, "statFirmSinDNF", 20);
-        
-        try {
-            JsonNode node = objectMapper.readTree(responseJson);
-            String dataS = node.has("dataS") ? node.get("dataS").asText() : "";
-            String version = extractVersion(dataS);
-            boolean needsUpdate = "1.1.0".equals(version);
-            return new BrokerMigrationFirmwareResult(version, needsUpdate);
-        } catch (Exception e) {
-            log.error("Failed to parse firmware response", e);
-            throw new EnajenacionProtocolException("Error parsing firmware response: " + e.getMessage());
+
+        BrokerReply reply = requestOnAnyBroker(ctx, firmwareStatusPayload(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+        requireCodeZero(reply.node(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+
+        String dataS = reply.node().path("dataS").asText("").trim();
+        String version = extractVersion(dataS);
+
+        if (ToolsMqttConstants.FIRMWARE_VERSION_LEGACY.equals(version)) {
+            return new BrokerMigrationFirmwareResult(version, true);
         }
+        if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED) >= 0) {
+            return new BrokerMigrationFirmwareResult(version, false);
+        }
+        throw new EnajenacionProtocolException(
+                "Versión de firmware " + version + " no contemplada por el protocolo de migración (se esperaba "
+                        + ToolsMqttConstants.FIRMWARE_VERSION_LEGACY + " o "
+                        + ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED + ").");
     }
 
-    private String extractVersion(String dataS) {
-        Pattern pattern = Pattern.compile("[\\d.]+$");
-        Matcher matcher = pattern.matcher(dataS);
-        if (matcher.find()) {
-            return matcher.group();
+    static String extractVersion(String dataS) {
+        Matcher matcher = VERSION_PATTERN.matcher(dataS == null ? "" : dataS.trim());
+        if (!matcher.find()) {
+            throw new EnajenacionProtocolException(
+                    "No se pudo leer la versión de firmware en la respuesta: \"" + dataS + "\"");
         }
-        return dataS;
+        return matcher.group(1);
     }
 
+    static int compareVersions(String a, String b) {
+        String[] pa = a.split("\\.");
+        String[] pb = b.split("\\.");
+        for (int i = 0; i < Math.max(pa.length, pb.length); i++) {
+            int va = i < pa.length ? Integer.parseInt(pa[i]) : 0;
+            int vb = i < pb.length ? Integer.parseInt(pb[i]) : 0;
+            if (va != vb) {
+                return Integer.compare(va, vb);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Envía {@code updFirmDown} por el broker antiguo. Si la impresora no confirma (puede reiniciarse
+     * sin ACK) se devuelve éxito con aviso: el cliente debe volver a ejecutar {@link #checkFirmware}
+     * tras el reinicio para confirmar la versión {@value ToolsMqttConstants#FIRMWARE_VERSION_MIGRATED}.
+     */
     public ToolsMqttSimpleResponse triggerFirmwareUpdate(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        String payload = "{\"cmd\":\"updFirmDown\",\"data\":1}";
         log.info("Triggering firmware update for printer {}", printerId);
-        
+
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("cmd", ToolsMqttConstants.CMD_UPD_FIRM_DOWN);
+        payload.put("data", ToolsMqttConstants.UPD_FIRM_DOWN_DATA);
+
+        String responseJson;
         try {
-            String responseJson = legacyClient.publishAndAwait(ctx.compactMac(), payload, "updFirmDown", 30);
-            JsonNode node = objectMapper.readTree(responseJson);
-            if (node.has("code") && node.get("code").asInt() == 0) {
-                return ToolsMqttSimpleResponse.ok("Firmware update triggered successfully.");
-            }
-            return ToolsMqttSimpleResponse.error("Printer responded with error code.");
-        } catch (Exception e) {
-            log.error("Failed to trigger firmware update", e);
-            return ToolsMqttSimpleResponse.error("Error triggering firmware update: " + e.getMessage());
+            responseJson = legacyClient.publishAndAwait(
+                    ctx.compactMac(), toJson(payload), ToolsMqttConstants.CMD_UPD_FIRM_DOWN, UPD_FIRM_TIMEOUT_SECONDS);
+        } catch (LegacyBrokerTimeoutException e) {
+            log.warn("No ACK for updFirmDown on printer {}; will verify firmware after reboot", printerId);
+            return ToolsMqttSimpleResponse.ok(
+                    "No se recibió confirmación (la impresora puede estar reiniciándose). "
+                            + "La versión se verificará tras el reinicio.");
         }
+
+        JsonNode node = readJson(responseJson);
+        int code = node.path("code").asInt(-1);
+        if (code == 0) {
+            return ToolsMqttSimpleResponse.ok("Actualización de firmware iniciada.");
+        }
+        return ToolsMqttSimpleResponse.error("La impresora rechazó la actualización de firmware (code=" + code + ").");
     }
+
+    // ---------------------------------------------------------------- 2. Broker actual
 
     public BrokerMigrationBrokerResult checkBroker(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        String payload = "{\"cmd\":\"StaInf\",\"data\":{\"status\":\"EstCredMqtt1\"}}";
         log.info("Checking broker for printer {}", printerId);
-        
-        try {
-            String responseJson = legacyClient.publishAndAwait(ctx.compactMac(), payload, "StaInf", 20);
-            return parseBrokerResponse(responseJson);
-        } catch (Exception e) {
-            log.warn("Printer didn't respond on legacy broker, trying new broker...", e);
-            
-            CompletableFuture<FiscalMqttResponseItem> future = syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), item -> {
-                return item.cmd() != null && item.cmd().trim().equals("StaInf");
-            });
-            try {
-                mqttService.publish(ctx.topic(), payload);
-                FiscalMqttResponseItem item = future.get(20, TimeUnit.SECONDS);
-                
-                if (item.dataS() != null) {
-                    JsonNode dataSNode = null;
-                    try {
-                        dataSNode = objectMapper.readTree(item.dataS());
-                    } catch (Exception ex) {
-                        log.warn("Failed to parse dataS as JSON string, using as text");
-                    }
-                    String host = "";
-                    if (dataSNode != null && dataSNode.has("host")) {
-                        host = dataSNode.get("host").asText();
-                    }
-                    boolean isOldBroker = host.contains("13.51");
-                    return new BrokerMigrationBrokerResult(host, isOldBroker);
-                }
-                throw new EnajenacionProtocolException("Missing dataS in response from new broker.");
-            } catch (Exception ex) {
-                log.error("Printer didn't respond on new broker either", ex);
-                throw new EnajenacionProtocolException("La impresora no respondió en ningún broker");
-            } finally {
-                syncResponseAwaiter.cancel(ctx.compactMac());
-            }
-        }
+
+        BrokerReply reply = requestOnAnyBroker(ctx, brokerStatusPayload(), ToolsMqttConstants.CMD_STA_INF);
+        requireCodeZero(reply.node(), ToolsMqttConstants.CMD_STA_INF);
+
+        String host = dataSObject(reply.node()).path("host").asText("");
+        // Si respondió por el broker antiguo, está conectada a él por definición (independiente del host reportado).
+        boolean isOldBroker = reply.viaLegacy() || ToolsMqttConstants.LEGACY_BROKER_HOST.equals(host);
+        return new BrokerMigrationBrokerResult(host, isOldBroker);
     }
 
-    private BrokerMigrationBrokerResult parseBrokerResponse(String responseJson) throws Exception {
-        JsonNode node = objectMapper.readTree(responseJson);
-        if (node.has("dataS")) {
-            JsonNode dataSNode = node.get("dataS");
-            if (dataSNode.isTextual()) {
-                try {
-                    dataSNode = objectMapper.readTree(dataSNode.asText());
-                } catch (Exception e) {
-                    log.warn("dataS is not a valid JSON string");
-                }
-            }
-            String host = dataSNode.has("host") ? dataSNode.get("host").asText() : "";
-            boolean isOldBroker = host.contains("13.51");
-            return new BrokerMigrationBrokerResult(host, isOldBroker);
-        }
-        throw new EnajenacionProtocolException("Missing dataS in legacy response.");
-    }
+    // ---------------------------------------------------------------- 3. Cambio de credenciales
 
     public BrokerMigrationBrokerConfigResult configureBroker(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        String payload = "{\"cmd\":\"configMqttAEG\",\"data\":{\"addrBroker\":\"206.189.231.128\",\"portBroker\":1883,\"userBroker\":\"aegptrfiscal2024\",\"passwBroker\":\"aegseniat2024\",\"topicRx\":\"Comando\",\"topicTx\":\"Respuesta\",\"topicDoc\":\"Documento\"}}";
         log.info("Configuring new broker for printer {}", printerId);
-        
+
         try {
-            String responseJson = legacyClient.publishAndAwait(ctx.compactMac(), payload, "configMqttAEG", 20);
-            JsonNode node = objectMapper.readTree(responseJson);
-            if (node.has("code") && node.get("code").asInt() == 0) {
-                return new BrokerMigrationBrokerConfigResult(BrokerMigrationBrokerConfigResult.Outcome.MIGRATED, "Broker migrado exitosamente (ACK recibido).");
-            } else {
-                return new BrokerMigrationBrokerConfigResult(BrokerMigrationBrokerConfigResult.Outcome.REJECTED, "La impresora rechazó la configuración.");
+            String responseJson = legacyClient.publishAndAwait(
+                    ctx.compactMac(), configMqttPayload(), ToolsMqttConstants.CMD_CONFIG_MQTT_AEG, LEGACY_TIMEOUT_SECONDS);
+            int code = readJson(responseJson).path("code").asInt(-1);
+            if (code == 0) {
+                return new BrokerMigrationBrokerConfigResult(
+                        Outcome.MIGRATED, "Credenciales del broker nuevo aceptadas (ACK recibido).");
             }
+            return new BrokerMigrationBrokerConfigResult(
+                    Outcome.REJECTED, "La impresora rechazó la configuración (code=" + code + ").");
+        } catch (EnajenacionProtocolException e) {
+            log.warn("No configMqttAEG ACK for printer {} ({}); verifying on new broker", printerId, e.getMessage());
+        }
+
+        if (verifyOnNewBroker(ctx)) {
+            return new BrokerMigrationBrokerConfigResult(
+                    Outcome.MIGRATED, "ACK perdido, migración confirmada en el broker nuevo.");
+        }
+        return new BrokerMigrationBrokerConfigResult(
+                Outcome.UNCERTAIN,
+                "No se pudo confirmar. Verifique la impresora e intente verificar el broker nuevamente.");
+    }
+
+    private boolean verifyOnNewBroker(PrinterContext ctx) {
+        pause(VERIFY_INITIAL_DELAY_MS);
+        for (int attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt++) {
+            try {
+                JsonNode node = requestOnNewBroker(
+                        ctx, brokerStatusPayload(), ToolsMqttConstants.CMD_STA_INF, VERIFY_ATTEMPT_TIMEOUT_SECONDS);
+                String host = dataSObject(node).path("host").asText("");
+                log.info("Printer {} answered on new broker (host={}) attempt {}", ctx.compactMac(), host, attempt);
+                // Responder en el broker nuevo confirma por sí mismo que la migración se aplicó.
+                return true;
+            } catch (EnajenacionProtocolException ex) {
+                log.debug("Verify attempt {}/{} failed for {}: {}", attempt, VERIFY_ATTEMPTS, ctx.compactMac(), ex.getMessage());
+            }
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------------- Transporte
+
+    private record BrokerReply(JsonNode node, boolean viaLegacy) {}
+
+    /** Intenta primero el broker antiguo y, si la impresora no responde allí, el broker nuevo. */
+    private BrokerReply requestOnAnyBroker(PrinterContext ctx, String payload, String expectedCmd) {
+        try {
+            String json = legacyClient.publishAndAwait(ctx.compactMac(), payload, expectedCmd, LEGACY_TIMEOUT_SECONDS);
+            return new BrokerReply(readJson(json), true);
+        } catch (EnajenacionProtocolException legacyEx) {
+            log.info("No {} reply on legacy broker for {} ({}); trying new broker",
+                    expectedCmd, ctx.compactMac(), legacyEx.getMessage());
+        }
+        try {
+            return new BrokerReply(requestOnNewBroker(ctx, payload, expectedCmd, NEW_BROKER_TIMEOUT_SECONDS), false);
+        } catch (EnajenacionProtocolException newEx) {
+            throw new EnajenacionProtocolException("La impresora no respondió en ningún broker.");
+        }
+    }
+
+    private JsonNode requestOnNewBroker(PrinterContext ctx, String payload, String expectedCmd, int timeoutSeconds) {
+        CompletableFuture<FiscalMqttResponseItem> future = syncResponseAwaiter.registerWithMatcher(
+                ctx.compactMac(),
+                item -> item.cmd() != null && item.cmd().trim().equalsIgnoreCase(expectedCmd));
+        try {
+            mqttService.publish(ctx.topic(), payload);
+            FiscalMqttResponseItem item = future.get(timeoutSeconds, TimeUnit.SECONDS);
+            return toNode(item);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new EnajenacionProtocolException("Operación interrumpida esperando al broker nuevo.");
         } catch (Exception e) {
-            log.warn("Timeout or error waiting for configureBroker ACK, waiting to verify on new broker...", e);
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-            
-            String verifyPayload = "{\"cmd\":\"StaInf\",\"data\":{\"status\":\"EstCredMqtt1\"}}";
-            CompletableFuture<FiscalMqttResponseItem> future = syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), item -> {
-                return item.cmd() != null && item.cmd().trim().equals("StaInf");
-            });
-            try {
-                mqttService.publish(ctx.topic(), verifyPayload);
-                FiscalMqttResponseItem item = future.get(10, TimeUnit.SECONDS);
-                
-                if (item.dataS() != null) {
-                    return new BrokerMigrationBrokerConfigResult(BrokerMigrationBrokerConfigResult.Outcome.MIGRATED, "ACK perdido, migración confirmada en broker nuevo");
-                }
-            } catch (Exception ex) {
-                log.warn("Failed to confirm on new broker", ex);
-            } finally {
+            throw new EnajenacionProtocolException("La impresora no respondió en el broker nuevo.");
+        } finally {
+            // Solo liberar si sigue pendiente: si ya se completó, el awaiter la removió y podría
+            // haber otra espera registrada para la misma MAC.
+            if (!future.isDone()) {
                 syncResponseAwaiter.cancel(ctx.compactMac());
             }
-            return new BrokerMigrationBrokerConfigResult(BrokerMigrationBrokerConfigResult.Outcome.UNCERTAIN, "No se pudo confirmar. Verifique la impresora e intente verificar el broker nuevamente.");
+        }
+    }
+
+    private JsonNode toNode(FiscalMqttResponseItem item) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("cmd", item.cmd());
+        if (item.code() != null) {
+            node.put("code", item.code());
+        }
+        if (item.dataD() != null) {
+            node.put("dataD", item.dataD());
+        }
+        if (item.dataS() != null) {
+            node.put("dataS", item.dataS());
+        }
+        return node;
+    }
+
+    // ---------------------------------------------------------------- Helpers
+
+    /** {@code dataS} puede llegar como objeto JSON o como string con JSON dentro. */
+    private JsonNode dataSObject(JsonNode response) {
+        JsonNode dataS = response.path("dataS");
+        if (dataS.isTextual()) {
+            String text = dataS.asText().trim();
+            if (text.startsWith("{")) {
+                try {
+                    return objectMapper.readTree(text);
+                } catch (Exception e) {
+                    log.warn("dataS is not valid JSON: {}", text);
+                }
+            }
+            return objectMapper.createObjectNode();
+        }
+        return dataS.isObject() ? dataS : objectMapper.createObjectNode();
+    }
+
+    private static void requireCodeZero(JsonNode node, String cmd) {
+        int code = node.path("code").asInt(-1);
+        if (code != 0) {
+            throw new EnajenacionProtocolException("La impresora respondió " + cmd + " con code=" + code + ".");
+        }
+    }
+
+    private String firmwareStatusPayload() {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("cmd", ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+        payload.put("data", 0);
+        return toJson(payload);
+    }
+
+    private String brokerStatusPayload() {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("cmd", ToolsMqttConstants.CMD_STA_INF);
+        payload.putObject("data").put("status", ToolsMqttConstants.STA_EST_CRED_MQTT1);
+        return toJson(payload);
+    }
+
+    String configMqttPayload() {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("cmd", ToolsMqttConstants.CMD_CONFIG_MQTT_AEG);
+        ObjectNode data = payload.putObject("data");
+        data.put("addrBroker", ToolsMqttConstants.NEW_BROKER_HOST);
+        data.put("portBroker", ToolsMqttConstants.NEW_BROKER_PORT);
+        data.put("userBroker", ToolsMqttConstants.NEW_BROKER_USER);
+        data.put("passwBroker", ToolsMqttConstants.NEW_BROKER_PASSWORD);
+        data.put("topicRx", ToolsMqttConstants.CONFIG_MQTT_TOPIC_RX);
+        data.put("topicTx", ToolsMqttConstants.CONFIG_MQTT_TOPIC_TX);
+        data.put("topicDoc", ToolsMqttConstants.CONFIG_MQTT_TOPIC_DOC);
+        return toJson(payload);
+    }
+
+    private String toJson(JsonNode node) {
+        try {
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            throw new IllegalStateException("Cannot serialize MQTT payload", e);
+        }
+    }
+
+    private JsonNode readJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (Exception e) {
+            throw new EnajenacionProtocolException("Respuesta de la impresora no es JSON válido: " + json);
+        }
+    }
+
+    /** Extraído para poder anularlo en tests. */
+    void pause(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         }
     }
 
