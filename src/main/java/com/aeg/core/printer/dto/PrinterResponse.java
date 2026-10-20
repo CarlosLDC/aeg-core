@@ -26,7 +26,8 @@ public record PrinterResponse(
         DeviceType deviceType,
         PrinterTicketSection header,
         PrinterTicketSection trailer,
-        String encryptionKey
+        String encryptionKey,
+        Boolean hasTicketConfig
 ) {
     public PrinterResponse(
             Long id,
@@ -48,6 +49,11 @@ public record PrinterResponse(
             PrinterTicketSection trailer) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                versionFirmware, macAddress, deviceType, header, trailer, null);
+                versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header));
+    }
+
+    /** Indica si la cabecera del ticket tiene al menos una línea configurada. */
+    public static boolean ticketConfigured(PrinterTicketSection header) {
+        return header != null && header.lines() != null && !header.lines().isEmpty();
     }
 }

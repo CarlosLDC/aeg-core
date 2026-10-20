@@ -46,6 +46,12 @@ public class PrinterServiceImpl implements PrinterService {
     private final TechnicalServiceVisitRepository technicalServiceVisitRepository;
     private final SecurityScopeService securityScope;
     private final OrganizationCapabilityService organizationCapability;
+    /**
+     * Si es true, el listado omite header/trailer (JSON pesado) y expone solo hasTicketConfig.
+     * Poner printers.list.slim-ticket=false para revertir sin tocar código.
+     */
+    @org.springframework.beans.factory.annotation.Value("${printers.list.slim-ticket:false}")
+    private boolean slimTicketInList;
 
     public PrinterServiceImpl(PrinterRepository repository,
                               com.aeg.core.printermodel.PrinterModelRepository modelRepository,
@@ -72,7 +78,9 @@ public class PrinterServiceImpl implements PrinterService {
     @Override
     @Transactional(readOnly = true)
     public List<PrinterResponse> findAll() {
-        return securityScope.findVisiblePrinters().stream().map(this::toResponse).toList();
+        return securityScope.findVisiblePrinters().stream()
+                .map(slimTicketInList ? this::toListResponse : this::toResponse)
+                .toList();
     }
 
     @Override
@@ -511,7 +519,33 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getDeviceType(),
                 p.getHeader(),
                 p.getTrailer(),
-                p.getEncryptionKey()
+                p.getEncryptionKey(),
+                PrinterResponse.ticketConfigured(p.getHeader())
+        );
+    }
+
+    /** Variante liviana para listados: sin header/trailer. */
+    private PrinterResponse toListResponse(Printer p) {
+        return new PrinterResponse(
+                p.getId(),
+                p.getModelId(),
+                p.getSoftwareId(),
+                p.getClientId(),
+                p.getFiscalSerial(),
+                p.getFinalSalePrice(),
+                p.getCreatedAt(),
+                p.getCreationBatchId(),
+                p.getStatus(),
+                p.getDistributorId(),
+                p.getPaid(),
+                p.getInstallationDate(),
+                p.getVersionFirmware(),
+                p.getMacAddress(),
+                p.getDeviceType(),
+                null,
+                null,
+                p.getEncryptionKey(),
+                PrinterResponse.ticketConfigured(p.getHeader())
         );
     }
 }
