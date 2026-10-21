@@ -50,7 +50,7 @@ public class PrinterServiceImpl implements PrinterService {
      * Si es true, el listado omite header/trailer (JSON pesado) y expone solo hasTicketConfig.
      * Poner printers.list.slim-ticket=false para revertir sin tocar código.
      */
-    @org.springframework.beans.factory.annotation.Value("${printers.list.slim-ticket:false}")
+    @org.springframework.beans.factory.annotation.Value("${printers.list.slim-ticket:true}")
     private boolean slimTicketInList;
 
     public PrinterServiceImpl(PrinterRepository repository,
