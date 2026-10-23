@@ -251,6 +251,29 @@ public class PrinterControllerIT {
     }
 
     @Test
+    void adminCanUpdateTicketOnEnajenadaPaidPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ENAJENADA, true);
+        OffsetDateTime originalInstallationDate = OffsetDateTime.now().minusDays(5);
+        printer.setInstallationDate(originalInstallationDate);
+        printer = printerRepository.save(printer);
+
+        var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"enajenada\"");
+        assertThat(res.body()).contains("\"header\"");
+        assertThat(res.body()).contains("\"trailer\"");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(updated.getClientId()).isEqualTo(client.getId());
+        assertThat(updated.getInstallationDate()).isEqualTo(originalInstallationDate);
+        assertThat(updated.getHeader()).isNotNull();
+        assertThat(updated.getHeader().lines()).contains("CARACAS, DISTRITO CAPITAL");
+        assertThat(updated.getTrailer()).isNotNull();
+    }
+
+    @Test
     void disposeRejectsMissingClientId() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);

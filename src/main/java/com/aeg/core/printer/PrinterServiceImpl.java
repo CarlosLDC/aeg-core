@@ -476,8 +476,9 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     private Printer applyDisposition(Printer printer, PrinterDispositionRequest request) {
-        if (printer.getStatus() != PrinterStatus.ASIGNADA) {
-            throw new IllegalArgumentException("Only assigned printers can be disposed to a client");
+        if (printer.getStatus() != PrinterStatus.ASIGNADA
+                && printer.getStatus() != PrinterStatus.ENAJENADA) {
+            throw new IllegalArgumentException("Only assigned or disposed printers can configure disposition ticket");
         }
         if (!Boolean.TRUE.equals(printer.getPaid())) {
             throw new IllegalArgumentException(
@@ -493,10 +494,12 @@ public class PrinterServiceImpl implements PrinterService {
         printer.setClient(client);
         printer.setHeader(PrinterTicketValidator.normalizeHeader(request.header()));
         printer.setTrailer(PrinterTicketValidator.normalizeTrailer(request.trailer()));
-        printer.setInstallationDate(
-                request.installationDate() != null
-                        ? request.installationDate()
-                        : java.time.OffsetDateTime.now());
+        if (request.installationDate() != null) {
+            printer.setInstallationDate(request.installationDate());
+        } else if (printer.getInstallationDate() == null
+                || printer.getStatus() != PrinterStatus.ENAJENADA) {
+            printer.setInstallationDate(java.time.OffsetDateTime.now());
+        }
         return repository.save(printer);
     }
 
