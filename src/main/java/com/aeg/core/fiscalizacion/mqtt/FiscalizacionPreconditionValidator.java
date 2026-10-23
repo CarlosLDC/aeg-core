@@ -1,5 +1,7 @@
 package com.aeg.core.fiscalizacion.mqtt;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import org.springframework.stereotype.Component;
@@ -78,6 +80,57 @@ public class FiscalizacionPreconditionValidator {
                 model.getModelCode(),
                 seal,
                 model);
+    }
+
+    /**
+     * Verificación previa (solo lectura) para el asistente de fiscalización por USB: aplica las mismas
+     * reglas que {@link #validate} antes de enviar {@code ptrFiscalizarRemoto}, que es irreversible.
+     * El modelo no se puede verificar aquí porque lo reporta el firmware en {@code ptrFiscalizar}.
+     *
+     * @param mac opcional; si viene se valida formato y unicidad.
+     * @return lista de mensajes de error (vacía si todo es válido).
+     */
+    public List<String> precheck(String ptrRegRaw, String precintoNroRaw, String precintoColorRaw, String macRaw) {
+        List<String> errors = new ArrayList<>();
+        String ptrReg = trim(ptrRegRaw);
+        String precintoNro = trim(precintoNroRaw);
+        String precintoColor = trim(precintoColorRaw);
+        String mac = trim(macRaw);
+
+        if (!StringUtils.hasText(ptrReg)) {
+            errors.add("El serial (registro) de la impresora es obligatorio.");
+        } else if (printerRepository.existsByFiscalSerialIgnoreCase(ptrReg)) {
+            errors.add(FiscalizacionConstants.MSG_REGISTRO_EXISTE);
+        }
+
+        if (StringUtils.hasText(mac)) {
+            try {
+                String compactMac = MacAddressNormalizer.requireCompactForm(mac);
+                if (printerRepository.findByMacAddressCompact(compactMac).isPresent()) {
+                    errors.add(FiscalizacionConstants.MSG_MAC_EXISTE);
+                }
+            } catch (IllegalArgumentException ex) {
+                errors.add("La dirección MAC no tiene un formato válido.");
+            }
+        }
+
+        if (!StringUtils.hasText(precintoNro)) {
+            errors.add("El número de precinto es obligatorio.");
+            return errors;
+        }
+        Seal seal = sealRepository.findBySerialIgnoreCase(precintoNro).orElse(null);
+        if (seal == null) {
+            errors.add(FiscalizacionConstants.MSG_PRECINTO_NO_EXISTE);
+            return errors;
+        }
+        SealColor expectedColor = resolveSealColor(precintoColor);
+        if (expectedColor == null || seal.getColor() != expectedColor) {
+            errors.add("El color del precinto no coincide con el registrado.");
+        }
+        if (seal.getStatus() != SealStatus.DISPONIBLE || seal.getPrinter() != null) {
+            errors.add(FiscalizacionConstants.MSG_PRECINTO_ASIGNADO);
+        }
+        return errors;
     }
 
     static SealColor resolveSealColor(String raw) {

@@ -24,9 +24,14 @@ public class FiscalizacionSseController {
     private final FiscalizacionSseBroadcaster broadcaster;
     private final FiscalizacionSseNotifier notifier;
 
+    /**
+     * Stream de eventos de fiscalización. Se identifica por {@code mac} o por {@code ptrReg}
+     * (asistente USB, que puede no conocer la MAC antes de que la impresora publique {@code ptrFiscalizar}).
+     */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<?> stream(
-            @RequestParam String mac,
+            @RequestParam(required = false) String mac,
+            @RequestParam(required = false) String ptrReg,
             @RequestParam(required = false) String token,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         String jwt = AdminJwtTokenValidator.extractTokenFromQueryOrHeader(
@@ -34,14 +39,22 @@ public class FiscalizacionSseController {
         if (adminJwtTokenValidator.validateAdminToken(jwt).isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        if (mac == null || mac.isBlank()) {
+        boolean hasMac = mac != null && !mac.isBlank();
+        boolean hasPtrReg = ptrReg != null && !ptrReg.isBlank();
+        if (!hasMac && !hasPtrReg) {
             return ResponseEntity.badRequest().build();
         }
 
-        String compactMac = MacAddressNormalizer.toCompactForm(mac);
-        SseEmitter emitter = broadcaster.subscribe(compactMac);
+        SseEmitter emitter;
         try {
-            notifier.notifyConnected(compactMac);
+            if (hasMac) {
+                String compactMac = MacAddressNormalizer.toCompactForm(mac);
+                emitter = broadcaster.subscribe(compactMac);
+                notifier.notifyConnected(compactMac);
+            } else {
+                emitter = broadcaster.subscribeByPtrReg(ptrReg);
+                broadcaster.sendTo(emitter, FiscalizacionSseEvent.connected(null));
+            }
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

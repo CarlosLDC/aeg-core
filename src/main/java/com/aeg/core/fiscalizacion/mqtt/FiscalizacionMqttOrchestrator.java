@@ -131,6 +131,7 @@ public class FiscalizacionMqttOrchestrator {
                     context.ptrReg(), context.compactMac(), context.precintoNro());
         } catch (FiscalizacionProtocolException ex) {
             publishValidationError(compactMac, ptrReg, ex.getMessage());
+            sseNotifier.notifyRejected(compactMac, ptrReg, ex.getMessage());
             activityStore.recordInbound(
                     topic, payload, compactMac, null, ptrReg,
                     FiscalizacionActivityResult.REJECTED, ex.getMessage(), null);

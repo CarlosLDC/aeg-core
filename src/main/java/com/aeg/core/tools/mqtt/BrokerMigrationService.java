@@ -173,7 +173,20 @@ public class BrokerMigrationService {
     public BrokerMigrationBrokerConfigResult configureBroker(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
         log.info("Configuring new broker for printer {}", printerId);
+        return configureBroker(ctx);
+    }
 
+    /**
+     * Variante para impresoras nuevas (aún no registradas en BD), usada por el asistente de
+     * fiscalización USB como fallback cuando el firmware no acepta {@code configMqttAEG} por USB.
+     */
+    public BrokerMigrationBrokerConfigResult configureBrokerByMac(String mac) {
+        String compactMac = MacAddressNormalizer.requireCompactForm(mac);
+        log.info("Configuring new broker for unregistered printer mac={}", compactMac);
+        return configureBroker(new PrinterContext(compactMac, FiscalMqttTopics.comandoTopic(compactMac)));
+    }
+
+    private BrokerMigrationBrokerConfigResult configureBroker(PrinterContext ctx) {
         try {
             String responseJson = legacyClient.publishAndAwait(
                     ctx.compactMac(), configMqttPayload(), ToolsMqttConstants.CMD_CONFIG_MQTT_AEG, LEGACY_TIMEOUT_SECONDS);
@@ -185,7 +198,7 @@ public class BrokerMigrationService {
             return new BrokerMigrationBrokerConfigResult(
                     Outcome.REJECTED, "La impresora rechazó la configuración (code=" + code + ").");
         } catch (EnajenacionProtocolException e) {
-            log.warn("No configMqttAEG ACK for printer {} ({}); verifying on new broker", printerId, e.getMessage());
+            log.warn("No configMqttAEG ACK for printer {} ({}); verifying on new broker", ctx.compactMac(), e.getMessage());
         }
 
         if (verifyOnNewBroker(ctx)) {
@@ -311,7 +324,7 @@ public class BrokerMigrationService {
         return toJson(payload);
     }
 
-    String configMqttPayload() {
+    public String configMqttPayload() {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("cmd", ToolsMqttConstants.CMD_CONFIG_MQTT_AEG);
         ObjectNode data = payload.putObject("data");

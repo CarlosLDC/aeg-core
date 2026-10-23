@@ -74,6 +74,16 @@ public class FiscalizacionSseNotifier {
                         session.context().ptrReg()));
     }
 
+    /**
+     * {@code ptrFiscalizar} rechazado en la validación previa (sin sesión): se notifica como
+     * {@code session_failed} con {@code failedAtState} nulo para que el asistente USB vea el motivo.
+     */
+    public void notifyRejected(String compactMac, String ptrReg, String reason) {
+        broadcaster.broadcast(
+                compactMac,
+                FiscalizacionSseEvent.sessionFailed(compactMac, null, ptrReg, reason, null));
+    }
+
     public void notifySessionFailed(
             FiscalizacionSession session, String reason, FiscalizacionSessionState failedAtState) {
         broadcaster.broadcast(

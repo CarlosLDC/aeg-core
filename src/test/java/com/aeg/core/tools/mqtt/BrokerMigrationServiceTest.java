@@ -193,6 +193,17 @@ class BrokerMigrationServiceTest {
     }
 
     @Test
+    void configureBrokerByMacWorksWithoutRegisteredPrinter() {
+        legacyReplies("configMqttAEG", "{\"cmd\":\"configMqttAEG\",\"code\":0}");
+        assertEquals(Outcome.MIGRATED, service.configureBrokerByMac("f4:12:fa:ce:ce:b8").outcome());
+    }
+
+    @Test
+    void configureBrokerByMacRejectsInvalidMac() {
+        assertThrows(IllegalArgumentException.class, () -> service.configureBrokerByMac("no-es-mac"));
+    }
+
+    @Test
     void versionHelpers() {
         assertEquals("1.1.0", BrokerMigrationService.extractVersion("FIRMWARE DEL SISTEMA: 1.1.0\n"));
         assertTrue(BrokerMigrationService.compareVersions("1.2", "1.1.1") > 0);
