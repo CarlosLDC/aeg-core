@@ -337,14 +337,28 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return sealRepository.findAll();
 		}
-		if (Role.isServiceCenterStaff(currentUser())) {
+		User user = currentUser();
+		if (Role.isServiceCenterStaff(user)) {
 			return List.of();
 		}
 		List<Long> printerIds = findVisiblePrinters().stream().map(Printer::getId).toList();
-		if (printerIds.isEmpty()) {
-			return List.of();
+		List<Seal> installed = printerIds.isEmpty()
+				? List.of()
+				: sealRepository.findByPrinter_IdIn(printerIds);
+		if (Role.isDistributorScoped(user.getRole())) {
+			List<Seal> available = sealRepository.findByStatusAndPrinterIsNull(com.aeg.core.seal.SealStatus.DISPONIBLE);
+			if (installed.isEmpty()) {
+				return available;
+			}
+			if (available.isEmpty()) {
+				return installed;
+			}
+			java.util.ArrayList<Seal> combined = new java.util.ArrayList<>(installed.size() + available.size());
+			combined.addAll(installed);
+			combined.addAll(available);
+			return combined;
 		}
-		return sealRepository.findByPrinter_IdIn(printerIds);
+		return installed;
 	}
 
 	public List<Long> visiblePrinterIds() {
@@ -355,10 +369,15 @@ public class SecurityScopeService {
 		if (isGlobalReader()) {
 			return;
 		}
-		if (Role.isServiceCenterStaff(currentUser())) {
+		User user = currentUser();
+		if (Role.isServiceCenterStaff(user)) {
 			throw new AccessDeniedException("Not allowed to access this seal");
 		}
 		if (seal.getPrinter() == null) {
+			if (Role.isDistributorScoped(user.getRole())
+					&& seal.getStatus() == com.aeg.core.seal.SealStatus.DISPONIBLE) {
+				return;
+			}
 			throw new AccessDeniedException("Not allowed to access this seal");
 		}
 		assertPrinterInScope(seal.getPrinter());

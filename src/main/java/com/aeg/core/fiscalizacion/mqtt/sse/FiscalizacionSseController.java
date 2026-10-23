@@ -36,7 +36,7 @@ public class FiscalizacionSseController {
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         String jwt = AdminJwtTokenValidator.extractTokenFromQueryOrHeader(
                 token, authorization == null ? null : java.util.List.of(authorization));
-        if (adminJwtTokenValidator.validateAdminToken(jwt).isEmpty()) {
+        if (adminJwtTokenValidator.validateAdminOrDistributorToken(jwt).isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         boolean hasMac = mac != null && !mac.isBlank();

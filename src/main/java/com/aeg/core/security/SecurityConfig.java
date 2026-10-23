@@ -92,6 +92,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/client-modification-requests/*/cancel").hasAnyRole(DISTRIBUTOR_PANEL_ROLES)
 				.requestMatchers("/api/mqtt/enajenacion/stream").permitAll()
 				.requestMatchers("/api/mqtt/fiscalizacion/stream").permitAll()
+				.requestMatchers("/api/mqtt/fiscalizacion/usb/**").hasAnyRole(PANEL_ROLES)
 				.requestMatchers("/ota/**").permitAll()
 				.requestMatchers("/api/mqtt/annual-inspection/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)
 				.requestMatchers("/api/mqtt/tools/broker-migration/**").hasRole("ADMIN")

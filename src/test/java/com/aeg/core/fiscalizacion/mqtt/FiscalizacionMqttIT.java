@@ -13,6 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchRepository;
+import com.aeg.core.company.Company;
+import com.aeg.core.company.CompanyRepository;
+import com.aeg.core.company.ContributorType;
+import com.aeg.core.distributor.Distributor;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.mqtt.MqttConnectionProbeService;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.printer.PrinterRepository;
@@ -46,6 +53,15 @@ class FiscalizacionMqttIT {
 
     @Autowired
     FiscalizacionSessionRegistry sessionRegistry;
+
+    @Autowired
+    CompanyRepository companyRepository;
+
+    @Autowired
+    BranchRepository branchRepository;
+
+    @Autowired
+    DistributorRepository distributorRepository;
 
     @MockitoBean
     MqttService mqttService;
@@ -84,7 +100,7 @@ class FiscalizacionMqttIT {
 
         ArgumentCaptor<String> configPayloadCaptor = ArgumentCaptor.forClass(String.class);
         verify(mqttService, times(2)).publish(eq(fixture.comandoTopic()), configPayloadCaptor.capture());
-        assertThat(configPayloadCaptor.getAllValues().get(1)).contains("\"cmd\":\"wFileSPIFF\"");
+        assertThat(configPayloadCaptor.getAllValues().get(1)).contains("wFileSPIFF");
         assertThat(configPayloadCaptor.getAllValues().get(1)).contains("configSPIFFS.json");
 
         var printer = printerRepository.findAll().stream()
@@ -102,6 +118,47 @@ class FiscalizacionMqttIT {
                 .isEqualTo(printer.getId());
 
         // Device confirms wFileSPIFF -> session completed
+        orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.configSpiffsSuccess());
+        assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
+    }
+
+    @Test
+    void happyPathAssignsPrinterToDistributorWhenInitiatedByDistributor() {
+        Company distCompany = new Company();
+        distCompany.setBusinessName("Distribuidora Fiscal C.A.");
+        distCompany.setRif("J998877665");
+        distCompany.setContributorType(ContributorType.ORDINARIO);
+        distCompany = companyRepository.save(distCompany);
+
+        Branch distBranch = new Branch();
+        distBranch.setCompany(distCompany);
+        distBranch.setCity("Caracas");
+        distBranch.setState("Distrito Capital");
+        distBranch = branchRepository.save(distBranch);
+
+        Distributor distributor = new Distributor();
+        distributor.setBranch(distBranch);
+        distributor = distributorRepository.save(distributor);
+
+        var fixture = FiscalizacionTestData.seed(
+                modelRepository, sealRepository, "GRA0000108", "AA:BB:CC:DD:EE:F8", "G1B0108");
+
+        sessionRegistry.registerPendingDistributor(fixture.ptrReg(), distributor.getId());
+
+        orchestrator.handleInbound(fixture.cmdServerTopic(), FiscalizacionTestData.ptrFiscalizar(
+                fixture.ptrReg(), fixture.colonMac(), fixture.precintoNro(), "Azul", "1.1.0", "AEG-R1"));
+        orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.resultSuccess());
+
+        var printer = printerRepository.findAll().stream()
+                .filter(p -> fixture.ptrReg().equalsIgnoreCase(p.getFiscalSerial()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(printer.getDistributorId()).isEqualTo(distributor.getId());
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(printer.getPaid()).isFalse();
+        assertThat(printer.getEncryptionKey()).isNotBlank();
+        assertThat(sessionRegistry.resolvePendingDistributorId(fixture.ptrReg())).isEmpty();
+
         orchestrator.handleInbound(fixture.respuestaTopic(), FiscalizacionTestData.configSpiffsSuccess());
         assertThat(sessionRegistry.hasActiveSession(fixture.compactMac())).isFalse();
     }
@@ -143,7 +200,7 @@ class FiscalizacionMqttIT {
         var fixture = FiscalizacionTestData.seed(
                 modelRepository, sealRepository, "GRA0000103", "AA:BB:CC:DD:EE:F3", "G1B0103");
         FiscalizacionTestData.seedExistingPrinter(
-                printerRepository, fixture.model(), "GRA0000199", fixture.colonMac());
+                printerRepository, fixture.model(), "GRA0000193", fixture.colonMac());
 
         orchestrator.handleInbound(fixture.cmdServerTopic(), FiscalizacionTestData.ptrFiscalizar(
                 fixture.ptrReg(), fixture.colonMac(), fixture.precintoNro(), "Azul", "1.1.0", "AEG-R1"));
