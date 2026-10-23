@@ -38,6 +38,7 @@ public class ToolsTestDocumentsService {
     private final FiscalMqttSyncResponseAwaiter syncResponseAwaiter;
     private final ToolsTestDocumentsPayloadBuilder payloadBuilder;
     private final ToolsMqttSettings settings;
+    private final BrokerMigrationLegacyClient legacyClient;
 
     public ToolsMqttSimpleResponse sendTestInvoice(Long printerId) {
         return publishSequence(
@@ -84,16 +85,63 @@ public class ToolsTestDocumentsService {
             int timeoutSeconds,
             String successMessage) {
         PrinterContext ctx = resolvePrinter(printerId);
-        CompletableFuture<FiscalMqttResponseItem> future =
+        CompletableFuture<FiscalMqttResponseItem> registeredFuture =
                 syncResponseAwaiter.register(ctx.compactMac(), terminalCmd);
-        try {
-            for (int i = 0; i < payloads.size(); i++) {
-                mqttService.publish(ctx.topic(), payloads.get(i));
-                if (i < payloads.size() - 1) {
-                    Thread.sleep(COMMAND_DELAY_MS);
-                }
+        CompletableFuture<FiscalMqttResponseItem> newBrokerFuture =
+                registeredFuture != null ? registeredFuture : new CompletableFuture<>();
+        CompletableFuture<FiscalMqttResponseItem> legacyBrokerFuture = new CompletableFuture<>();
+        CompletableFuture<FiscalMqttResponseItem> winnerFuture = new CompletableFuture<>();
+
+        newBrokerFuture.whenComplete((item, ex) -> {
+            if (ex == null && item != null) {
+                winnerFuture.complete(item);
+            } else if (legacyBrokerFuture.isDone()) {
+                completeWhenBothUnsuccessful(winnerFuture, ex, failureCause(legacyBrokerFuture));
             }
-            FiscalMqttResponseItem response = future.get(timeoutSeconds, TimeUnit.SECONDS);
+        });
+
+        legacyBrokerFuture.whenComplete((item, ex) -> {
+            if (ex == null && item != null) {
+                winnerFuture.complete(item);
+            } else if (newBrokerFuture.isDone()) {
+                completeWhenBothUnsuccessful(winnerFuture, failureCause(newBrokerFuture), ex);
+            }
+        });
+
+        Thread legacyThread = Thread.ofVirtual()
+                .name("tools-legacy-testdoc-" + ctx.compactMac())
+                .start(() -> {
+                    try {
+                        FiscalMqttResponseItem item = legacyClient.publishSequenceAndAwaitItem(
+                                ctx.compactMac(), payloads, COMMAND_DELAY_MS, terminalCmd, timeoutSeconds);
+                        if (item != null) {
+                            legacyBrokerFuture.complete(item);
+                        } else {
+                            legacyBrokerFuture.completeExceptionally(
+                                    new BrokerMigrationLegacyClient.LegacyBrokerTimeoutException(
+                                            "Sin respuesta en broker antiguo"));
+                        }
+                    } catch (Throwable t) {
+                        legacyBrokerFuture.completeExceptionally(t);
+                    }
+                });
+
+        try {
+            try {
+                for (int i = 0; i < payloads.size(); i++) {
+                    mqttService.publish(ctx.topic(), payloads.get(i));
+                    if (i < payloads.size() - 1) {
+                        Thread.sleep(COMMAND_DELAY_MS);
+                    }
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw ie;
+            } catch (Throwable publishEx) {
+                newBrokerFuture.completeExceptionally(publishEx);
+            }
+
+            FiscalMqttResponseItem response = winnerFuture.get(timeoutSeconds, TimeUnit.SECONDS);
             if (response.code() != null && response.code() == 0) {
                 return ToolsMqttSimpleResponse.ok(successMessage);
             }
@@ -104,12 +152,39 @@ public class ToolsTestDocumentsService {
         } catch (TimeoutException ex) {
             throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
         } catch (ExecutionException ex) {
+            if (ex.getCause() instanceof TimeoutException
+                    || ex.getCause() instanceof BrokerMigrationLegacyClient.LegacyBrokerTimeoutException) {
+                throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
+            }
             throw wrapExecution(ex);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new EnajenacionProtocolException("No se pudo completar el documento de prueba.");
         } finally {
             syncResponseAwaiter.cancel(ctx.compactMac());
+            legacyThread.interrupt();
+        }
+    }
+
+    private static void completeWhenBothUnsuccessful(
+            CompletableFuture<FiscalMqttResponseItem> winnerFuture,
+            Throwable primaryError,
+            Throwable secondaryError) {
+        if (primaryError != null) {
+            winnerFuture.completeExceptionally(primaryError);
+        } else if (secondaryError != null) {
+            winnerFuture.completeExceptionally(secondaryError);
+        } else {
+            winnerFuture.completeExceptionally(new TimeoutException());
+        }
+    }
+
+    private static Throwable failureCause(CompletableFuture<?> future) {
+        try {
+            future.getNow(null);
+            return null;
+        } catch (Throwable t) {
+            return t.getCause() != null ? t.getCause() : t;
         }
     }
 

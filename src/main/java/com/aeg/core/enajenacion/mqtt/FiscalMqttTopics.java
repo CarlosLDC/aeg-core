@@ -35,6 +35,10 @@ public final class FiscalMqttTopics {
         return "/" + MacAddressNormalizer.toCompactForm(compactMac) + RESPUESTA_SUFFIX;
     }
 
+    public static String documentoTopic(String compactMac) {
+        return "/" + MacAddressNormalizer.toCompactForm(compactMac) + DOCUMENTO_SUFFIX;
+    }
+
     public static boolean isCmdServerTopic(String topic) {
         return topic != null && topic.trim().endsWith(CMD_SERVER_SUFFIX);
     }

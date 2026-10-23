@@ -7,6 +7,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.springframework.stereotype.Service;
@@ -59,7 +61,7 @@ public class ToolsMqttService {
     private final ConcurrentHashMap<String, ReentrantLock> locksByMac = new ConcurrentHashMap<>();
 
     public ToolsMqttStatusResponse requestStatus(Long printerId) {
-        StatusBrokerReply reply = publishAndAwaitStatusOnAnyBroker(
+        StatusBrokerReply reply = publishAndAwaitOnAnyBroker(
                 printerId,
                 payloadBuilder.statusPayload(),
                 ToolsMqttResponseParser::isStatusResponse,
@@ -93,7 +95,7 @@ public class ToolsMqttService {
 
     public ToolsMqttSimpleResponse resetWifi(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        mqttService.publish(ctx.topic(), payloadBuilder.wifiResetPayload());
+        publishFireAndForgetOnAnyBroker(ctx, payloadBuilder.wifiResetPayload());
         return ToolsMqttSimpleResponse.ok("Comando de reinicio enviado a la impresora.");
     }
 
@@ -290,35 +292,90 @@ public class ToolsMqttService {
             String payload,
             String expectedCmd,
             int timeoutSeconds) {
-        PrinterContext ctx = resolvePrinter(printerId);
-        ReentrantLock lock = lockFor(ctx.compactMac());
-        lock.lock();
-        try {
-            CompletableFuture<FiscalMqttResponseItem> future =
-                    syncResponseAwaiter.register(ctx.compactMac(), expectedCmd);
-            return await(ctx, payload, future, timeoutSeconds);
-        } finally {
-            lock.unlock();
-        }
+        return executeOnAnyBroker(
+                printerId,
+                ctx -> syncResponseAwaiter.register(ctx.compactMac(), expectedCmd),
+                ctx -> mqttService.publish(ctx.topic(), payload),
+                ctx -> legacyClient.publishAndAwaitItem(ctx.compactMac(), payload, expectedCmd, timeoutSeconds),
+                timeoutSeconds).item();
     }
 
-    private StatusBrokerReply publishAndAwaitStatusOnAnyBroker(
+    private StatusBrokerReply publishAndAwaitOnAnyBroker(
             Long printerId,
             String payload,
             Predicate<FiscalMqttResponseItem> matcher,
+            int timeoutSeconds) {
+        BrokerReply<FiscalMqttResponseItem> reply = executeOnAnyBroker(
+                printerId,
+                ctx -> syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher),
+                ctx -> mqttService.publish(ctx.topic(), payload),
+                ctx -> legacyClient.publishAndAwaitItem(ctx.compactMac(), payload, matcher, timeoutSeconds),
+                timeoutSeconds);
+        return new StatusBrokerReply(reply.item(), reply.legacyBroker());
+    }
+
+    private FiscalMqttResponseItem publishAndAwaitMatcher(
+            Long printerId,
+            String payload,
+            Predicate<FiscalMqttResponseItem> matcher,
+            int timeoutSeconds) {
+        return publishAndAwaitOnAnyBroker(printerId, payload, matcher, timeoutSeconds).item();
+    }
+
+    private ToolsMqttTextChunksResult publishAndAwaitTextChunks(
+            Long printerId,
+            String payload,
+            String terminalCmd,
+            int timeoutSeconds) {
+        return executeOnAnyBroker(
+                printerId,
+                ctx -> syncResponseAwaiter.registerTextChunks(ctx.compactMac(), terminalCmd),
+                ctx -> mqttService.publish(ctx.topic(), payload),
+                ctx -> legacyClient.publishAndAwaitTextChunks(ctx.compactMac(), payload, terminalCmd, timeoutSeconds),
+                timeoutSeconds).item();
+    }
+
+    private void publishFireAndForgetOnAnyBroker(PrinterContext ctx, String payload) {
+        RuntimeException mainError = null;
+        try {
+            mqttService.publish(ctx.topic(), payload);
+        } catch (RuntimeException ex) {
+            mainError = ex;
+            log.warn("Failed to publish to main broker for {}: {}", ctx.compactMac(), ex.getMessage());
+        }
+
+        RuntimeException legacyError = null;
+        try {
+            legacyClient.publishFireAndForget(ctx.compactMac(), payload);
+        } catch (RuntimeException ex) {
+            legacyError = ex;
+            log.debug("Failed to publish to legacy broker for {}: {}", ctx.compactMac(), ex.getMessage());
+        }
+
+        if (mainError != null && legacyError != null) {
+            throw mainError;
+        }
+    }
+
+    private <T> BrokerReply<T> executeOnAnyBroker(
+            Long printerId,
+            Function<PrinterContext, CompletableFuture<T>> newBrokerRegister,
+            Consumer<PrinterContext> newBrokerPublish,
+            Function<PrinterContext, T> legacyBrokerCall,
             int timeoutSeconds) {
         PrinterContext ctx = resolvePrinter(printerId);
         ReentrantLock lock = lockFor(ctx.compactMac());
         lock.lock();
         try {
-            CompletableFuture<FiscalMqttResponseItem> newBrokerFuture =
-                    syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher);
-            CompletableFuture<FiscalMqttResponseItem> legacyBrokerFuture = new CompletableFuture<>();
-            CompletableFuture<StatusBrokerReply> winnerFuture = new CompletableFuture<>();
+            CompletableFuture<T> registeredFuture = newBrokerRegister.apply(ctx);
+            CompletableFuture<T> newBrokerFuture =
+                    registeredFuture != null ? registeredFuture : new CompletableFuture<>();
+            CompletableFuture<T> legacyBrokerFuture = new CompletableFuture<>();
+            CompletableFuture<BrokerReply<T>> winnerFuture = new CompletableFuture<>();
 
             newBrokerFuture.whenComplete((item, ex) -> {
                 if (ex == null && item != null) {
-                    winnerFuture.complete(new StatusBrokerReply(item, false));
+                    winnerFuture.complete(new BrokerReply<>(item, false));
                 } else if (legacyBrokerFuture.isDone()) {
                     completeWhenBothUnsuccessful(winnerFuture, ex, failureCause(legacyBrokerFuture));
                 }
@@ -326,19 +383,24 @@ public class ToolsMqttService {
 
             legacyBrokerFuture.whenComplete((item, ex) -> {
                 if (ex == null && item != null) {
-                    winnerFuture.complete(new StatusBrokerReply(item, true));
+                    winnerFuture.complete(new BrokerReply<>(item, true));
                 } else if (newBrokerFuture.isDone()) {
                     completeWhenBothUnsuccessful(winnerFuture, failureCause(newBrokerFuture), ex);
                 }
             });
 
             Thread legacyThread = Thread.ofVirtual()
-                    .name("tools-legacy-status-" + ctx.compactMac())
+                    .name("tools-legacy-" + ctx.compactMac())
                     .start(() -> {
                         try {
-                            FiscalMqttResponseItem item = legacyClient.publishAndAwaitItem(
-                                    ctx.compactMac(), payload, matcher, timeoutSeconds);
-                            legacyBrokerFuture.complete(item);
+                            T item = legacyBrokerCall.apply(ctx);
+                            if (item != null) {
+                                legacyBrokerFuture.complete(item);
+                            } else {
+                                legacyBrokerFuture.completeExceptionally(
+                                        new BrokerMigrationLegacyClient.LegacyBrokerTimeoutException(
+                                                "Sin respuesta en broker antiguo"));
+                            }
                         } catch (Throwable t) {
                             legacyBrokerFuture.completeExceptionally(t);
                         }
@@ -346,7 +408,7 @@ public class ToolsMqttService {
 
             try {
                 try {
-                    mqttService.publish(ctx.topic(), payload);
+                    newBrokerPublish.accept(ctx);
                 } catch (Throwable publishEx) {
                     newBrokerFuture.completeExceptionally(publishEx);
                 }
@@ -371,8 +433,8 @@ public class ToolsMqttService {
         }
     }
 
-    private static void completeWhenBothUnsuccessful(
-            CompletableFuture<StatusBrokerReply> winnerFuture,
+    private static <T> void completeWhenBothUnsuccessful(
+            CompletableFuture<BrokerReply<T>> winnerFuture,
             Throwable primaryError,
             Throwable secondaryError) {
         if (primaryError != null) {
@@ -393,74 +455,8 @@ public class ToolsMqttService {
         }
     }
 
-    private FiscalMqttResponseItem publishAndAwaitMatcher(
-            Long printerId,
-            String payload,
-            Predicate<FiscalMqttResponseItem> matcher,
-            int timeoutSeconds) {
-        PrinterContext ctx = resolvePrinter(printerId);
-        ReentrantLock lock = lockFor(ctx.compactMac());
-        lock.lock();
-        try {
-            CompletableFuture<FiscalMqttResponseItem> future =
-                    syncResponseAwaiter.registerWithMatcher(ctx.compactMac(), matcher);
-            return await(ctx, payload, future, timeoutSeconds);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    private ToolsMqttTextChunksResult publishAndAwaitTextChunks(
-            Long printerId,
-            String payload,
-            String terminalCmd,
-            int timeoutSeconds) {
-        PrinterContext ctx = resolvePrinter(printerId);
-        ReentrantLock lock = lockFor(ctx.compactMac());
-        lock.lock();
-        try {
-            CompletableFuture<ToolsMqttTextChunksResult> future =
-                    syncResponseAwaiter.registerTextChunks(ctx.compactMac(), terminalCmd);
-            try {
-                mqttService.publish(ctx.topic(), payload);
-                return future.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (TimeoutException ex) {
-                throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
-            } catch (ExecutionException ex) {
-                throw wrapExecution(ex);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                throw new EnajenacionProtocolException(ERROR_MESSAGE);
-            } finally {
-                syncResponseAwaiter.cancel(ctx.compactMac());
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
     private ReentrantLock lockFor(String compactMac) {
         return locksByMac.computeIfAbsent(compactMac, ignored -> new ReentrantLock());
-    }
-
-    private FiscalMqttResponseItem await(
-            PrinterContext ctx,
-            String payload,
-            CompletableFuture<FiscalMqttResponseItem> future,
-            int timeoutSeconds) {
-        try {
-            mqttService.publish(ctx.topic(), payload);
-            return future.get(timeoutSeconds, TimeUnit.SECONDS);
-        } catch (TimeoutException ex) {
-            throw new EnajenacionProtocolException(TIMEOUT_MESSAGE);
-        } catch (ExecutionException ex) {
-            throw wrapExecution(ex);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new EnajenacionProtocolException(ERROR_MESSAGE);
-        } finally {
-            syncResponseAwaiter.cancel(ctx.compactMac());
-        }
     }
 
     private RuntimeException wrapExecution(ExecutionException ex) {
@@ -503,6 +499,8 @@ public class ToolsMqttService {
     }
 
     private record PrinterContext(String compactMac, String topic) {}
+
+    private record BrokerReply<T>(T item, boolean legacyBroker) {}
 
     private record StatusBrokerReply(FiscalMqttResponseItem item, boolean legacyBroker) {}
 }
