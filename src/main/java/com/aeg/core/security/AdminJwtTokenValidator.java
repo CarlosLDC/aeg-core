@@ -18,14 +18,6 @@ public class AdminJwtTokenValidator {
     private final UserDetailsService userDetailsService;
 
     public Optional<String> validateAdminToken(String token) {
-        return validateTokenForRoles(token, "ROLE_ADMIN");
-    }
-
-    public Optional<String> validateAdminOrDistributorToken(String token) {
-        return validateTokenForRoles(token, "ROLE_ADMIN", "ROLE_DISTRIBUTOR");
-    }
-
-    private Optional<String> validateTokenForRoles(String token, String... allowedAuthorities) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
@@ -35,7 +27,7 @@ public class AdminJwtTokenValidator {
             if (!jwtService.isTokenValid(token, userDetails)) {
                 return Optional.empty();
             }
-            if (!hasAnyAuthority(userDetails, allowedAuthorities)) {
+            if (!isAdmin(userDetails)) {
                 return Optional.empty();
             }
             return Optional.of(username);
@@ -58,10 +50,9 @@ public class AdminJwtTokenValidator {
         return null;
     }
 
-    private static boolean hasAnyAuthority(UserDetails userDetails, String... allowedAuthorities) {
-        List<String> allowed = List.of(allowedAuthorities);
+    private static boolean isAdmin(UserDetails userDetails) {
         return userDetails.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(allowed::contains);
+                .anyMatch("ROLE_ADMIN"::equals);
     }
 }

@@ -16,6 +16,4 @@ public interface SealRepository extends JpaRepository<Seal, Long> {
     List<Seal> findByPrinter_IdIn(@Param("printerIds") Collection<Long> printerIds);
 
     List<Seal> findByPrinter_Id(Long printerId);
-
-    List<Seal> findByStatusAndPrinterIsNull(SealStatus status);
 }

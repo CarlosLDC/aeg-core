@@ -50,8 +50,7 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
                 || path.startsWith("/actuator/")
                 || path.startsWith("/error")
                 || path.startsWith("/ws/mqtt")
-                || path.startsWith("/api/mqtt/enajenacion/stream")
-                || path.startsWith("/api/mqtt/fiscalizacion/stream");
+                || path.startsWith("/api/mqtt/enajenacion/stream");
     }
 
     private boolean isAuthProfilePath(String path) {

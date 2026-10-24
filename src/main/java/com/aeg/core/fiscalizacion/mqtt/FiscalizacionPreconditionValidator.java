@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -18,32 +17,15 @@ import com.aeg.core.seal.SealColor;
 import com.aeg.core.seal.SealRepository;
 import com.aeg.core.seal.SealStatus;
 
+import lombok.RequiredArgsConstructor;
+
 @Component
+@RequiredArgsConstructor
 public class FiscalizacionPreconditionValidator {
 
     private final PrinterRepository printerRepository;
     private final SealRepository sealRepository;
     private final PrinterModelRepository printerModelRepository;
-    private final FiscalizacionSessionRegistry sessionRegistry;
-
-    public FiscalizacionPreconditionValidator(
-            PrinterRepository printerRepository,
-            SealRepository sealRepository,
-            PrinterModelRepository printerModelRepository) {
-        this(printerRepository, sealRepository, printerModelRepository, null);
-    }
-
-    @Autowired
-    public FiscalizacionPreconditionValidator(
-            PrinterRepository printerRepository,
-            SealRepository sealRepository,
-            PrinterModelRepository printerModelRepository,
-            FiscalizacionSessionRegistry sessionRegistry) {
-        this.printerRepository = printerRepository;
-        this.sealRepository = sealRepository;
-        this.printerModelRepository = printerModelRepository;
-        this.sessionRegistry = sessionRegistry;
-    }
 
     public FiscalizacionContext validate(PtrFiscalizarMessage message, String topicCompactMac) {
         String ptrReg = trim(message.ptrReg());
@@ -88,13 +70,8 @@ public class FiscalizacionPreconditionValidator {
             throw new FiscalizacionProtocolException(FiscalizacionConstants.MSG_MODELO_NO_EXISTE);
         }
 
-        String normalizedPtrReg = ptrReg.toUpperCase(Locale.ROOT);
-        Long distributorId = sessionRegistry == null
-                ? null
-                : sessionRegistry.resolvePendingDistributorId(normalizedPtrReg).orElse(null);
-
         return new FiscalizacionContext(
-                normalizedPtrReg,
+                ptrReg.toUpperCase(Locale.ROOT),
                 colonMac,
                 compactMac,
                 seal.getSerial(),
@@ -102,8 +79,7 @@ public class FiscalizacionPreconditionValidator {
                 firmwareVersion,
                 model.getModelCode(),
                 seal,
-                model,
-                distributorId);
+                model);
     }
 
     /**

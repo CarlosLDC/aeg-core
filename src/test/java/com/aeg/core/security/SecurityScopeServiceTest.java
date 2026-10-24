@@ -121,36 +121,4 @@ class SecurityScopeServiceTest {
 		assertThat(scope.visibility()).isEqualTo(BranchScope.Visibility.SCOPED);
 		assertThat(scope.branchIds()).containsExactly(99L);
 	}
-
-	@Test
-	void findVisibleSeals_distributor_includesInstalledAndUnassignedAvailableSeals() {
-		User distributorUser = User.builder()
-				.role(Role.DISTRIBUTOR)
-				.distributorId(7L)
-				.build();
-		SecurityContextHolder.getContext().setAuthentication(
-				new UsernamePasswordAuthenticationToken(distributorUser, null, List.of()));
-
-		com.aeg.core.printer.Printer printer = new com.aeg.core.printer.Printer();
-		printer.setId(500L);
-		com.aeg.core.seal.Seal installedSeal = new com.aeg.core.seal.Seal();
-		installedSeal.setId(1L);
-		installedSeal.setSerial("S-INSTALLED");
-		installedSeal.setStatus(com.aeg.core.seal.SealStatus.EN_IMPRESORA);
-
-		com.aeg.core.seal.Seal availableSeal = new com.aeg.core.seal.Seal();
-		availableSeal.setId(2L);
-		availableSeal.setSerial("S-AVAILABLE");
-		availableSeal.setStatus(com.aeg.core.seal.SealStatus.DISPONIBLE);
-
-		when(printerRepository.findByDistributor_Id(7L)).thenReturn(List.of(printer));
-		when(sealRepository.findByPrinter_IdIn(List.of(500L))).thenReturn(List.of(installedSeal));
-		when(sealRepository.findByStatusAndPrinterIsNull(com.aeg.core.seal.SealStatus.DISPONIBLE))
-				.thenReturn(List.of(availableSeal));
-
-		var visible = service.findVisibleSeals();
-
-		assertThat(visible).extracting(com.aeg.core.seal.Seal::getSerial)
-				.containsExactly("S-INSTALLED", "S-AVAILABLE");
-	}
 }
