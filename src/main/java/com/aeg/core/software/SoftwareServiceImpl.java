@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.software.dto.SoftwareRequest;
 import com.aeg.core.software.dto.SoftwareResponse;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
@@ -14,9 +15,11 @@ import com.aeg.core.servicecenter.ResourceNotFoundException;
 public class SoftwareServiceImpl implements SoftwareService {
 
     private final SoftwareRepository repository;
+    private final CompanyRepository companyRepository;
 
-    public SoftwareServiceImpl(SoftwareRepository repository) {
+    public SoftwareServiceImpl(SoftwareRepository repository, CompanyRepository companyRepository) {
         this.repository = repository;
+        this.companyRepository = companyRepository;
     }
 
     @Override
@@ -38,6 +41,7 @@ public class SoftwareServiceImpl implements SoftwareService {
         s.setVersion(request.version());
         s.setProgrammingLanguages(request.programmingLanguages() == null ? java.util.Collections.emptyList() : request.programmingLanguages());
         s.setOperatingSystems(request.operatingSystems() == null ? java.util.Collections.emptyList() : request.operatingSystems());
+        applyDeveloper(s, request);
         return toResponse(repository.save(s));
     }
 
@@ -48,6 +52,7 @@ public class SoftwareServiceImpl implements SoftwareService {
         s.setVersion(request.version());
         s.setProgrammingLanguages(request.programmingLanguages() == null ? java.util.Collections.emptyList() : request.programmingLanguages());
         s.setOperatingSystems(request.operatingSystems() == null ? java.util.Collections.emptyList() : request.operatingSystems());
+        applyDeveloper(s, request);
         return toResponse(repository.save(s));
     }
 
@@ -55,6 +60,17 @@ public class SoftwareServiceImpl implements SoftwareService {
     public void delete(Long id) {
         Software s = findEntityById(id);
         repository.delete(s);
+    }
+
+    private void applyDeveloper(Software s, SoftwareRequest request) {
+        if (request.developerCompanyId() == null) {
+            s.setDeveloperCompany(null);
+        } else {
+            s.setDeveloperCompany(companyRepository.findById(request.developerCompanyId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Company not found with id: " + request.developerCompanyId())));
+        }
+        s.setExternal(Boolean.TRUE.equals(request.external()));
     }
 
     private Software findEntityById(Long id) {
@@ -74,6 +90,10 @@ public class SoftwareServiceImpl implements SoftwareService {
                 s.getVersion(),
                 s.getCreatedAt(),
                 programmingLanguages,
-                operatingSystems);
+                operatingSystems,
+                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getId(),
+                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getRif(),
+                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getBusinessName(),
+                s.isExternal());
     }
 }

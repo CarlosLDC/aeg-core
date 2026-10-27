@@ -1,5 +1,6 @@
 package com.aeg.core.distributor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -32,6 +33,12 @@ public class Distributor {
 	@Column(name = "puede_inspeccion_anual", nullable = false)
 	private Boolean canWriteAnnualInspection = true;
 
+	@Column(name = "fecha_inclusion")
+	private LocalDate inclusionDate;
+
+	@Column(name = "fecha_exclusion")
+	private LocalDate exclusionDate;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
@@ -39,6 +46,9 @@ public class Distributor {
 		}
 		if (canWriteAnnualInspection == null) {
 			canWriteAnnualInspection = true;
+		}
+		if (inclusionDate == null) {
+			inclusionDate = LocalDate.now();
 		}
 	}
 
@@ -73,4 +83,10 @@ public class Distributor {
 	public boolean allowsAnnualInspectionWrite() {
 		return !Boolean.FALSE.equals(canWriteAnnualInspection);
 	}
+
+	public LocalDate getInclusionDate() { return inclusionDate; }
+	public void setInclusionDate(LocalDate inclusionDate) { this.inclusionDate = inclusionDate; }
+
+	public LocalDate getExclusionDate() { return exclusionDate; }
+	public void setExclusionDate(LocalDate exclusionDate) { this.exclusionDate = exclusionDate; }
 }

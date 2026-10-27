@@ -5,6 +5,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.abnormality.AbnormalityOrigin;
+import com.aeg.core.abnormality.AbnormalityService;
+import com.aeg.core.abnormality.AbnormalityType;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.organization.OrgCapability;
@@ -34,6 +37,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	private final DistributorRepository distributorRepository;
 	private final SecurityScopeService securityScope;
 	private final OrganizationCapabilityService organizationCapability;
+	private final AbnormalityService abnormalityService;
 
 	public TechnicalServiceServiceImpl(
 			TechnicalServiceVisitRepository repository,
@@ -43,7 +47,8 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 			SealRepository sealRepository,
 			DistributorRepository distributorRepository,
 			SecurityScopeService securityScope,
-			OrganizationCapabilityService organizationCapability) {
+			OrganizationCapabilityService organizationCapability,
+			AbnormalityService abnormalityService) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
 		this.userRepository = userRepository;
@@ -52,6 +57,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		this.distributorRepository = distributorRepository;
 		this.securityScope = securityScope;
 		this.organizationCapability = organizationCapability;
+		this.abnormalityService = abnormalityService;
 	}
 
 	@Override
@@ -90,7 +96,9 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
 		applyRequest(e, request, true);
 		applySealStatusChanges(e, request);
-		return toResponse(repository.save(e));
+		TechnicalServiceVisit saved = repository.save(e);
+		recordSealAbnormality(saved);
+		return toResponse(saved);
 	}
 
 	@Override
@@ -100,7 +108,9 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		TechnicalServiceVisit e = findEntity(id);
 		assertVisitInScope(e);
 		applyRequest(e, request, false);
-		return toResponse(repository.save(e));
+		TechnicalServiceVisit saved = repository.save(e);
+		recordSealAbnormality(saved);
+		return toResponse(saved);
 	}
 
 	@Override
@@ -109,6 +119,19 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		TechnicalServiceVisit visit = findEntity(id);
 		assertVisitInScope(visit);
 		repository.delete(visit);
+	}
+
+	private void recordSealAbnormality(TechnicalServiceVisit visit) {
+		if (!Boolean.TRUE.equals(visit.getSealTampered())) {
+			return;
+		}
+		abnormalityService.record(
+				visit.getPrinter(),
+				AbnormalityType.PRECINTO_ALTERADO,
+				AbnormalityOrigin.SERVICIO,
+				visit.getId(),
+				visit.getReviewedByUser(),
+				"Precinto violentado detectado en servicio técnico");
 	}
 
 	private void assertVisitInScope(TechnicalServiceVisit visit) {

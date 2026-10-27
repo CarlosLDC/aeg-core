@@ -32,6 +32,13 @@ public class Software {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @JoinColumn(name = "id_empresa_desarrolladora")
+    private com.aeg.core.company.Company developerCompany;
+
+    @Column(name = "es_externo", nullable = false)
+    private boolean external = false;
+
     @ElementCollection
     @CollectionTable(name = "software_lenguajes_programacion", joinColumns = @JoinColumn(name = "software_id"))
     @Column(name = "lenguaje")
@@ -54,6 +61,12 @@ public class Software {
     public void setProgrammingLanguages(List<String> programmingLanguages) { this.programmingLanguages = programmingLanguages; }
     public List<String> getOperatingSystems() { return operatingSystems; }
     public void setOperatingSystems(List<String> operatingSystems) { this.operatingSystems = operatingSystems; }
+
+    public com.aeg.core.company.Company getDeveloperCompany() { return developerCompany; }
+    public void setDeveloperCompany(com.aeg.core.company.Company developerCompany) { this.developerCompany = developerCompany; }
+
+    public boolean isExternal() { return external; }
+    public void setExternal(boolean external) { this.external = external; }
 
     @PrePersist
     public void prePersist() {

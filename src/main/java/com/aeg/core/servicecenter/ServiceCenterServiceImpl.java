@@ -64,6 +64,10 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
 		branchRepository.save(branch);
 		ServiceCenter serviceCenter = new ServiceCenter();
 		serviceCenter.setBranch(branch);
+		if (request.inclusionDate() != null) {
+			serviceCenter.setInclusionDate(request.inclusionDate());
+		}
+		serviceCenter.setExclusionDate(request.exclusionDate());
 		return toResponse(repository.save(serviceCenter));
 	}
 
@@ -75,6 +79,12 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
 				.orElseThrow(() -> new ResourceNotFoundException("Branch not found with id: " + request.branchId()));
 		securityScope.assertBranchInScope(branch.getId());
 		serviceCenter.setBranch(branch);
+		if (request.inclusionDate() != null) {
+			serviceCenter.setInclusionDate(request.inclusionDate());
+		}
+		if (request.exclusionDate() != null) {
+			serviceCenter.setExclusionDate(request.exclusionDate());
+		}
 		return toResponse(repository.save(serviceCenter));
 	}
 
@@ -108,6 +118,8 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
 		return new ServiceCenterResponse(
 				serviceCenter.getId(),
 				serviceCenter.getBranchId(),
-				serviceCenter.getCreatedAt());
+				serviceCenter.getCreatedAt(),
+				serviceCenter.getInclusionDate(),
+				serviceCenter.getExclusionDate());
 	}
 }

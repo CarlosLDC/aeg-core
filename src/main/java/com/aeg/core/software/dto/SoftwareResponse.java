@@ -9,5 +9,9 @@ public record SoftwareResponse(
         String version,
         OffsetDateTime createdAt,
         List<String> programmingLanguages,
-        List<String> operatingSystems
+        List<String> operatingSystems,
+        Long developerCompanyId,
+        String developerRif,
+        String developerName,
+        boolean external
 ) {}

@@ -1,5 +1,6 @@
 package com.aeg.core.servicecenter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -28,10 +29,19 @@ public class ServiceCenter {
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
+	@Column(name = "fecha_inclusion")
+	private LocalDate inclusionDate;
+
+	@Column(name = "fecha_exclusion")
+	private LocalDate exclusionDate;
+
 	@PrePersist
 	void prePersist() {
 		if (createdAt == null) {
 			createdAt = LocalDateTime.now();
+		}
+		if (inclusionDate == null) {
+			inclusionDate = LocalDate.now();
 		}
 	}
 
@@ -62,4 +72,10 @@ public class ServiceCenter {
 	public void setCreatedAt(LocalDateTime createdAt) {
 		this.createdAt = createdAt;
 	}
+
+	public LocalDate getInclusionDate() { return inclusionDate; }
+	public void setInclusionDate(LocalDate inclusionDate) { this.inclusionDate = inclusionDate; }
+
+	public LocalDate getExclusionDate() { return exclusionDate; }
+	public void setExclusionDate(LocalDate exclusionDate) { this.exclusionDate = exclusionDate; }
 }

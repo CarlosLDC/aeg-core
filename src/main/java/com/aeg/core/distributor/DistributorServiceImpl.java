@@ -87,6 +87,10 @@ public class DistributorServiceImpl implements DistributorService {
 				request.canWriteAnnualInspection() != null
 						? request.canWriteAnnualInspection()
 						: true);
+		if (request.inclusionDate() != null) {
+			distributor.setInclusionDate(request.inclusionDate());
+		}
+		distributor.setExclusionDate(request.exclusionDate());
 		return toResponse(repository.save(distributor));
 	}
 
@@ -105,6 +109,12 @@ public class DistributorServiceImpl implements DistributorService {
 		}
 		if (request.canWriteAnnualInspection() != null) {
 			distributor.setCanWriteAnnualInspection(request.canWriteAnnualInspection());
+		}
+		if (request.inclusionDate() != null) {
+			distributor.setInclusionDate(request.inclusionDate());
+		}
+		if (request.exclusionDate() != null) {
+			distributor.setExclusionDate(request.exclusionDate());
 		}
 		return toResponse(repository.save(distributor));
 	}
@@ -139,6 +149,8 @@ public class DistributorServiceImpl implements DistributorService {
 				distributor.getId(),
 				distributor.getBranchId(),
 				distributor.getCreatedAt(),
-				distributor.allowsAnnualInspectionWrite());
+				distributor.allowsAnnualInspectionWrite(),
+				distributor.getInclusionDate(),
+				distributor.getExclusionDate());
 	}
 }

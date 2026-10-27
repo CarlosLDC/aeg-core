@@ -5,6 +5,9 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.abnormality.AbnormalityOrigin;
+import com.aeg.core.abnormality.AbnormalityService;
+import com.aeg.core.abnormality.AbnormalityType;
 import com.aeg.core.inspection.dto.AnnualInspectionRequest;
 import com.aeg.core.inspection.dto.AnnualInspectionResponse;
 import com.aeg.core.printer.Printer;
@@ -26,18 +29,21 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	private final UserRepository userRepository;
 	private final SecurityScopeService securityScope;
 	private final OrganizationCapabilityService organizationCapability;
+	private final AbnormalityService abnormalityService;
 
 	public AnnualInspectionServiceImpl(
 			AnnualInspectionRepository repository,
 			PrinterRepository printerRepository,
 			UserRepository userRepository,
 			SecurityScopeService securityScope,
-			OrganizationCapabilityService organizationCapability) {
+			OrganizationCapabilityService organizationCapability,
+			AbnormalityService abnormalityService) {
 		this.repository = repository;
 		this.printerRepository = printerRepository;
 		this.userRepository = userRepository;
 		this.securityScope = securityScope;
 		this.organizationCapability = organizationCapability;
+		this.abnormalityService = abnormalityService;
 	}
 
 	@Override
@@ -69,7 +75,9 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
 		AnnualInspection e = new AnnualInspection();
 		applyRequest(e, request);
-		return toResponse(repository.save(e));
+		AnnualInspection saved = repository.save(e);
+		recordSealAbnormality(saved);
+		return toResponse(saved);
 	}
 
 	@Override
@@ -79,7 +87,9 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		AnnualInspection e = findEntity(id);
 		assertInspectionInScope(e);
 		applyRequest(e, request);
-		return toResponse(repository.save(e));
+		AnnualInspection saved = repository.save(e);
+		recordSealAbnormality(saved);
+		return toResponse(saved);
 	}
 
 	@Override
@@ -88,6 +98,19 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		AnnualInspection inspection = findEntity(id);
 		assertInspectionInScope(inspection);
 		repository.delete(inspection);
+	}
+
+	private void recordSealAbnormality(AnnualInspection inspection) {
+		if (!Boolean.TRUE.equals(effectiveSealTampered(inspection))) {
+			return;
+		}
+		abnormalityService.record(
+				inspection.getPrinter(),
+				AbnormalityType.PRECINTO_ALTERADO,
+				AbnormalityOrigin.INSPECCION,
+				inspection.getId(),
+				inspection.getInspectorUser(),
+				"Precinto violentado detectado en inspección anual");
 	}
 
 	private void assertInspectionInScope(AnnualInspection inspection) {
