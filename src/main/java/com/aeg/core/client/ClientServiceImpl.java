@@ -47,14 +47,12 @@ public class ClientServiceImpl implements ClientService {
 		User currentUser = securityScope.currentUser();
 		if (currentUser.getRole() == Role.ADMIN) {
 			return repository.findAllFetched().stream()
-					.filter(client -> !isDistributorSelfClient(client))
 					.map(this::toResponse)
 					.toList();
 		}
 		if (Role.isDistributorScoped(currentUser.getRole()) && currentUser.getDistributorId() != null) {
 			Long distributorId = currentUser.getDistributorId();
 			return repository.findAllFetchedByDistributorId(distributorId).stream()
-					.filter(client -> !isDistributorSelfClient(client))
 					.map(this::toResponse)
 					.toList();
 		}
@@ -63,7 +61,6 @@ public class ClientServiceImpl implements ClientService {
 			return List.of();
 		}
 		return repository.findAllFetchedByBranch_IdIn(scope.branchIds()).stream()
-				.filter(client -> !isDistributorSelfClient(client))
 				.map(this::toResponse)
 				.toList();
 	}
@@ -72,9 +69,6 @@ public class ClientServiceImpl implements ClientService {
 	@Transactional(readOnly = true)
 	public ClientResponse findById(Long id) {
 		Client client = findEntityById(id);
-		if (isDistributorSelfClient(client)) {
-			throw new ResourceNotFoundException("Client not found with id: " + id);
-		}
 		securityScope.assertClientInScope(client);
 		return toResponse(client);
 	}
@@ -87,7 +81,7 @@ public class ClientServiceImpl implements ClientService {
 				Role.isDistributorScoped(user.getRole()) ? user.getDistributorId() : null;
 		securityScope.assertCanLinkClientToBranch(branchId, distributorId);
 		Client client = resolveClientForBranch(branchId);
-		if (client == null || isDistributorSelfClient(client)) {
+		if (client == null) {
 			return Optional.empty();
 		}
 		return Optional.of(toResponse(client));
@@ -277,14 +271,5 @@ public class ClientServiceImpl implements ClientService {
 		if (client.getReviewStatus() == ClientReviewStatus.PENDING_REVIEW) {
 			throw new IllegalArgumentException("client has a pending review request");
 		}
-	}
-
-	private boolean isDistributorSelfClient(Client client) {
-		if (client == null || client.getBranchId() == null || client.getDistributorId() == null) {
-			return false;
-		}
-		return distributorRepository.findById(client.getDistributorId())
-				.map(distributor -> client.getBranchId().equals(distributor.getBranchId()))
-				.orElse(false);
 	}
 }

@@ -9,6 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchOrganizationRoleSupport;
+import com.aeg.core.client.Client;
+import com.aeg.core.client.ClientRepository;
+import com.aeg.core.client.ClientReviewStatus;
 import com.aeg.core.distributor.dto.DistributorRequest;
 import com.aeg.core.distributor.dto.DistributorResponse;
 import com.aeg.core.security.BranchScope;
@@ -24,14 +27,17 @@ public class DistributorServiceImpl implements DistributorService {
 	private final DistributorRepository repository;
 	private final com.aeg.core.branch.BranchRepository branchRepository;
 	private final SecurityScopeService securityScope;
+	private final ClientRepository clientRepository;
 
 	public DistributorServiceImpl(
 			DistributorRepository repository,
 			com.aeg.core.branch.BranchRepository branchRepository,
-			SecurityScopeService securityScope) {
+			SecurityScopeService securityScope,
+			ClientRepository clientRepository) {
 		this.repository = repository;
 		this.branchRepository = branchRepository;
 		this.securityScope = securityScope;
+		this.clientRepository = clientRepository;
 	}
 
 	@Override
@@ -80,6 +86,7 @@ public class DistributorServiceImpl implements DistributorService {
 		securityScope.assertBranchInScope(branch.getId());
 		validateDistributorBranch(branch);
 		BranchOrganizationRoleSupport.applyOrganizationRole(branch, BranchOrganizationRole.DISTRIBUTOR);
+		branch.setIsClient(true);
 		branchRepository.save(branch);
 		Distributor distributor = new Distributor();
 		distributor.setBranch(branch);
@@ -91,7 +98,17 @@ public class DistributorServiceImpl implements DistributorService {
 			distributor.setInclusionDate(request.inclusionDate());
 		}
 		distributor.setExclusionDate(request.exclusionDate());
-		return toResponse(repository.save(distributor));
+		Distributor saved = repository.save(distributor);
+
+		if (clientRepository.findByBranch_Id(branch.getId()).isEmpty()) {
+			Client selfClient = new Client();
+			selfClient.setBranch(branch);
+			selfClient.setDistributor(saved);
+			selfClient.setReviewStatus(ClientReviewStatus.ACTIVE);
+			clientRepository.save(selfClient);
+		}
+
+		return toResponse(saved);
 	}
 
 	@Override

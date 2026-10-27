@@ -73,4 +73,40 @@ class ClientBranchLinkPolicyTest {
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessage(ClientBranchLinkPolicy.REASSIGNMENT_REQUIRED_MESSAGE);
 	}
+
+	@Test
+	void allowsBranchThatIsSameDistributor() {
+		Branch branch = new Branch();
+		branch.setId(10L);
+		branch.setOrganizationRole(BranchOrganizationRole.DISTRIBUTOR);
+
+		com.aeg.core.distributor.Distributor distributor = new com.aeg.core.distributor.Distributor();
+		distributor.setId(5L);
+		distributor.setBranch(branch);
+
+		when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
+		when(distributorRepository.findByBranch_Id(10L)).thenReturn(Optional.of(distributor));
+		when(serviceCenterRepository.findByBranch_Id(10L)).thenReturn(Optional.empty());
+		when(clientRepository.findByBranch_Id(10L)).thenReturn(Optional.empty());
+
+		org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> policy.assertFieldUserMayLinkClient(10L, 5L));
+	}
+
+	@Test
+	void rejectsBranchThatIsDifferentDistributor() {
+		Branch branch = new Branch();
+		branch.setId(10L);
+		branch.setOrganizationRole(BranchOrganizationRole.DISTRIBUTOR);
+
+		com.aeg.core.distributor.Distributor distributor = new com.aeg.core.distributor.Distributor();
+		distributor.setId(99L);
+		distributor.setBranch(branch);
+
+		when(branchRepository.findById(10L)).thenReturn(Optional.of(branch));
+		when(distributorRepository.findByBranch_Id(10L)).thenReturn(Optional.of(distributor));
+
+		assertThatThrownBy(() -> policy.assertFieldUserMayLinkClient(10L, 5L))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage(ClientBranchLinkPolicy.REASSIGNMENT_REQUIRED_MESSAGE);
+	}
 }

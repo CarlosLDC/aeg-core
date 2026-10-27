@@ -38,12 +38,14 @@ public class ClientBranchLinkPolicy {
 		if (branch == null) {
 			return;
 		}
-		if (hasOperationalRole(branch)) {
+		if (hasOperationalRole(branch, distributorId)) {
 			throw new IllegalArgumentException(REASSIGNMENT_REQUIRED_MESSAGE);
 		}
-		if (distributorRepository.findByBranch_Id(branchId).isPresent()) {
-			throw new IllegalArgumentException(REASSIGNMENT_REQUIRED_MESSAGE);
-		}
+		distributorRepository.findByBranch_Id(branchId).ifPresent(d -> {
+			if (distributorId == null || !d.getId().equals(distributorId)) {
+				throw new IllegalArgumentException(REASSIGNMENT_REQUIRED_MESSAGE);
+			}
+		});
 		if (serviceCenterRepository.findByBranch_Id(branchId).isPresent()) {
 			throw new IllegalArgumentException(REASSIGNMENT_REQUIRED_MESSAGE);
 		}
@@ -57,9 +59,16 @@ public class ClientBranchLinkPolicy {
 		});
 	}
 
-	private static boolean hasOperationalRole(Branch branch) {
+	private boolean hasOperationalRole(Branch branch, Long distributorId) {
 		BranchOrganizationRole role = branch.getOrganizationRole();
-		return role == BranchOrganizationRole.DISTRIBUTOR
-				|| role == BranchOrganizationRole.SERVICE_CENTER;
+		if (role == BranchOrganizationRole.SERVICE_CENTER) {
+			return true;
+		}
+		if (role == BranchOrganizationRole.DISTRIBUTOR) {
+			return distributorRepository.findByBranch_Id(branch.getId())
+					.map(d -> distributorId == null || !d.getId().equals(distributorId))
+					.orElse(true);
+		}
+		return false;
 	}
 }

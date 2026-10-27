@@ -62,17 +62,18 @@ class SecurityScopeServiceSelfClientTest {
 	}
 
 	@Test
-	void assertCanLinkClientToBranch_rejectsDistributorSelfClient() {
+	void assertCanLinkClientToBranch_allowsDistributorSelfClient() {
 		Branch branch = new Branch();
 		branch.setId(42L);
+		branch.setOrganizationRole(com.aeg.core.branch.BranchOrganizationRole.DISTRIBUTOR);
 		Distributor distributor = new Distributor();
 		distributor.setId(7L);
 		distributor.setBranch(branch);
 
-		when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+		User adminUser = User.builder().role(Role.ADMIN).build();
+		org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+				new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(adminUser, null, java.util.List.of()));
 
-		assertThatThrownBy(() -> service.assertCanLinkClientToBranch(42L, 7L))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("cannot be client of itself");
+		org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.assertCanLinkClientToBranch(42L, 7L));
 	}
 }
