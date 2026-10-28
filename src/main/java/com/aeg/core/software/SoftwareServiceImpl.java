@@ -90,13 +90,10 @@ public class SoftwareServiceImpl implements SoftwareService {
     }
 
     private void applyDeveloper(Software s, SoftwareRequest request) {
-        if (request.developerCompanyId() == null) {
-            s.setDeveloperCompany(null);
-        } else {
-            s.setDeveloperCompany(companyRepository.findById(request.developerCompanyId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Company not found with id: " + request.developerCompanyId())));
-        }
+        String devName = request.developerName() == null ? null : request.developerName().trim();
+        String devRif = request.developerRif() == null ? null : request.developerRif().trim();
+        s.setDeveloperName(devName == null || devName.isEmpty() ? null : devName);
+        s.setDeveloperRif(devRif == null || devRif.isEmpty() ? null : Company.toStandardRif(devRif));
         s.setExternal(Boolean.TRUE.equals(request.external()));
     }
 
@@ -132,9 +129,8 @@ public class SoftwareServiceImpl implements SoftwareService {
                 s.getCreatedAt(),
                 programmingLanguages,
                 operatingSystems,
-                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getId(),
-                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getRif(),
-                s.getDeveloperCompany() == null ? null : s.getDeveloperCompany().getBusinessName(),
+                s.getDeveloperRif(),
+                s.getDeveloperName(),
                 s.isExternal(),
                 distributors);
     }

@@ -9,7 +9,8 @@ public record SoftwareRequest(
         @NotBlank String version,
         List<String> programmingLanguages,
         List<String> operatingSystems,
-        Long developerCompanyId,
+        String developerName,
+        String developerRif,
         Boolean external,
         List<Long> distributorCompanyIds
 ) {}

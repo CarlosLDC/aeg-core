@@ -11,7 +11,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -36,9 +35,11 @@ public class Software {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_empresa_desarrolladora")
-    private com.aeg.core.company.Company developerCompany;
+    @Column(name = "nombre_desarrollador")
+    private String developerName;
+
+    @Column(name = "rif_desarrollador")
+    private String developerRif;
 
     @Column(name = "es_externo", nullable = false)
     private boolean external = false;
@@ -73,8 +74,11 @@ public class Software {
     public List<String> getOperatingSystems() { return operatingSystems; }
     public void setOperatingSystems(List<String> operatingSystems) { this.operatingSystems = operatingSystems; }
 
-    public com.aeg.core.company.Company getDeveloperCompany() { return developerCompany; }
-    public void setDeveloperCompany(com.aeg.core.company.Company developerCompany) { this.developerCompany = developerCompany; }
+    public String getDeveloperName() { return developerName; }
+    public void setDeveloperName(String developerName) { this.developerName = developerName; }
+
+    public String getDeveloperRif() { return developerRif; }
+    public void setDeveloperRif(String developerRif) { this.developerRif = developerRif; }
 
     public boolean isExternal() { return external; }
     public void setExternal(boolean external) { this.external = external; }

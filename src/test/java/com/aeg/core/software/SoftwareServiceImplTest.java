@@ -37,17 +37,11 @@ class SoftwareServiceImplTest {
 
     @Test
     void createSoftwareWithDeveloperAndDistributors() {
-        Company devCompany = new Company();
-        devCompany.setId(10L);
-        devCompany.setRif("J-123456789");
-        devCompany.setBusinessName("Software Developer C.A.");
-
         Company distCompany = new Company();
         distCompany.setId(20L);
         distCompany.setRif("J-987654321");
         distCompany.setBusinessName("Distributor C.A.");
 
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(devCompany));
         when(companyRepository.findAllById(List.of(20L))).thenReturn(List.of(distCompany));
         when(repository.save(any(Software.class))).thenAnswer(invocation -> {
             Software s = invocation.getArgument(0);
@@ -61,7 +55,8 @@ class SoftwareServiceImplTest {
                 "1.0",
                 List.of("C#"),
                 List.of("Windows"),
-                10L,
+                "Software Developer C.A.",
+                "J123456789",
                 true,
                 List.of(20L)
         );
@@ -72,7 +67,6 @@ class SoftwareServiceImplTest {
         assertThat(response.name()).isEqualTo("Saint Enterprise");
         assertThat(response.version()).isEqualTo("1.0");
         assertThat(response.external()).isTrue();
-        assertThat(response.developerCompanyId()).isEqualTo(10L);
         assertThat(response.developerRif()).isEqualTo("J-123456789");
         assertThat(response.developerName()).isEqualTo("Software Developer C.A.");
         assertThat(response.distributors()).hasSize(1);

@@ -10,7 +10,6 @@ public record SoftwareResponse(
         OffsetDateTime createdAt,
         List<String> programmingLanguages,
         List<String> operatingSystems,
-        Long developerCompanyId,
         String developerRif,
         String developerName,
         boolean external,
