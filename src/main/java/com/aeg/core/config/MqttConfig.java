@@ -58,6 +58,9 @@ public class MqttConfig {
     @Value("${app.mqtt.inbound.enabled:true}")
     private boolean inboundEnabled;
 
+    @Value("${app.mqtt.logs.inbound-topic:+/AEG_Fiscal/Integracion/DebugMQTT}")
+    private String logsInboundTopic = "+/AEG_Fiscal/Integracion/DebugMQTT";
+
     @Value("${app.mqtt.default-topic:aeg/commands}")
     private String defaultTopic;
 
@@ -166,6 +169,7 @@ public class MqttConfig {
             addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Respuesta");
             addFiscalTopicVariants(topics, "+/AEG_Fiscal/Integracion/Documento");
         }
+        addFiscalTopicVariants(topics, logsInboundTopic);
         return topics.toArray(String[]::new);
     }
 

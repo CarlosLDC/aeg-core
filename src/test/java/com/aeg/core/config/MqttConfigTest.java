@@ -22,7 +22,9 @@ class MqttConfigTest {
                         "+/AEG_Fiscal/Integracion/Respuesta",
                         "/+/AEG_Fiscal/Integracion/Respuesta",
                         "+/AEG_Fiscal/Integracion/Documento",
-                        "/+/AEG_Fiscal/Integracion/Documento");
+                        "/+/AEG_Fiscal/Integracion/Documento",
+                        "+/AEG_Fiscal/Integracion/DebugMQTT",
+                        "/+/AEG_Fiscal/Integracion/DebugMQTT");
     }
 
     @Test
@@ -39,6 +41,8 @@ class MqttConfigTest {
                         "+/AEG_Fiscal/Integracion/Respuesta",
                         "/+/AEG_Fiscal/Integracion/Respuesta",
                         "+/AEG_Fiscal/Integracion/Documento",
-                        "/+/AEG_Fiscal/Integracion/Documento");
+                        "/+/AEG_Fiscal/Integracion/Documento",
+                        "+/AEG_Fiscal/Integracion/DebugMQTT",
+                        "/+/AEG_Fiscal/Integracion/DebugMQTT");
     }
 }

@@ -13,16 +13,18 @@ public final class FiscalMqttTopics {
      *   <li>{@link #COMANDO_SUFFIX} — servidor → impresora; todos los comandos (pasos 2–7 y flujo de inspección anual).</li>
      *   <li>{@link #RESPUESTA_SUFFIX} — impresora → servidor; respuestas del firmware ({@code code}, {@code dataD}, {@code dataS}).</li>
      *   <li>{@link #DOCUMENTO_SUFFIX} — impresora → servidor; fragmentos ESC/POS de documentos (visualización).</li>
+     *   <li>{@link #DEBUG_MQTT_SUFFIX} — impresora → servidor; logs y depuración en tiempo real del firmware.</li>
      * </ul>
-     * Formato: {@code /{mac12hex}/AEG_Fiscal/Integracion/{CmdServer|Comando|Respuesta|Documento}}.
+     * Formato: {@code /{mac12hex}/AEG_Fiscal/Integracion/{CmdServer|Comando|Respuesta|Documento|DebugMQTT}}.
      */
     public static final String CMD_SERVER_SUFFIX = "/AEG_Fiscal/Integracion/CmdServer";
     public static final String COMANDO_SUFFIX = "/AEG_Fiscal/Integracion/Comando";
     public static final String RESPUESTA_SUFFIX = "/AEG_Fiscal/Integracion/Respuesta";
     public static final String DOCUMENTO_SUFFIX = "/AEG_Fiscal/Integracion/Documento";
+    public static final String DEBUG_MQTT_SUFFIX = "/AEG_Fiscal/Integracion/DebugMQTT";
 
     private static final Pattern INBOUND_TOPIC = Pattern.compile(
-            "^/?([0-9A-Fa-f]{12})/AEG_Fiscal/Integracion/(CmdServer|Respuesta|Documento)$");
+            "^/?([0-9A-Fa-f]{12})/AEG_Fiscal/Integracion/(CmdServer|Respuesta|Documento|DebugMQTT)$");
 
     private FiscalMqttTopics() {
     }
@@ -39,6 +41,10 @@ public final class FiscalMqttTopics {
         return "/" + MacAddressNormalizer.toCompactForm(compactMac) + DOCUMENTO_SUFFIX;
     }
 
+    public static String debugMqttTopic(String compactMac) {
+        return "/" + MacAddressNormalizer.toCompactForm(compactMac) + DEBUG_MQTT_SUFFIX;
+    }
+
     public static boolean isCmdServerTopic(String topic) {
         return topic != null && topic.trim().endsWith(CMD_SERVER_SUFFIX);
     }
@@ -49,6 +55,10 @@ public final class FiscalMqttTopics {
 
     public static boolean isDocumentoTopic(String topic) {
         return topic != null && topic.trim().endsWith(DOCUMENTO_SUFFIX);
+    }
+
+    public static boolean isDebugMqttTopic(String topic) {
+        return topic != null && topic.trim().endsWith(DEBUG_MQTT_SUFFIX);
     }
 
     public static Optional<String> extractCompactMac(String topic) {
