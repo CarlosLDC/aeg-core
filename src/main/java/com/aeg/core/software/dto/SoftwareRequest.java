@@ -3,7 +3,6 @@ package com.aeg.core.software.dto;
 import java.util.List;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 public record SoftwareRequest(
         @NotBlank String name,
@@ -11,5 +10,6 @@ public record SoftwareRequest(
         List<String> programmingLanguages,
         List<String> operatingSystems,
         Long developerCompanyId,
-        Boolean external
+        Boolean external,
+        List<Long> distributorCompanyIds
 ) {}

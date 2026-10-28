@@ -11,4 +11,6 @@ public interface SoftwareService {
     SoftwareResponse create(SoftwareRequest request);
     SoftwareResponse update(Long id, SoftwareRequest request);
     void delete(Long id);
+    SoftwareResponse addDistributor(Long softwareId, Long companyId);
+    SoftwareResponse removeDistributor(Long softwareId, Long companyId);
 }

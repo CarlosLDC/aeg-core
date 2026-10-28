@@ -13,5 +13,6 @@ public record SoftwareResponse(
         Long developerCompanyId,
         String developerRif,
         String developerName,
-        boolean external
+        boolean external,
+        List<SoftwareDistributorResponse> distributors
 ) {}

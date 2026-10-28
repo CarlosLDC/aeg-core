@@ -4,10 +4,14 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -32,7 +36,7 @@ public class Software {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_empresa_desarrolladora")
     private com.aeg.core.company.Company developerCompany;
 
@@ -48,6 +52,13 @@ public class Software {
     @CollectionTable(name = "software_sistemas_operativos", joinColumns = @JoinColumn(name = "software_id"))
     @Column(name = "sistema")
     private List<String> operatingSystems = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "software_distribuidores",
+            joinColumns = @JoinColumn(name = "software_id"),
+            inverseJoinColumns = @JoinColumn(name = "id_empresa"))
+    private List<com.aeg.core.company.Company> distributors = new ArrayList<>();
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -67,6 +78,9 @@ public class Software {
 
     public boolean isExternal() { return external; }
     public void setExternal(boolean external) { this.external = external; }
+
+    public List<com.aeg.core.company.Company> getDistributors() { return distributors; }
+    public void setDistributors(List<com.aeg.core.company.Company> distributors) { this.distributors = distributors; }
 
     @PrePersist
     public void prePersist() {

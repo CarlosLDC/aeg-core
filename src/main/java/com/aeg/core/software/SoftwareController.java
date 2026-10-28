@@ -54,4 +54,14 @@ public class SoftwareController {
     public void delete(@PathVariable Long id) {
         service.delete(id);
     }
+
+    @PostMapping("/{id}/distributors/{companyId}")
+    public SoftwareResponse addDistributor(@PathVariable Long id, @PathVariable Long companyId) {
+        return service.addDistributor(id, companyId);
+    }
+
+    @DeleteMapping("/{id}/distributors/{companyId}")
+    public SoftwareResponse removeDistributor(@PathVariable Long id, @PathVariable Long companyId) {
+        return service.removeDistributor(id, companyId);
+    }
 }
