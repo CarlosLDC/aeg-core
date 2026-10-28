@@ -35,6 +35,7 @@ public class PrinterLogsController {
     }
 
     @GetMapping("/printers/{id}/logs")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PrinterLogsPageResponse> getPrinterLogs(
             @PathVariable Long id,
             @RequestParam(required = false) Instant from,
