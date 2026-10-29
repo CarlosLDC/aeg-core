@@ -19,17 +19,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
+import com.aeg.core.printer.dto.PrinterFirmwareQueryRequest;
+import com.aeg.core.printer.dto.PrinterFirmwareQueryResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
+import com.aeg.core.tools.mqtt.BrokerMigrationService;
 
 @RestController
 @RequestMapping("/api/printers")
 public class PrinterController {
 
     private final PrinterService service;
+    private final BrokerMigrationService brokerMigrationService;
 
-    public PrinterController(PrinterService service) {
+    public PrinterController(PrinterService service, BrokerMigrationService brokerMigrationService) {
         this.service = service;
+        this.brokerMigrationService = brokerMigrationService;
     }
 
     @GetMapping
@@ -61,6 +66,11 @@ public class PrinterController {
     @PostMapping("/{id}/enajenar")
     public PrinterResponse dispose(@PathVariable Long id, @Valid @RequestBody PrinterDispositionRequest request) {
         return service.dispose(id, request);
+    }
+
+    @PostMapping("/query-firmware")
+    public PrinterFirmwareQueryResponse queryFirmware(@Valid @RequestBody PrinterFirmwareQueryRequest request) {
+        return brokerMigrationService.queryFirmwareByMac(request.macAddress(), request.modelId());
     }
 
     @GetMapping("/{id}/enajenacion-ticket")

@@ -222,4 +222,11 @@ class BrokerMigrationServiceTest {
         assertTrue(BrokerMigrationService.compareVersions("1.2", "1.1.1") > 0);
         assertEquals(0, BrokerMigrationService.compareVersions("1.1.1", "1.1.1"));
     }
+
+    @Test
+    void queryFirmwareByMacReturnsVersionFromNewBroker() {
+        newBrokerReplies(new FiscalMqttResponseItem("statFirmSinDNF", 0, 2, "FIRMWARE DEL SISTEMA: 1.1.2"));
+        var res = service.queryFirmwareByMac("F4:12:FA:CE:CE:B8", null);
+        assertEquals("1.1.2", res.versionFirmware());
+    }
 }

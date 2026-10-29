@@ -23,6 +23,7 @@ import com.aeg.core.mqtt.dto.BrokerMigrationFirmwareResult;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.printer.dto.PrinterFirmwareQueryResponse;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.tools.mqtt.BrokerMigrationLegacyClient.LegacyBrokerTimeoutException;
@@ -382,24 +383,70 @@ public class BrokerMigrationService {
             return;
         }
         printerRepository.findById(printerId).ifPresent(printer -> {
-            Long modelId = printer.getModelId();
-            Firmware matched = null;
-            if (modelId != null) {
-                matched = firmwareRepository.findFirstByVersionAndPrinterModel_IdOrderByCreatedAtDesc(version, modelId)
-                        .orElse(null);
-            }
-            if (matched == null) {
-                matched = firmwareRepository.findFirstByVersionAndPrinterModelIsNullOrderByCreatedAtDesc(version)
-                        .orElse(null);
-            }
-            if (matched == null) {
-                matched = firmwareRepository.findFirstByVersionOrderByCreatedAtDesc(version).orElse(null);
-            }
+            Firmware matched = findMatchingFirmware(version, printer.getModelId());
             if (matched != null && !java.util.Objects.equals(printer.getFirmwareId(), matched.getId())) {
                 printer.setFirmware(matched);
                 printerRepository.save(printer);
             }
         });
+    }
+
+    private Firmware findMatchingFirmware(String version, Long modelId) {
+        if (firmwareRepository == null || version == null || version.isBlank()) {
+            return null;
+        }
+        Firmware matched = null;
+        if (modelId != null) {
+            matched = firmwareRepository.findFirstByVersionAndPrinterModel_IdOrderByCreatedAtDesc(version, modelId)
+                    .orElse(null);
+        }
+        if (matched == null) {
+            matched = firmwareRepository.findFirstByVersionAndPrinterModelIsNullOrderByCreatedAtDesc(version)
+                    .orElse(null);
+        }
+        if (matched == null) {
+            matched = firmwareRepository.findFirstByVersionOrderByCreatedAtDesc(version).orElse(null);
+        }
+        return matched;
+    }
+
+    public PrinterFirmwareQueryResponse queryFirmwareByMac(String macAddress, Long modelId) {
+        if (macAddress == null || macAddress.isBlank()) {
+            throw new EnajenacionProtocolException(
+                    "Debe indicar la dirección MAC de la impresora para consultar el firmware.");
+        }
+        String compactMac;
+        try {
+            compactMac = MacAddressNormalizer.requireCompactForm(macAddress);
+        } catch (IllegalArgumentException ex) {
+            throw new EnajenacionProtocolException("Dirección MAC no válida: " + macAddress);
+        }
+        printerRepository.findByMacAddressCompact(compactMac).ifPresent(securityScope::assertPrinterInScope);
+
+        PrinterContext ctx = new PrinterContext(compactMac, FiscalMqttTopics.comandoTopic(compactMac));
+        log.info("Querying firmware version for MAC {}", compactMac);
+
+        JsonNode replyNode;
+        try {
+            replyNode = requestOnNewBroker(
+                    ctx, firmwareStatusPayload(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF, NEW_BROKER_TIMEOUT_SECONDS);
+        } catch (EnajenacionProtocolException newEx) {
+            log.info("No statFirmSinDNF reply on new broker for {} ({}); trying legacy broker",
+                    compactMac, newEx.getMessage());
+            try {
+                String json = legacyClient.publishAndAwait(
+                        compactMac, firmwareStatusPayload(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF, LEGACY_TIMEOUT_SECONDS);
+                replyNode = readJson(json);
+            } catch (EnajenacionProtocolException legacyEx) {
+                throw new EnajenacionProtocolException("La impresora no respondió en ningún broker.");
+            }
+        }
+
+        requireCodeZero(replyNode, ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+        String dataS = replyNode.path("dataS").asText("").trim();
+        String version = extractVersion(dataS);
+        Firmware matched = findMatchingFirmware(version, modelId);
+        return new PrinterFirmwareQueryResponse(version, matched == null ? null : matched.getId());
     }
 
     private PrinterContext resolvePrinter(Long printerId) {

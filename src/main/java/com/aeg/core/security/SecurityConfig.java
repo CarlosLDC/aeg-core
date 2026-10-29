@@ -106,6 +106,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printers/**").hasAnyRole(BOOK_READ_ROLES)
 				.requestMatchers(HttpMethod.POST, "/api/printers/*/enajenar").hasAnyRole("ADMIN", "DISTRIBUTOR")
+				.requestMatchers(HttpMethod.POST, "/api/printers/query-firmware").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.POST, "/api/printers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/printers/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.DELETE, "/api/printers/**").hasRole("ADMIN")
