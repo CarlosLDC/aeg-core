@@ -38,8 +38,10 @@ class BrokerMigrationServiceTest {
 
     private static final String FIRM_OLD =
             "{\"cmd\":\"statFirmSinDNF\",\"code\":0,\"dataS\":\"FIRMWARE DEL SISTEMA: 1.1.0\",\"dataD\":2}";
-    private static final String FIRM_NEW =
+    private static final String FIRM_111 =
             "{\"cmd\":\"statFirmSinDNF\",\"code\":0,\"dataS\":\"FIRMWARE DEL SISTEMA: 1.1.1\",\"dataD\":2}";
+    private static final String FIRM_NEW =
+            "{\"cmd\":\"statFirmSinDNF\",\"code\":0,\"dataS\":\"FIRMWARE DEL SISTEMA: 1.1.2\",\"dataD\":2}";
     private static final String STAINF_OLD = """
             {"cmd":"StaInf","code":0,"dataS":{"host":"13.51.138.105","port":1883,
             "TopicCmd":"/F412FACECEB8/AEG_Fiscal/Integracion/Comando",
@@ -96,10 +98,18 @@ class BrokerMigrationServiceTest {
     }
 
     @Test
-    void firmware111DoesNotNeedUpdate() {
-        legacyReplies("statFirmSinDNF", FIRM_NEW);
+    void firmware111NeedsUpdate() {
+        legacyReplies("statFirmSinDNF", FIRM_111);
         var result = service.checkFirmware(1L);
         assertEquals("1.1.1", result.firmwareVersion());
+        assertTrue(result.needsUpdate());
+    }
+
+    @Test
+    void firmware112DoesNotNeedUpdate() {
+        legacyReplies("statFirmSinDNF", FIRM_NEW);
+        var result = service.checkFirmware(1L);
+        assertEquals("1.1.2", result.firmwareVersion());
         assertFalse(result.needsUpdate());
     }
 
@@ -119,7 +129,7 @@ class BrokerMigrationServiceTest {
     @Test
     void firmwareFallsBackToNewBrokerForAlreadyMigratedPrinter() {
         legacyTimesOut("statFirmSinDNF");
-        newBrokerReplies(new FiscalMqttResponseItem("statFirmSinDNF", 0, 2, "FIRMWARE DEL SISTEMA: 1.1.1"));
+        newBrokerReplies(new FiscalMqttResponseItem("statFirmSinDNF", 0, 2, "FIRMWARE DEL SISTEMA: 1.1.2"));
         var result = service.checkFirmware(1L);
         assertFalse(result.needsUpdate());
         verify(mqttService).publish(eq("/" + MAC + "/AEG_Fiscal/Integracion/Comando"), anyString());
@@ -152,6 +162,8 @@ class BrokerMigrationServiceTest {
     @Test
     void firmwareUpdateWithoutAckIsAcceptedPendingVerification() {
         legacyTimesOut("updFirmDown");
+        when(awaiter.registerWithMatcher(eq(MAC), any()))
+                .thenAnswer(inv -> CompletableFuture.failedFuture(new RuntimeException("no reply")));
         assertTrue(service.triggerFirmwareUpdate(1L).success());
     }
 

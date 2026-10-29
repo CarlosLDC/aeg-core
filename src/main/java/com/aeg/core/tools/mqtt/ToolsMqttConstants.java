@@ -46,9 +46,9 @@ public final class ToolsMqttConstants {
     public static final String STA_EST_CRED_MQTT1    = "EstCredMqtt1";
 
     // statFirmSinDNF: 1.1.0 = credenciales de descarga del servidor viejo (requiere updFirmDown);
-    // 1.1.1 = credenciales del servidor nuevo.
+    // 1.1.2 = versión objetivo de firmware actualizada.
     public static final String FIRMWARE_VERSION_LEGACY   = "1.1.0";
-    public static final String FIRMWARE_VERSION_MIGRATED = "1.1.1";
+    public static final String FIRMWARE_VERSION_MIGRATED = "1.1.2";
     public static final int    UPD_FIRM_DOWN_DATA        = 1;
 
     // configMqttAEG: sufijos de topic (el firmware antepone /<MAC>/AEG_Fiscal/Integracion/)

@@ -87,14 +87,14 @@ public class BrokerMigrationService {
         String dataS = reply.node().path("dataS").asText("").trim();
         String version = extractVersion(dataS);
 
-        if (ToolsMqttConstants.FIRMWARE_VERSION_LEGACY.equals(version)) {
-            return new BrokerMigrationFirmwareResult(version, true);
-        }
         if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED) >= 0) {
             return new BrokerMigrationFirmwareResult(version, false);
         }
+        if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_LEGACY) >= 0) {
+            return new BrokerMigrationFirmwareResult(version, true);
+        }
         throw new EnajenacionProtocolException(
-                "Versión de firmware " + version + " no contemplada por el protocolo de migración (se esperaba "
+                "Versión de firmware " + version + " no contemplada por el protocolo de actualización (se esperaba >= "
                         + ToolsMqttConstants.FIRMWARE_VERSION_LEGACY + " o "
                         + ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED + ").");
     }
@@ -122,9 +122,10 @@ public class BrokerMigrationService {
     }
 
     /**
-     * Envía {@code updFirmDown} por el broker antiguo. Si la impresora no confirma (puede reiniciarse
-     * sin ACK) se devuelve éxito con aviso: el cliente debe volver a ejecutar {@link #checkFirmware}
-     * tras el reinicio para confirmar la versión {@value ToolsMqttConstants#FIRMWARE_VERSION_MIGRATED}.
+     * Envía {@code updFirmDown} (intentando primero broker antiguo y luego el nuevo). Si la impresora
+     * no confirma (puede reiniciarse sin ACK) se devuelve éxito con aviso: el cliente debe volver a
+     * ejecutar {@link #checkFirmware} tras el reinicio para confirmar la versión
+     * {@value ToolsMqttConstants#FIRMWARE_VERSION_MIGRATED}.
      */
     public ToolsMqttSimpleResponse triggerFirmwareUpdate(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
@@ -133,19 +134,26 @@ public class BrokerMigrationService {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("cmd", ToolsMqttConstants.CMD_UPD_FIRM_DOWN);
         payload.put("data", ToolsMqttConstants.UPD_FIRM_DOWN_DATA);
+        String payloadJson = toJson(payload);
 
-        String responseJson;
+        JsonNode node;
         try {
-            responseJson = legacyClient.publishAndAwait(
-                    ctx.compactMac(), toJson(payload), ToolsMqttConstants.CMD_UPD_FIRM_DOWN, UPD_FIRM_TIMEOUT_SECONDS);
-        } catch (LegacyBrokerTimeoutException e) {
-            log.warn("No ACK for updFirmDown on printer {}; will verify firmware after reboot", printerId);
-            return ToolsMqttSimpleResponse.ok(
-                    "No se recibió confirmación (la impresora puede estar reiniciándose). "
-                            + "La versión se verificará tras el reinicio.");
+            String responseJson = legacyClient.publishAndAwait(
+                    ctx.compactMac(), payloadJson, ToolsMqttConstants.CMD_UPD_FIRM_DOWN, UPD_FIRM_TIMEOUT_SECONDS);
+            node = readJson(responseJson);
+        } catch (EnajenacionProtocolException legacyEx) {
+            log.info("No updFirmDown reply on legacy broker for printer {} ({}); trying new broker",
+                    printerId, legacyEx.getMessage());
+            try {
+                node = requestOnNewBroker(ctx, payloadJson, ToolsMqttConstants.CMD_UPD_FIRM_DOWN, UPD_FIRM_TIMEOUT_SECONDS);
+            } catch (EnajenacionProtocolException newEx) {
+                log.warn("No ACK for updFirmDown on printer {}; will verify firmware after reboot", printerId);
+                return ToolsMqttSimpleResponse.ok(
+                        "No se recibió confirmación (la impresora puede estar reiniciándose). "
+                                + "La versión se verificará tras el reinicio.");
+            }
         }
 
-        JsonNode node = readJson(responseJson);
         int code = node.path("code").asInt(-1);
         if (code == 0) {
             return ToolsMqttSimpleResponse.ok("Actualización de firmware iniciada.");
