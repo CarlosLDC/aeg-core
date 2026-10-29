@@ -448,7 +448,6 @@ public class PrinterControllerIT {
         printer.setPaid(paid);
         printer.setStatus(status);
         printer.setDeviceType(DeviceType.INTERNO);
-        printer.setVersionFirmware("1.0.0");
         printer.setMacAddress(nextMacAddress());
         return printerRepository.save(printer);
     }
@@ -465,7 +464,6 @@ public class PrinterControllerIT {
         printer.setPaid(paid);
         printer.setStatus(status);
         printer.setDeviceType(DeviceType.INTERNO);
-        printer.setVersionFirmware("1.0.0");
         printer.setMacAddress(nextMacAddress());
         return printerRepository.save(printer);
     }

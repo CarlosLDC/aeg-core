@@ -5,6 +5,8 @@ import java.time.OffsetDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.firmware.Firmware;
+import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
@@ -21,6 +23,7 @@ public class FiscalizacionCompletionService {
 
     private final PrinterRepository printerRepository;
     private final SealRepository sealRepository;
+    private final FirmwareRepository firmwareRepository;
 
     @Transactional
     public Printer complete(FiscalizacionContext context) {
@@ -41,8 +44,9 @@ public class FiscalizacionCompletionService {
         Printer printer = new Printer();
         printer.setFiscalSerial(context.ptrReg());
         printer.setMacAddress(context.colonMac());
-        printer.setVersionFirmware(context.firmwareVersion());
         printer.setModel(context.printerModel());
+        printer.setFirmware(resolveFirmware(context.firmwareVersion(),
+                context.printerModel() == null ? null : context.printerModel().getId()));
         printer.setStatus(PrinterStatus.SIN_ASIGNAR);
         printer.setPaid(false);
         printer.setDeviceType(DeviceType.INTERNO);
@@ -54,5 +58,23 @@ public class FiscalizacionCompletionService {
         sealRepository.save(seal);
 
         return printer;
+    }
+
+    private Firmware resolveFirmware(String versionFirmware, Long modelId) {
+        if (versionFirmware == null || versionFirmware.isBlank()) {
+            return null;
+        }
+        String ver = versionFirmware.trim();
+        if (modelId != null) {
+            var byModel = firmwareRepository.findFirstByVersionAndPrinterModel_IdOrderByCreatedAtDesc(ver, modelId);
+            if (byModel.isPresent()) {
+                return byModel.get();
+            }
+        }
+        var generic = firmwareRepository.findFirstByVersionAndPrinterModelIsNullOrderByCreatedAtDesc(ver);
+        if (generic.isPresent()) {
+            return generic.get();
+        }
+        return firmwareRepository.findFirstByVersionOrderByCreatedAtDesc(ver).orElse(null);
     }
 }

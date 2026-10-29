@@ -21,6 +21,7 @@ public record PrinterRequest(
         @DecimalMin(value = "0") BigDecimal finalSalePrice,
         @NotNull Boolean paid,
         OffsetDateTime installationDate,
+        Long firmwareId,
         @Pattern(regexp = "^[0-9]+\\.[0-9]+\\.[0-9]+$") String versionFirmware,
         @Pattern(regexp = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$") String macAddress,
         @NotNull PrinterStatus status,
@@ -41,9 +42,29 @@ public record PrinterRequest(
             String macAddress,
             PrinterStatus status,
             DeviceType deviceType,
+            UUID creationBatchId,
+            String encryptionKey) {
+        this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
+                paid, installationDate, null, versionFirmware, macAddress, status, deviceType,
+                creationBatchId, encryptionKey);
+    }
+
+    public PrinterRequest(
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            Long distributorId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            String versionFirmware,
+            String macAddress,
+            PrinterStatus status,
+            DeviceType deviceType,
             UUID creationBatchId) {
         this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
-                paid, installationDate, versionFirmware, macAddress, status, deviceType,
+                paid, installationDate, null, versionFirmware, macAddress, status, deviceType,
                 creationBatchId, null);
     }
 }

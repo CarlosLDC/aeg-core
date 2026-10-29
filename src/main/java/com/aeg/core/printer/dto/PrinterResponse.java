@@ -21,6 +21,7 @@ public record PrinterResponse(
         Long distributorId,
         Boolean paid,
         OffsetDateTime installationDate,
+        Long firmwareId,
         String versionFirmware,
         String macAddress,
         DeviceType deviceType,
@@ -46,10 +47,35 @@ public record PrinterResponse(
             String macAddress,
             DeviceType deviceType,
             PrinterTicketSection header,
+            PrinterTicketSection trailer,
+            String encryptionKey,
+            Boolean hasTicketConfig) {
+        this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
+                creationBatchId, status, distributorId, paid, installationDate,
+                null, versionFirmware, macAddress, deviceType, header, trailer, encryptionKey, hasTicketConfig);
+    }
+
+    public PrinterResponse(
+            Long id,
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            OffsetDateTime createdAt,
+            UUID creationBatchId,
+            PrinterStatus status,
+            Long distributorId,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            String versionFirmware,
+            String macAddress,
+            DeviceType deviceType,
+            PrinterTicketSection header,
             PrinterTicketSection trailer) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header));
+                null, versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header));
     }
 
     /** Indica si la cabecera del ticket tiene al menos una línea configurada. */

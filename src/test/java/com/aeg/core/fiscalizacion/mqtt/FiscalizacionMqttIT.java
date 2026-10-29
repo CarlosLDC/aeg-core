@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.aeg.core.firmware.Firmware;
+import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.mqtt.MqttConnectionProbeService;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.printer.PrinterRepository;
@@ -45,6 +47,9 @@ class FiscalizacionMqttIT {
     PrinterRepository printerRepository;
 
     @Autowired
+    FirmwareRepository firmwareRepository;
+
+    @Autowired
     FiscalizacionSessionRegistry sessionRegistry;
 
     @MockitoBean
@@ -65,6 +70,15 @@ class FiscalizacionMqttIT {
     void happyPathCreatesPrinterSinAsignarAndAssignsSeal() {
         var fixture = FiscalizacionTestData.seed(
                 modelRepository, sealRepository, "GRA0000101", MAC, "G1B0101");
+        if (!firmwareRepository.existsByVersionAndPrinterModel_Id("1.1.0", fixture.model().getId())) {
+            Firmware fw = new Firmware();
+            fw.setVersion("1.1.0");
+            fw.setFileName("aeg_r1_1.1.0_test.bin");
+            fw.setSizeBytes(1024L);
+            fw.setChecksumSha256("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+            fw.setPrinterModel(fixture.model());
+            firmwareRepository.save(fw);
+        }
 
         orchestrator.handleInbound(fixture.cmdServerTopic(), FiscalizacionTestData.ptrFiscalizar(
                 fixture.ptrReg(), fixture.colonMac(), fixture.precintoNro(), "Azul", "1.1.0", "AEG-R1"));
@@ -94,6 +108,7 @@ class FiscalizacionMqttIT {
         assertThat(printer.getStatus()).isEqualTo(PrinterStatus.SIN_ASIGNAR);
         assertThat(printer.getMacAddress()).isEqualToIgnoringCase(fixture.colonMac());
         assertThat(printer.getVersionFirmware()).isEqualTo("1.1.0");
+        assertThat(printer.getFirmwareId()).isNotNull();
         assertThat(printer.getModelId()).isEqualTo(fixture.model().getId());
 
         SealStatus sealStatus = sealRepository.findById(fixture.seal().getId()).orElseThrow().getStatus();

@@ -97,6 +97,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/mqtt/annual-inspection/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)
 				.requestMatchers("/api/mqtt/tools/broker-migration/**").hasRole("ADMIN")
 				.requestMatchers("/api/mqtt/tools/**").hasAnyRole(TOOLS_MQTT_ROLES)
+				.requestMatchers(HttpMethod.GET, "/api/firmwares", "/api/firmwares/*").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers("/api/software/**", "/api/firmwares/**", "/api/mqtt/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printer-models/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.POST, "/api/printer-models/**").hasRole("ADMIN")

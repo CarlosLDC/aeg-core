@@ -13,6 +13,8 @@ import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttTopics;
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
+import com.aeg.core.firmware.Firmware;
+import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.BrokerMigrationBrokerConfigResult;
 import com.aeg.core.mqtt.dto.BrokerMigrationBrokerConfigResult.Outcome;
@@ -54,6 +56,7 @@ public class BrokerMigrationService {
     private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)+)\\s*$");
 
     private final PrinterRepository printerRepository;
+    private final FirmwareRepository firmwareRepository;
     private final SecurityScopeService securityScope;
     private final BrokerMigrationLegacyClient legacyClient;
     private final MqttService mqttService;
@@ -62,12 +65,14 @@ public class BrokerMigrationService {
 
     public BrokerMigrationService(
             PrinterRepository printerRepository,
+            FirmwareRepository firmwareRepository,
             SecurityScopeService securityScope,
             BrokerMigrationLegacyClient legacyClient,
             MqttService mqttService,
             FiscalMqttSyncResponseAwaiter syncResponseAwaiter,
             @Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
         this.printerRepository = printerRepository;
+        this.firmwareRepository = firmwareRepository;
         this.securityScope = securityScope;
         this.legacyClient = legacyClient;
         this.mqttService = mqttService;
@@ -86,6 +91,7 @@ public class BrokerMigrationService {
 
         String dataS = reply.node().path("dataS").asText("").trim();
         String version = extractVersion(dataS);
+        syncPrinterFirmware(printerId, version);
 
         if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED) >= 0) {
             return new BrokerMigrationFirmwareResult(version, false);
@@ -369,6 +375,31 @@ public class BrokerMigrationService {
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void syncPrinterFirmware(Long printerId, String version) {
+        if (firmwareRepository == null || version == null || version.isBlank()) {
+            return;
+        }
+        printerRepository.findById(printerId).ifPresent(printer -> {
+            Long modelId = printer.getModelId();
+            Firmware matched = null;
+            if (modelId != null) {
+                matched = firmwareRepository.findFirstByVersionAndPrinterModel_IdOrderByCreatedAtDesc(version, modelId)
+                        .orElse(null);
+            }
+            if (matched == null) {
+                matched = firmwareRepository.findFirstByVersionAndPrinterModelIsNullOrderByCreatedAtDesc(version)
+                        .orElse(null);
+            }
+            if (matched == null) {
+                matched = firmwareRepository.findFirstByVersionOrderByCreatedAtDesc(version).orElse(null);
+            }
+            if (matched != null && !java.util.Objects.equals(printer.getFirmwareId(), matched.getId())) {
+                printer.setFirmware(matched);
+                printerRepository.save(printer);
+            }
+        });
     }
 
     private PrinterContext resolvePrinter(Long printerId) {

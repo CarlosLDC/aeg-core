@@ -65,8 +65,9 @@ public class Printer {
     @Column(name = "fecha_instalacion")
     private OffsetDateTime installationDate;
 
-    @Column(name = "version_firmware")
-    private String versionFirmware;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_firmware")
+    private com.aeg.core.firmware.Firmware firmware;
 
     @Column(name = "direccion_mac")
     private String macAddress;
@@ -126,8 +127,10 @@ public class Printer {
     public OffsetDateTime getInstallationDate() { return installationDate; }
     public void setInstallationDate(OffsetDateTime installationDate) { this.installationDate = installationDate; }
 
-    public String getVersionFirmware() { return versionFirmware; }
-    public void setVersionFirmware(String versionFirmware) { this.versionFirmware = versionFirmware; }
+    public com.aeg.core.firmware.Firmware getFirmware() { return firmware; }
+    public void setFirmware(com.aeg.core.firmware.Firmware firmware) { this.firmware = firmware; }
+    public Long getFirmwareId() { return firmware == null ? null : firmware.getId(); }
+    public String getVersionFirmware() { return firmware == null ? null : firmware.getVersion(); }
 
     public String getMacAddress() { return macAddress; }
     public void setMacAddress(String macAddress) { this.macAddress = macAddress; }

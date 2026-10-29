@@ -39,6 +39,7 @@ public class PrinterServiceImpl implements PrinterService {
     private final PrinterRepository repository;
     private final com.aeg.core.printermodel.PrinterModelRepository modelRepository;
     private final com.aeg.core.software.SoftwareRepository softwareRepository;
+    private final com.aeg.core.firmware.FirmwareRepository firmwareRepository;
     private final com.aeg.core.distributor.DistributorRepository distributorRepository;
     private final com.aeg.core.client.ClientRepository clientRepository;
     private final SealRepository sealRepository;
@@ -56,6 +57,7 @@ public class PrinterServiceImpl implements PrinterService {
     public PrinterServiceImpl(PrinterRepository repository,
                               com.aeg.core.printermodel.PrinterModelRepository modelRepository,
                               com.aeg.core.software.SoftwareRepository softwareRepository,
+                              com.aeg.core.firmware.FirmwareRepository firmwareRepository,
                               com.aeg.core.distributor.DistributorRepository distributorRepository,
                               com.aeg.core.client.ClientRepository clientRepository,
                               SealRepository sealRepository,
@@ -66,6 +68,7 @@ public class PrinterServiceImpl implements PrinterService {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
+        this.firmwareRepository = firmwareRepository;
         this.distributorRepository = distributorRepository;
         this.clientRepository = clientRepository;
         this.sealRepository = sealRepository;
@@ -121,7 +124,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
         p.setInstallationDate(request.installationDate());
-        p.setVersionFirmware(request.versionFirmware());
+        p.setFirmware(resolveFirmware(request.firmwareId(), request.versionFirmware(), request.modelId()));
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setDeviceType(request.deviceType());
@@ -190,7 +193,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setFiscalSerial(request.fiscalSerial());
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
-        p.setVersionFirmware(request.versionFirmware());
+        p.setFirmware(resolveFirmware(request.firmwareId(), request.versionFirmware(), p.getModelId()));
         boolean macChanged = !java.util.Objects.equals(p.getMacAddress(), normalizedMac);
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
@@ -503,6 +506,28 @@ public class PrinterServiceImpl implements PrinterService {
         return repository.save(printer);
     }
 
+    private com.aeg.core.firmware.Firmware resolveFirmware(Long firmwareId, String versionFirmware, Long modelId) {
+        if (firmwareId != null) {
+            return firmwareRepository.findById(firmwareId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Firmware not found with id: " + firmwareId));
+        }
+        if (versionFirmware != null && !versionFirmware.isBlank()) {
+            String ver = versionFirmware.trim();
+            if (modelId != null) {
+                var byModel = firmwareRepository.findFirstByVersionAndPrinterModel_IdOrderByCreatedAtDesc(ver, modelId);
+                if (byModel.isPresent()) {
+                    return byModel.get();
+                }
+            }
+            var generic = firmwareRepository.findFirstByVersionAndPrinterModelIsNullOrderByCreatedAtDesc(ver);
+            if (generic.isPresent()) {
+                return generic.get();
+            }
+            return firmwareRepository.findFirstByVersionOrderByCreatedAtDesc(ver).orElse(null);
+        }
+        return null;
+    }
+
     private PrinterResponse toResponse(Printer p) {
         return new PrinterResponse(
                 p.getId(),
@@ -517,6 +542,7 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getDistributorId(),
                 p.getPaid(),
                 p.getInstallationDate(),
+                p.getFirmwareId(),
                 p.getVersionFirmware(),
                 p.getMacAddress(),
                 p.getDeviceType(),
@@ -542,6 +568,7 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getDistributorId(),
                 p.getPaid(),
                 p.getInstallationDate(),
+                p.getFirmwareId(),
                 p.getVersionFirmware(),
                 p.getMacAddress(),
                 p.getDeviceType(),

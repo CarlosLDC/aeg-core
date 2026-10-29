@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
+import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.BrokerMigrationBrokerConfigResult.Outcome;
 import com.aeg.core.printer.Printer;
@@ -68,7 +69,7 @@ class BrokerMigrationServiceTest {
         awaiter = mock(FiscalMqttSyncResponseAwaiter.class);
         mqttService = mock(MqttService.class);
         service = new BrokerMigrationService(
-                repo, mock(SecurityScopeService.class), legacyClient, mqttService, awaiter, objectMapper) {
+                repo, mock(FirmwareRepository.class), mock(SecurityScopeService.class), legacyClient, mqttService, awaiter, objectMapper) {
             @Override
             void pause(long millis) {
                 // sin esperas en tests
