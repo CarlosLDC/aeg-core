@@ -28,7 +28,8 @@ public record PrinterResponse(
         PrinterTicketSection header,
         PrinterTicketSection trailer,
         String encryptionKey,
-        Boolean hasTicketConfig
+        Boolean hasTicketConfig,
+        boolean firmwareUpdateUnverified
 ) {
     public PrinterResponse(
             Long id,
@@ -52,7 +53,7 @@ public record PrinterResponse(
             Boolean hasTicketConfig) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                null, versionFirmware, macAddress, deviceType, header, trailer, encryptionKey, hasTicketConfig);
+                null, versionFirmware, macAddress, deviceType, header, trailer, encryptionKey, hasTicketConfig, false);
     }
 
     public PrinterResponse(
@@ -75,7 +76,7 @@ public record PrinterResponse(
             PrinterTicketSection trailer) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                null, versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header));
+                null, versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header), false);
     }
 
     /** Indica si la cabecera del ticket tiene al menos una línea configurada. */

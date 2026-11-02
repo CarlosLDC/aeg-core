@@ -549,7 +549,8 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getHeader(),
                 p.getTrailer(),
                 p.getEncryptionKey(),
-                PrinterResponse.ticketConfigured(p.getHeader())
+                PrinterResponse.ticketConfigured(p.getHeader()),
+                p.isFirmwareUpdateUnverified()
         );
     }
 
@@ -575,7 +576,8 @@ public class PrinterServiceImpl implements PrinterService {
                 null,
                 null,
                 p.getEncryptionKey(),
-                PrinterResponse.ticketConfigured(p.getHeader())
+                PrinterResponse.ticketConfigured(p.getHeader()),
+                p.isFirmwareUpdateUnverified()
         );
     }
 }

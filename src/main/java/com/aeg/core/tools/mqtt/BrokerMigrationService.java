@@ -106,6 +106,26 @@ public class BrokerMigrationService {
                         + ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED + ").");
     }
 
+    /**
+     * Lee la versión de firmware que reporta la impresora sin validar el alcance de seguridad del usuario.
+     * Pensado para verificaciones en segundo plano (sin sesión); no exponer directamente en un endpoint.
+     *
+     * @throws EnajenacionProtocolException si la impresora no responde o responde con error.
+     */
+    public String readFirmwareVersionInBackground(Long printerId) {
+        Printer printer = printerRepository.findById(printerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        if (printer.getMacAddress() == null || printer.getMacAddress().isBlank()) {
+            throw new EnajenacionProtocolException("La impresora no tiene dirección MAC registrada.");
+        }
+        String compactMac = MacAddressNormalizer.requireCompactForm(printer.getMacAddress());
+        PrinterContext ctx = new PrinterContext(compactMac, FiscalMqttTopics.comandoTopic(compactMac));
+        BrokerReply reply = requestOnAnyBroker(ctx, firmwareStatusPayload(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+        requireCodeZero(reply.node(), ToolsMqttConstants.CMD_STAT_FIRM_SIN_DNF);
+        String version = extractVersion(reply.node().path("dataS").asText("").trim());
+        syncPrinterFirmware(printerId, version);
+        return version;
+    }
     static String extractVersion(String dataS) {
         Matcher matcher = VERSION_PATTERN.matcher(dataS == null ? "" : dataS.trim());
         if (!matcher.find()) {

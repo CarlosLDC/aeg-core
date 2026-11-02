@@ -69,6 +69,10 @@ public class Printer {
     @JoinColumn(name = "id_firmware")
     private com.aeg.core.firmware.Firmware firmware;
 
+    /** true si se lanzó una actualización de firmware y la impresora no respondió al verificarla. */
+    @Column(name = "firmware_update_unverified", nullable = false)
+    private boolean firmwareUpdateUnverified = false;
+
     @Column(name = "direccion_mac")
     private String macAddress;
 
@@ -131,6 +135,9 @@ public class Printer {
     public void setFirmware(com.aeg.core.firmware.Firmware firmware) { this.firmware = firmware; }
     public Long getFirmwareId() { return firmware == null ? null : firmware.getId(); }
     public String getVersionFirmware() { return firmware == null ? null : firmware.getVersion(); }
+
+    public boolean isFirmwareUpdateUnverified() { return firmwareUpdateUnverified; }
+    public void setFirmwareUpdateUnverified(boolean v) { this.firmwareUpdateUnverified = v; }
 
     public String getMacAddress() { return macAddress; }
     public void setMacAddress(String macAddress) { this.macAddress = macAddress; }

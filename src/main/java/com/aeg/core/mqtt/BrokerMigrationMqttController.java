@@ -12,6 +12,7 @@ import com.aeg.core.mqtt.dto.BrokerMigrationFirmwareResult;
 import com.aeg.core.mqtt.dto.BrokerMigrationRequest;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.tools.mqtt.BrokerMigrationService;
+import com.aeg.core.tools.mqtt.FirmwareUpdateTracker;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,15 +23,24 @@ import lombok.RequiredArgsConstructor;
 public class BrokerMigrationMqttController {
 
     private final BrokerMigrationService brokerMigrationService;
+    private final FirmwareUpdateTracker firmwareUpdateTracker;
 
     @PostMapping("/check-firmware")
     public ResponseEntity<BrokerMigrationFirmwareResult> checkFirmware(@Valid @RequestBody BrokerMigrationRequest request) {
-        return ResponseEntity.ok(brokerMigrationService.checkFirmware(request.printerId()));
+        BrokerMigrationFirmwareResult result = brokerMigrationService.checkFirmware(request.printerId());
+        // La impresora respondió: ya no hay duda sobre su versión actual.
+        firmwareUpdateTracker.clearUnverified(request.printerId());
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping("/update-firmware")
     public ResponseEntity<ToolsMqttSimpleResponse> updateFirmware(@Valid @RequestBody BrokerMigrationRequest request) {
-        return ResponseEntity.ok(brokerMigrationService.triggerFirmwareUpdate(request.printerId()));
+        String previousVersion = firmwareUpdateTracker.currentVersion(request.printerId());
+        ToolsMqttSimpleResponse response = brokerMigrationService.triggerFirmwareUpdate(request.printerId());
+        if (response.success()) {
+            firmwareUpdateTracker.register(request.printerId(), previousVersion);
+        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/check-broker")
