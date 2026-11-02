@@ -12,6 +12,7 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Service;
 
+import com.aeg.core.enajenacion.mqtt.FiscalMqttTopics;
 import com.aeg.core.fiscal.FiscalTicketLatin2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,11 @@ public class MqttInboundBridge {
 		String payload = stringifyPayload(message.getPayload(), topic);
 		Integer qos = integerHeader(message, MqttHeaders.RECEIVED_QOS);
 		MqttInboundMessage inbound = new MqttInboundMessage(topic, payload, Instant.now(), qos);
-		log.info("MQTT inbound topic={} payload={}", topic, payload);
+		if (FiscalMqttTopics.isDebugMqttTopic(topic)) {
+			log.debug("MQTT debug inbound topic={} payload={}", topic, payload);
+		} else {
+			log.info("MQTT inbound topic={} payload={}", topic, payload);
+		}
 		eventPublisher.publishEvent(new MqttInboundReceivedEvent(this, inbound));
 	}
 

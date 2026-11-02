@@ -28,6 +28,12 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
     Optional<Printer> findByMacAddressCompact(@Param("compactMac") String compactMac);
 
     @Query("""
+            SELECT p.id FROM Printer p
+            WHERE REPLACE(UPPER(TRIM(p.macAddress)), ':', '') = :compactMac
+            """)
+    Optional<Long> findIdByMacAddressCompact(@Param("compactMac") String compactMac);
+
+    @Query("""
             SELECT CASE WHEN COUNT(p) > 0 THEN TRUE ELSE FALSE END
             FROM Printer p
             WHERE REPLACE(UPPER(TRIM(p.macAddress)), ':', '') = :compactMac

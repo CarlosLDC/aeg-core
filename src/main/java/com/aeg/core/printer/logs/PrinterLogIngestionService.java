@@ -26,11 +26,17 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PrinterLogIngestionService {
 
-    private static final int QUEUE_CAPACITY = 20_000;
+    private static final int QUEUE_CAPACITY = 4_000;
     private static final int MAX_BATCH_DRAIN = 500;
+    private static final int MAX_BATCHES_PER_TICK = 8;
+    private static final int MAX_PAYLOAD_LENGTH = 8_192;
+    private static final int MAX_CACHE_ENTRIES = 2_000;
+    private static final long NEGATIVE_CACHE_TTL_MS = 60_000L;
+
+    private record CachedPrinterId(Long printerId, long resolvedAtMs) {}
 
     private final BlockingQueue<PrinterLogEntry> queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
-    private final Map<String, Long> macToPrinterIdCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedPrinterId> macToPrinterIdCache = new ConcurrentHashMap<>();
 
     private final JdbcTemplate jdbcTemplate;
     private final PrinterRepository printerRepository;
@@ -44,11 +50,24 @@ public class PrinterLogIngestionService {
         if (entry == null) {
             return false;
         }
-        boolean offered = queue.offer(entry);
+        PrinterLogEntry sanitized = sanitizeEntry(entry);
+        boolean offered = queue.offer(sanitized);
         if (!offered) {
-            log.warn("Printer log queue is full ({}); dropping log for mac={}", QUEUE_CAPACITY, entry.mac());
+            log.warn("Printer log queue is full ({}); dropping log for mac={}", QUEUE_CAPACITY, sanitized.mac());
         }
         return offered;
+    }
+
+    private static PrinterLogEntry sanitizeEntry(PrinterLogEntry entry) {
+        String payload = entry.payload();
+        if (payload != null && payload.length() > MAX_PAYLOAD_LENGTH) {
+            return new PrinterLogEntry(
+                    entry.mac(),
+                    entry.topic(),
+                    payload.substring(0, MAX_PAYLOAD_LENGTH),
+                    entry.recordedAt());
+        }
+        return entry;
     }
 
     public int queueSize() {
@@ -60,16 +79,19 @@ public class PrinterLogIngestionService {
         if (queue.isEmpty()) {
             return;
         }
-        List<PrinterLogEntry> batch = new ArrayList<>(Math.min(queue.size(), MAX_BATCH_DRAIN));
-        queue.drainTo(batch, MAX_BATCH_DRAIN);
-        if (batch.isEmpty()) {
-            return;
-        }
-
-        try {
-            persistBatch(batch);
-        } catch (Exception ex) {
-            log.error("Failed to persist printer log batch of size {}: {}", batch.size(), ex.getMessage(), ex);
+        List<PrinterLogEntry> batch = new ArrayList<>(MAX_BATCH_DRAIN);
+        for (int i = 0; i < MAX_BATCHES_PER_TICK && !queue.isEmpty(); i++) {
+            batch.clear();
+            queue.drainTo(batch, MAX_BATCH_DRAIN);
+            if (batch.isEmpty()) {
+                break;
+            }
+            try {
+                persistBatch(batch);
+            } catch (Exception ex) {
+                log.error("Failed to persist printer log batch of size {}: {}", batch.size(), ex.getMessage(), ex);
+                break;
+            }
         }
     }
 
@@ -102,11 +124,27 @@ public class PrinterLogIngestionService {
             return null;
         }
         String normalized = compactMac.trim().toUpperCase();
-        return macToPrinterIdCache.computeIfAbsent(normalized, mac ->
-                printerRepository.findByMacAddressCompact(mac)
-                        .map(p -> p.getId())
-                        .orElse(null)
-        );
+        if ("UNKNOWN".equals(normalized)) {
+            return null;
+        }
+
+        long now = System.currentTimeMillis();
+        CachedPrinterId cached = macToPrinterIdCache.get(normalized);
+        if (cached != null) {
+            if (cached.printerId() != null || (now - cached.resolvedAtMs()) < NEGATIVE_CACHE_TTL_MS) {
+                return cached.printerId();
+            }
+        }
+
+        if (macToPrinterIdCache.size() >= MAX_CACHE_ENTRIES) {
+            macToPrinterIdCache.clear();
+        }
+
+        Long resolved = printerRepository.findIdByMacAddressCompact(normalized)
+                .or(() -> printerRepository.findByMacAddressCompact(normalized).map(p -> p.getId()))
+                .orElse(null);
+        macToPrinterIdCache.put(normalized, new CachedPrinterId(resolved, now));
+        return resolved;
     }
 
     public void invalidateCache(String compactMac) {

@@ -355,6 +355,10 @@ class EnajenacionMqttOrchestratorTest {
     @Test
     void ignoresNonFiscalTopics() {
         orchestrator.handleInbound("aeg/telemetry/device-1", "{\"cmd\":\"ptrEnajenar\"}");
+        orchestrator.handleInbound("/206EF1884C68/AEG_Fiscal/Integracion/DebugMQTT", "DEBUG line");
+        assertThat(FiscalMqttTopics.isFiscalInboundTopic("/206EF1884C68/AEG_Fiscal/Integracion/DebugMQTT")).isFalse();
+        assertThat(FiscalMqttTopics.extractCompactMac("/206EF1884C68/AEG_Fiscal/Integracion/DebugMQTT"))
+                .contains("206EF1884C68");
         verify(mqttService, org.mockito.Mockito.never()).publish(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString());

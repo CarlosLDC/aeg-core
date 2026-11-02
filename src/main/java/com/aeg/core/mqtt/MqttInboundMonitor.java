@@ -3,6 +3,7 @@ package com.aeg.core.mqtt;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
+import com.aeg.core.enajenacion.mqtt.FiscalMqttTopics;
 import com.aeg.core.mqtt.websocket.MqttMonitorSessionRegistry;
 
 import lombok.RequiredArgsConstructor;
@@ -18,8 +19,10 @@ public class MqttInboundMonitor implements ApplicationListener<MqttInboundReceiv
 	@Override
 	public void onApplicationEvent(MqttInboundReceivedEvent event) {
 		MqttInboundMessage message = event.message();
-		history.add(message);
 		connectionTracker.markMessageReceived();
+		if (!FiscalMqttTopics.isDebugMqttTopic(message.topic())) {
+			history.add(message);
+		}
 		sessionRegistry.broadcast(message);
 	}
 }

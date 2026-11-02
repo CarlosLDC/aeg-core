@@ -60,7 +60,7 @@ public class FiscalizacionMqttOrchestrator {
     }
 
     public void handleInbound(String topic, String payload) {
-        if (!settings.enabled()) {
+        if (!settings.enabled() || !FiscalMqttTopics.isFiscalInboundTopic(topic)) {
             return;
         }
         String compactMac = FiscalMqttTopics.extractCompactMac(topic).orElse(null);

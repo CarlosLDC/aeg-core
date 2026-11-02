@@ -26,6 +26,9 @@ public final class FiscalMqttTopics {
     private static final Pattern INBOUND_TOPIC = Pattern.compile(
             "^/?([0-9A-Fa-f]{12})/AEG_Fiscal/Integracion/(CmdServer|Respuesta|Documento|DebugMQTT)$");
 
+    private static final Pattern FISCAL_PROTOCOL_INBOUND_TOPIC = Pattern.compile(
+            "^/?([0-9A-Fa-f]{12})/AEG_Fiscal/Integracion/(CmdServer|Respuesta|Documento)$");
+
     private FiscalMqttTopics() {
     }
 
@@ -73,6 +76,9 @@ public final class FiscalMqttTopics {
     }
 
     public static boolean isFiscalInboundTopic(String topic) {
-        return extractCompactMac(topic).isPresent();
+        if (topic == null || topic.isBlank()) {
+            return false;
+        }
+        return FISCAL_PROTOCOL_INBOUND_TOPIC.matcher(topic.trim()).matches();
     }
 }

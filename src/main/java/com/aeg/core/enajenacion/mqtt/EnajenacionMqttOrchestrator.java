@@ -71,7 +71,7 @@ public class EnajenacionMqttOrchestrator {
      * @return resultado solo cuando el payload es {@code ptrEnajenar}; vacío para respuestas del firmware.
      */
     public Optional<EnajenacionStartOutcome> handleInboundWithOutcome(String topic, String payload) {
-        if (!settings.enabled()) {
+        if (!settings.enabled() || !FiscalMqttTopics.isFiscalInboundTopic(topic)) {
             return Optional.empty();
         }
         String compactMac = FiscalMqttTopics.extractCompactMac(topic).orElse(null);
