@@ -115,10 +115,12 @@ class BrokerMigrationServiceTest {
     }
 
     @Test
-    void unknownFirmwareVersionFails() {
+    void olderFirmwareVersionNeedsUpdate() {
         legacyReplies("statFirmSinDNF",
-                "{\"cmd\":\"statFirmSinDNF\",\"code\":0,\"dataS\":\"FIRMWARE DEL SISTEMA: 1.0.9\",\"dataD\":2}");
-        assertThrows(EnajenacionProtocolException.class, () -> service.checkFirmware(1L));
+                "{\"cmd\":\"statFirmSinDNF\",\"code\":0,\"dataS\":\"FIRMWARE DEL SISTEMA: 1.0.0\",\"dataD\":2}");
+        var result = service.checkFirmware(1L);
+        assertEquals("1.0.0", result.firmwareVersion());
+        assertTrue(result.needsUpdate());
     }
 
     @Test

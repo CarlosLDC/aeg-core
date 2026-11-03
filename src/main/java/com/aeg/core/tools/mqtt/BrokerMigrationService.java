@@ -97,13 +97,7 @@ public class BrokerMigrationService {
         if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED) >= 0) {
             return new BrokerMigrationFirmwareResult(version, false);
         }
-        if (compareVersions(version, ToolsMqttConstants.FIRMWARE_VERSION_LEGACY) >= 0) {
-            return new BrokerMigrationFirmwareResult(version, true);
-        }
-        throw new EnajenacionProtocolException(
-                "Versión de firmware " + version + " no contemplada por el protocolo de actualización (se esperaba >= "
-                        + ToolsMqttConstants.FIRMWARE_VERSION_LEGACY + " o "
-                        + ToolsMqttConstants.FIRMWARE_VERSION_MIGRATED + ").");
+        return new BrokerMigrationFirmwareResult(version, true);
     }
 
     /**
