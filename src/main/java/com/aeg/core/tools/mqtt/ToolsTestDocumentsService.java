@@ -75,7 +75,7 @@ public class ToolsTestDocumentsService {
                 payloadBuilder.testGenerateZPayloads(),
                 ToolsMqttConstants.CMD_GEN_IMP_REP_Z,
                 settings.testGenerateZTimeoutSeconds(),
-                "Reporte Z de prueba generado correctamente.");
+                "Reporte Z generado correctamente.");
     }
 
     private ToolsMqttSimpleResponse publishSequence(
