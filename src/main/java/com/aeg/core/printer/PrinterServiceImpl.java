@@ -143,7 +143,13 @@ public class PrinterServiceImpl implements PrinterService {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
         if (Role.isDistributorScoped(currentUser().getRole())) {
-            return toResponse(applyDistributorDisposition(p, request));
+            if (request.softwareId() != null) {
+                p.setSoftware(softwareRepository.findById(request.softwareId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
+            } else {
+                p.setSoftware(null);
+            }
+            return toResponse(repository.save(p));
         }
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
