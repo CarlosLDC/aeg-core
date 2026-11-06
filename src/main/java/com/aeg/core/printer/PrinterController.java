@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +24,7 @@ import com.aeg.core.printer.dto.PrinterFirmwareQueryRequest;
 import com.aeg.core.printer.dto.PrinterFirmwareQueryResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
+import com.aeg.core.printer.dto.PrinterSoftwareUpdateRequest;
 import com.aeg.core.tools.mqtt.BrokerMigrationService;
 
 @RestController
@@ -61,6 +63,14 @@ public class PrinterController {
     @PutMapping("/{id}")
     public PrinterResponse update(@PathVariable Long id, @Valid @RequestBody PrinterRequest request) {
         return service.update(id, request);
+    }
+
+    @PatchMapping("/{id}/software")
+    public PrinterResponse updateSoftware(
+            @PathVariable Long id,
+            @RequestBody(required = false) PrinterSoftwareUpdateRequest request) {
+        Long softwareId = request != null ? request.softwareId() : null;
+        return service.updateSoftware(id, softwareId);
     }
 
     @PostMapping("/{id}/enajenar")

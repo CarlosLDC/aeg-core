@@ -254,7 +254,7 @@ public class PrinterControllerIT {
     void adminCanUpdateTicketOnEnajenadaPaidPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ENAJENADA, true);
-        OffsetDateTime originalInstallationDate = OffsetDateTime.now().minusDays(5);
+        OffsetDateTime originalInstallationDate = OffsetDateTime.now().minusDays(5).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
         printer.setInstallationDate(originalInstallationDate);
         printer = printerRepository.save(printer);
 
@@ -548,6 +548,41 @@ public class PrinterControllerIT {
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(updated.getDistributorId()).isNull();
         assertThat(updated.getClientId()).isEqualTo(client.getId());
+    }
+
+    @Test
+    void patchPrinterSoftwareUpdatesSoftwareId() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        Software sw = new Software();
+        sw.setName("Patch SW " + SERIAL_SEQUENCE.incrementAndGet());
+        sw.setVersion("2.0");
+        sw = softwareRepository.save(sw);
+
+        var res = patchPrinterSoftware(printer.getId(), "{\"softwareId\":" + sw.getId() + "}");
+        assertThat(res.statusCode()).isEqualTo(200);
+
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getSoftware()).isNotNull();
+        assertThat(updated.getSoftware().getId()).isEqualTo(sw.getId());
+
+        var clearRes = patchPrinterSoftware(printer.getId(), "{\"softwareId\":null}");
+        assertThat(clearRes.statusCode()).isEqualTo(200);
+
+        Printer cleared = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(cleared.getSoftware()).isNull();
+    }
+
+    private java.net.http.HttpResponse<String> patchPrinterSoftware(Long printerId, String body) throws Exception {
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printerId + "/software"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .method("PATCH", java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
     }
 
     private PrinterModel createPrinterModel() {

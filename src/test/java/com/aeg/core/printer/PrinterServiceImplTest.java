@@ -1,6 +1,7 @@
 package com.aeg.core.printer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.distributor.DistributorRepository;
@@ -87,18 +89,25 @@ class PrinterServiceImplTest {
     }
 
     @Test
-    void update_distributorCanAssignExistingSoftware() {
+    void update_distributorThrowsAccessDenied() {
+        PrinterRequest request = new PrinterRequest(
+                1L, 77L, null, 5L, "ABC1234567", null, true, null, null, null,
+                PrinterStatus.ASIGNADA, DeviceType.INTERNO, null, null);
+
+        assertThatThrownBy(() -> service.update(1L, request))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Distributors cannot edit printer records");
+    }
+
+    @Test
+    void updateSoftware_distributorCanAssignExistingSoftware() {
         Software software = new Software();
         software.setId(77L);
         software.setName("Sistema Contable");
         software.setVersion("1.0.0");
         when(softwareRepository.findById(77L)).thenReturn(Optional.of(software));
 
-        PrinterRequest request = new PrinterRequest(
-                1L, 77L, null, 5L, "ABC1234567", null, true, null, null, null,
-                PrinterStatus.ASIGNADA, DeviceType.INTERNO, null, null);
-
-        PrinterResponse response = service.update(1L, request);
+        PrinterResponse response = service.updateSoftware(1L, 77L);
 
         assertThat(response).isNotNull();
         assertThat(printer.getSoftware()).isEqualTo(software);
@@ -106,16 +115,12 @@ class PrinterServiceImplTest {
     }
 
     @Test
-    void update_distributorCanClearSoftware() {
+    void updateSoftware_distributorCanClearSoftware() {
         Software software = new Software();
         software.setId(77L);
         printer.setSoftware(software);
 
-        PrinterRequest request = new PrinterRequest(
-                1L, null, null, 5L, "ABC1234567", null, true, null, null, null,
-                PrinterStatus.ASIGNADA, DeviceType.INTERNO, null, null);
-
-        PrinterResponse response = service.update(1L, request);
+        PrinterResponse response = service.updateSoftware(1L, null);
 
         assertThat(response).isNotNull();
         assertThat(printer.getSoftware()).isNull();

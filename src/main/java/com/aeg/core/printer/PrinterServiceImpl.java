@@ -143,13 +143,7 @@ public class PrinterServiceImpl implements PrinterService {
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
         if (Role.isDistributorScoped(currentUser().getRole())) {
-            if (request.softwareId() != null) {
-                p.setSoftware(softwareRepository.findById(request.softwareId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + request.softwareId())));
-            } else {
-                p.setSoftware(null);
-            }
-            return toResponse(repository.save(p));
+            throw new AccessDeniedException("Distributors cannot edit printer records. Use software assignment.");
         }
         if (!p.getFiscalSerial().equalsIgnoreCase(request.fiscalSerial()) && repository.existsByFiscalSerialIgnoreCase(request.fiscalSerial())) {
             throw new IllegalArgumentException("fiscalSerial already exists: " + request.fiscalSerial());
@@ -212,6 +206,19 @@ public class PrinterServiceImpl implements PrinterService {
             }
         }
         reconcileDistributorPaymentStatus(p);
+        return toResponse(repository.save(p));
+    }
+
+    @Override
+    public PrinterResponse updateSoftware(Long id, Long softwareId) {
+        Printer p = findEntityById(id);
+        securityScope.assertPrinterInScope(p);
+        if (softwareId != null) {
+            p.setSoftware(softwareRepository.findById(softwareId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Software not found with id: " + softwareId)));
+        } else {
+            p.setSoftware(null);
+        }
         return toResponse(repository.save(p));
     }
 
