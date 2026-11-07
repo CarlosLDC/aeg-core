@@ -134,7 +134,7 @@ public class PrinterServiceImpl implements PrinterService {
             encryptionKey = PrinterEncryptionKeyGenerator.generateKey(request.fiscalSerial(), normalizedMac);
         }
         p.setEncryptionKey(encryptionKey);
-        reconcileDistributorPaymentStatus(p);
+        reconcileDistributorPaymentStatus(p, null, request.paid());
         return toResponse(repository.save(p));
     }
 
@@ -160,6 +160,7 @@ public class PrinterServiceImpl implements PrinterService {
         }
         Long resolvedDistributorId = resolveDistributorIdForWrite(request.distributorId());
         Long previousDistributorId = p.getDistributorId();
+        PrinterStatus previousStatus = p.getStatus();
         if (request.status() == PrinterStatus.SIN_ASIGNAR
                 || request.status() == PrinterStatus.DE_FABRICA
                 || resolvedDistributorId == null) {
@@ -205,7 +206,7 @@ public class PrinterServiceImpl implements PrinterService {
                 p.setEncryptionKey(PrinterEncryptionKeyGenerator.generateKey(p.getFiscalSerial(), normalizedMac));
             }
         }
-        reconcileDistributorPaymentStatus(p);
+        reconcileDistributorPaymentStatus(p, previousStatus, request.paid());
         return toResponse(repository.save(p));
     }
 
@@ -468,27 +469,28 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     /**
-     * Impresoras con distribuidor y sin pago quedan en consignación; al pagar pasan a asignada.
+     * El estatus es la fuente de verdad del ciclo de vida; sincroniza se_pago y mantiene retrocompatibilidad
+     * con payloads que aún envían paid explícito al asignar o liquidar consignación.
      */
-    private void reconcileDistributorPaymentStatus(Printer printer) {
-        if (printer.getDistributor() == null) {
-            return;
-        }
+    private void reconcileDistributorPaymentStatus(
+            Printer printer,
+            PrinterStatus previousStatus,
+            Boolean requestedPaid) {
         PrinterStatus status = printer.getStatus();
-        if (status == PrinterStatus.ENAJENADA
-                || status == PrinterStatus.DESINCORPORADA
-                || status == PrinterStatus.LABORATORIO
-                || status == PrinterStatus.DE_FABRICA
-                || status == PrinterStatus.SIN_ASIGNAR) {
-            return;
-        }
-        if (Boolean.TRUE.equals(printer.getPaid())) {
-            if (status == PrinterStatus.EN_CONSIGNACION) {
-                printer.setStatus(PrinterStatus.ASIGNADA);
+        if (printer.getDistributor() != null) {
+            if (status == PrinterStatus.ASIGNADA
+                    && Boolean.FALSE.equals(requestedPaid)
+                    && previousStatus != PrinterStatus.EN_CONSIGNACION) {
+                status = PrinterStatus.EN_CONSIGNACION;
+                printer.setStatus(status);
+            } else if (status == PrinterStatus.EN_CONSIGNACION
+                    && Boolean.TRUE.equals(requestedPaid)
+                    && previousStatus != PrinterStatus.ASIGNADA) {
+                status = PrinterStatus.ASIGNADA;
+                printer.setStatus(status);
             }
-        } else if (status == PrinterStatus.ASIGNADA || status == PrinterStatus.EN_CONSIGNACION) {
-            printer.setStatus(PrinterStatus.EN_CONSIGNACION);
         }
+        printer.setPaid(status == PrinterStatus.ASIGNADA || status == PrinterStatus.ENAJENADA);
     }
 
     private Printer applyDisposition(Printer printer, PrinterDispositionRequest request) {

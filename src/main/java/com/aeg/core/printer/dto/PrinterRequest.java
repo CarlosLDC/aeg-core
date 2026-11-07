@@ -19,7 +19,7 @@ public record PrinterRequest(
         Long distributorId,
         @NotBlank @Pattern(regexp = "^[A-Z]{3}[0-9]{7}$", flags = Pattern.Flag.CASE_INSENSITIVE) String fiscalSerial,
         @DecimalMin(value = "0") BigDecimal finalSalePrice,
-        @NotNull Boolean paid,
+        Boolean paid,
         OffsetDateTime installationDate,
         Long firmwareId,
         @Pattern(regexp = "^[0-9]+\\.[0-9]+\\.[0-9]+$") String versionFirmware,

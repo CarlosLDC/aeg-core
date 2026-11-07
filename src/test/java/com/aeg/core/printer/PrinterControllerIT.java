@@ -239,6 +239,53 @@ public class PrinterControllerIT {
     }
 
     @Test
+    void changingStatusToEnConsignacionAutomaticallySetsPaidFalseEvenIfPaidTrueInRequest() throws Exception {
+        Distributor distributor = createDistributor();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.ASIGNADA, true);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":true,"
+                + "\"status\":\"en_consignacion\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId()
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"en_consignacion\"");
+        assertThat(res.body()).contains("\"paid\":false");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(updated.getPaid()).isFalse();
+    }
+
+    @Test
+    void changingStatusToAsignadaAutomaticallySetsPaidTrue() throws Exception {
+        Distributor distributor = createDistributor();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.EN_CONSIGNACION, false);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"status\":\"asignada\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId()
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"asignada\"");
+        assertThat(res.body()).contains("\"paid\":true");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
+        assertThat(updated.getPaid()).isTrue();
+    }
+
+    @Test
     void disposeRejectsPrinterThatIsNotAssigned() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.LABORATORIO, true);

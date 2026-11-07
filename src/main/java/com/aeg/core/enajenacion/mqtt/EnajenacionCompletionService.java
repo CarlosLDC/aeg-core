@@ -44,6 +44,7 @@ public class EnajenacionCompletionService {
             throw new EnajenacionProtocolException("Cannot complete enajenacion from status " + printer.getStatus());
         }
         printer.setStatus(PrinterStatus.ENAJENADA);
+        printer.setPaid(true);
         if (printer.getInstallationDate() == null) {
             printer.setInstallationDate(OffsetDateTime.now());
         }

@@ -30,7 +30,7 @@ public class EnajenacionPreconditionValidator {
         if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
             throw new EnajenacionProtocolException("Printer status must be ASIGNADA or LABORATORIO");
         }
-        if (!Boolean.TRUE.equals(printer.getPaid())) {
+        if (printer.getStatus() != PrinterStatus.LABORATORIO && !Boolean.TRUE.equals(printer.getPaid())) {
             throw new EnajenacionProtocolException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
         }
