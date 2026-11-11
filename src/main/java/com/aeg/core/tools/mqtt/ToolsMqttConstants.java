@@ -29,6 +29,7 @@ public final class ToolsMqttConstants {
     public static final String STA_MEDIOS_PAGOS = "MediosPagos";
     public static final String STA_ENC_FIJ = "staEncFij";
     public static final String STA_PIE_FIJ = "staPieFij";
+    public static final String STA_VER_FEC_HOR = "verFecHor";
 
     public static final String SPIFF_ACCESS = "AeG-1968-2024";
     public static final String PARAM_FAC_SPIFF_FILE = "paramFacSPIFF.json";

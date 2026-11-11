@@ -10,6 +10,7 @@ import com.aeg.core.mqtt.dto.ToolsFormasPagoReadResponse;
 import com.aeg.core.mqtt.dto.ToolsFormasPagoWriteRequest;
 import com.aeg.core.mqtt.dto.ToolsHeaderFooterReadResponse;
 import com.aeg.core.mqtt.dto.ToolsHeaderFooterWriteRequest;
+import com.aeg.core.mqtt.dto.ToolsMqttClockResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
 import com.aeg.core.mqtt.dto.ToolsPrinterRequest;
@@ -39,6 +40,11 @@ public class ToolsMqttController {
     @PostMapping("/status")
     public ResponseEntity<ToolsMqttStatusResponse> status(@Valid @RequestBody ToolsPrinterRequest request) {
         return ResponseEntity.ok(toolsMqttService.requestStatus(request.printerId()));
+    }
+
+    @PostMapping("/clock")
+    public ResponseEntity<ToolsMqttClockResponse> clock(@Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsMqttService.readClock(request.printerId()));
     }
 
     @PostMapping("/wifi/scan")

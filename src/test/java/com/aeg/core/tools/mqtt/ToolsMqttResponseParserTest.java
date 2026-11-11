@@ -2,6 +2,7 @@ package com.aeg.core.tools.mqtt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -160,5 +161,28 @@ class ToolsMqttResponseParserTest {
                 "StaInf", 0, 0, "SIN PIE DE TICKET FIJOS");
 
         assertEquals("", parser.parseHeaderFooter(item));
+    }
+
+    @Test
+    void isClockResponseAndParseClockExtractDateTime() {
+        FiscalMqttResponseItem item = new FiscalMqttResponseItem(
+                "StaInf", 0, 0, "11/11/2026 14:28:31");
+
+        assertTrue(ToolsMqttResponseParser.isClockResponse(item));
+        assertFalse(ToolsMqttResponseParser.isStatusResponse(item));
+        assertFalse(ToolsMqttResponseParser.isHeaderFooterReadResponse(item));
+        assertEquals("11/11/2026 14:28:31", parser.parseClock(item));
+    }
+
+    @Test
+    void parseClockRejectsNonZeroCodeAndInvalidPayload() {
+        FiscalMqttResponseItem errorItem = new FiscalMqttResponseItem(
+                "StaInf", 34, 0, "11/11/2026 14:28:31");
+        assertThrows(ToolsMqttOperationException.class, () -> parser.parseClock(errorItem));
+
+        FiscalMqttResponseItem invalidItem = new FiscalMqttResponseItem(
+                "StaInf", 0, 0, "NO ES FECHA");
+        assertFalse(ToolsMqttResponseParser.isClockResponse(invalidItem));
+        assertThrows(ToolsMqttOperationException.class, () -> parser.parseClock(invalidItem));
     }
 }

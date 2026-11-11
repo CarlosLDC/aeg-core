@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 public class ToolsMqttResponseParser {
 
     private static final Pattern FORMA_PAGO_KEY = Pattern.compile("^\\[(\\d+)\\](.+)$");
+    private static final Pattern CLOCK_DATE_TIME_PATTERN =
+            Pattern.compile("^\\d{2}/\\d{2}/\\d{4}\\s+\\d{2}:\\d{2}(?::\\d{2})?$");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final ObjectMapper objectMapper;
@@ -208,6 +210,18 @@ public class ToolsMqttResponseParser {
         return String.join("", chunks).trim();
     }
 
+    public String parseClock(FiscalMqttResponseItem response) {
+        if (response.code() != null && response.code() != 0) {
+            throw new ToolsMqttOperationException(
+                    "Error de impresora al consultar reloj (code: " + response.code() + ")");
+        }
+        String raw = response.dataS() != null ? response.dataS().trim() : "";
+        if (!isClockString(raw)) {
+            throw new ToolsMqttOperationException("La impresora no devolvió una fecha y hora válida.");
+        }
+        return raw.replaceAll("\\s+", " ");
+    }
+
     public static boolean isStatusResponse(FiscalMqttResponseItem item) {
         if (item == null || !ToolsMqttConstants.CMD_STA_INF.equalsIgnoreCase(item.cmd())) {
             return false;
@@ -260,6 +274,13 @@ public class ToolsMqttResponseParser {
         return item.dataS() != null && isHexValue(item.dataS());
     }
 
+    public static boolean isClockResponse(FiscalMqttResponseItem item) {
+        if (item == null || !ToolsMqttConstants.CMD_STA_INF.equalsIgnoreCase(item.cmd())) {
+            return false;
+        }
+        return item.dataS() != null && isClockString(item.dataS());
+    }
+
     public static boolean isHeaderFooterReadResponse(FiscalMqttResponseItem item) {
         if (item == null || !ToolsMqttConstants.CMD_STA_INF.equalsIgnoreCase(item.cmd())) {
             return false;
@@ -270,7 +291,8 @@ public class ToolsMqttResponseParser {
         if (isStatusResponse(item)
                 || isWifiScanResponse(item)
                 || isFormasPagoResponse(item)
-                || isLastTransmittedZResponse(item)) {
+                || isLastTransmittedZResponse(item)
+                || isClockResponse(item)) {
             return false;
         }
         String trimmed = item.dataS().trim();
@@ -329,6 +351,10 @@ public class ToolsMqttResponseParser {
 
     private static boolean isHexValue(String value) {
         return value != null && value.trim().matches("^[0-9A-Fa-f]+$");
+    }
+
+    private static boolean isClockString(String value) {
+        return value != null && CLOCK_DATE_TIME_PATTERN.matcher(value.trim()).matches();
     }
 
     private static boolean isJsonArrayOfStrings(String value) {

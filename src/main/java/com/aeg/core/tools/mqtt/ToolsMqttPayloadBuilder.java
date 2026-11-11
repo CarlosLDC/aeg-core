@@ -44,6 +44,10 @@ public class ToolsMqttPayloadBuilder {
         return staInfPayload(ToolsMqttConstants.STA_PIE_FIJ);
     }
 
+    public String clockReadPayload() {
+        return staInfPayload(ToolsMqttConstants.STA_VER_FEC_HOR);
+    }
+
     public String wifiConnectPayload(String ssid, String password) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_WIFI_CONF,

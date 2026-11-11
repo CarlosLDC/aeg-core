@@ -30,6 +30,7 @@ import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter.ToolsMqttText
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.ToolsFormasPagoReadResponse;
+import com.aeg.core.mqtt.dto.ToolsMqttClockResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
 import com.aeg.core.mqtt.dto.ToolsReportZResponse;
@@ -255,5 +256,27 @@ class ToolsMqttServiceTest {
         assertNotNull(respResult);
         assertEquals(1, respResult.chunks().size());
         assertEquals(0, respResult.terminal().code());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void readClockWorksOnMainAndLegacyBrokers() {
+        FiscalMqttResponseItem clockItem = new FiscalMqttResponseItem(
+                "StaInf", 0, 0, "11/11/2026 14:30:00");
+        when(awaiter.registerWithMatcher(eq(MAC), any())).thenReturn(CompletableFuture.completedFuture(clockItem));
+        when(legacyClient.publishAndAwaitItem(eq(MAC), anyString(), any(Predicate.class), anyInt()))
+                .thenThrow(new LegacyBrokerTimeoutException("timeout"));
+
+        ToolsMqttClockResponse mainResponse = service.readClock(1L);
+        assertTrue(mainResponse.success());
+        assertEquals("11/11/2026 14:30:00", mainResponse.dateTime());
+
+        when(awaiter.registerWithMatcher(eq(MAC), any())).thenReturn(new CompletableFuture<>());
+        when(legacyClient.publishAndAwaitItem(eq(MAC), anyString(), any(Predicate.class), anyInt()))
+                .thenReturn(clockItem);
+
+        ToolsMqttClockResponse legacyResponse = service.readClock(1L);
+        assertTrue(legacyResponse.success());
+        assertEquals("11/11/2026 14:30:00", legacyResponse.dateTime());
     }
 }

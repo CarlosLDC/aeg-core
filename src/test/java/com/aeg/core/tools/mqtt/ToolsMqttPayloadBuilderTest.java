@@ -66,4 +66,13 @@ class ToolsMqttPayloadBuilderTest {
         assertThat(node.path("data").path("contenido").path("encFacFijo").get(1).asText())
                 .isEqualTo("ENC 2");
     }
+
+    @Test
+    void buildsClockReadPayloadWithStaInfVerFecHor() throws Exception {
+        String payload = builder.clockReadPayload();
+        JsonNode node = new ObjectMapper().readTree(payload);
+
+        assertThat(node.path("cmd").asText()).isEqualTo("StaInf");
+        assertThat(node.path("data").path("status").asText()).isEqualTo("verFecHor");
+    }
 }

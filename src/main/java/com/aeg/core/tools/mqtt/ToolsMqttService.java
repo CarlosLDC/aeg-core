@@ -23,6 +23,7 @@ import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.ToolsFormasPagoItemDto;
 import com.aeg.core.mqtt.dto.ToolsFormasPagoReadResponse;
 import com.aeg.core.mqtt.dto.ToolsHeaderFooterReadResponse;
+import com.aeg.core.mqtt.dto.ToolsMqttClockResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttSimpleResponse;
 import com.aeg.core.mqtt.dto.ToolsMqttStatusResponse;
 import com.aeg.core.mqtt.dto.ToolsReportXResponse;
@@ -67,6 +68,15 @@ public class ToolsMqttService {
                 ToolsMqttResponseParser::isStatusResponse,
                 settings.statusTimeoutSeconds());
         return responseParser.parseStatus(reply.item()).withLegacyBroker(reply.legacyBroker());
+    }
+
+    public ToolsMqttClockResponse readClock(Long printerId) {
+        FiscalMqttResponseItem response = publishAndAwaitMatcher(
+                printerId,
+                payloadBuilder.clockReadPayload(),
+                ToolsMqttResponseParser::isClockResponse,
+                settings.statusTimeoutSeconds());
+        return ToolsMqttClockResponse.ok(responseParser.parseClock(response));
     }
 
     public ToolsWifiScanResponse scanWifi(Long printerId) {
