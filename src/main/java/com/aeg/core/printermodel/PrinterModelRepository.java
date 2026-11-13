@@ -7,4 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface PrinterModelRepository extends JpaRepository<PrinterModel, Long> {
 
     Optional<PrinterModel> findFirstByModelCodeIgnoreCaseOrderByIdAsc(String modelCode);
+
+    boolean existsBySerialPrefixIgnoreCase(String serialPrefix);
+
+    boolean existsBySerialPrefixIgnoreCaseAndIdNot(String serialPrefix, Long id);
 }

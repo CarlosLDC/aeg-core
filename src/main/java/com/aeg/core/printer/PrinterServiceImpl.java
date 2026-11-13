@@ -162,7 +162,8 @@ public class PrinterServiceImpl implements PrinterService {
         } else {
             p.setClient(null);
         }
-        p.setFiscalSerial(request.fiscalSerial());
+        String normalizedSerial = normalizeFiscalSerialForModel(request.fiscalSerial(), p.getModel());
+        p.setFiscalSerial(normalizedSerial);
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
         p.setInstallationDate(request.installationDate());
@@ -241,7 +242,8 @@ public class PrinterServiceImpl implements PrinterService {
         } else if (request.installationDate() != null) {
             p.setInstallationDate(request.installationDate());
         }
-        p.setFiscalSerial(request.fiscalSerial());
+        String normalizedSerial = normalizeFiscalSerialForModel(request.fiscalSerial(), p.getModel());
+        p.setFiscalSerial(normalizedSerial);
         p.setFinalSalePrice(request.finalSalePrice());
         p.setPaid(request.paid());
         p.setFirmware(resolveFirmware(request.firmwareId(), request.versionFirmware(), p.getModelId()));
@@ -692,6 +694,20 @@ public class PrinterServiceImpl implements PrinterService {
             }
         }
         return map;
+    }
+
+    private static String normalizeFiscalSerialForModel(
+            String rawSerial,
+            com.aeg.core.printermodel.PrinterModel model) {
+        String normalized = rawSerial == null ? "" : rawSerial.trim().toUpperCase(java.util.Locale.ROOT);
+        if (model != null && model.getSerialPrefix() != null && !model.getSerialPrefix().isBlank()) {
+            String expectedPrefix = model.getSerialPrefix().trim().toUpperCase(java.util.Locale.ROOT);
+            if (!normalized.startsWith(expectedPrefix)) {
+                throw new IllegalArgumentException(
+                        "fiscalSerial must start with model prefix " + expectedPrefix);
+            }
+        }
+        return normalized;
     }
 
     private record CreditTotals(long paymentCount, BigDecimal totalPaid) {}

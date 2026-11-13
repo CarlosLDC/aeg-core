@@ -23,6 +23,9 @@ public class PrinterModel {
     @Column(name = "codigo_modelo", nullable = false)
     private String modelCode;
 
+    @Column(name = "prefijo_serial", length = 3)
+    private String serialPrefix;
+
     @Column(name = "providencia")
     private String providencia;
 
@@ -39,6 +42,8 @@ public class PrinterModel {
     public void setId(Long id) { this.id = id; }
     public String getModelCode() { return modelCode; }
     public void setModelCode(String modelCode) { this.modelCode = modelCode; }
+    public String getSerialPrefix() { return serialPrefix; }
+    public void setSerialPrefix(String serialPrefix) { this.serialPrefix = serialPrefix; }
     public String getProvidencia() { return providencia; }
     public void setProvidencia(String providencia) { this.providencia = providencia; }
     public LocalDate getApprovalDate() { return approvalDate; }

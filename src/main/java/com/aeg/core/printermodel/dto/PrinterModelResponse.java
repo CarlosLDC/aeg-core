@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 public record PrinterModelResponse(
         Long id,
         String modelCode,
+        String serialPrefix,
         String providencia,
         LocalDate approvalDate,
         OffsetDateTime createdAt,

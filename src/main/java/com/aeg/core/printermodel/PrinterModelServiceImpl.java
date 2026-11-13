@@ -1,6 +1,7 @@
 package com.aeg.core.printermodel;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -73,8 +74,13 @@ public class PrinterModelServiceImpl implements PrinterModelService {
 
     @Override
     public PrinterModelResponse create(PrinterModelRequest request) {
+        String prefix = normalizeSerialPrefix(request.serialPrefix());
+        if (repository.existsBySerialPrefixIgnoreCase(prefix)) {
+            throw new IllegalArgumentException("serialPrefix already exists: " + prefix);
+        }
         PrinterModel m = new PrinterModel();
         m.setModelCode(request.modelCode().trim());
+        m.setSerialPrefix(prefix);
         m.setProvidencia(request.providencia());
         m.setApprovalDate(request.approvalDate());
         m.setPrice(request.price());
@@ -84,11 +90,20 @@ public class PrinterModelServiceImpl implements PrinterModelService {
     @Override
     public PrinterModelResponse update(Long id, PrinterModelRequest request) {
         PrinterModel m = findEntityById(id);
+        String prefix = normalizeSerialPrefix(request.serialPrefix());
+        if (repository.existsBySerialPrefixIgnoreCaseAndIdNot(prefix, id)) {
+            throw new IllegalArgumentException("serialPrefix already exists: " + prefix);
+        }
         m.setModelCode(request.modelCode().trim());
+        m.setSerialPrefix(prefix);
         m.setProvidencia(request.providencia());
         m.setApprovalDate(request.approvalDate());
         m.setPrice(request.price());
         return toResponse(repository.save(m));
+    }
+
+    private static String normalizeSerialPrefix(String raw) {
+        return raw == null ? null : raw.trim().toUpperCase(Locale.ROOT);
     }
 
     @Override
@@ -105,6 +120,7 @@ public class PrinterModelServiceImpl implements PrinterModelService {
         return new PrinterModelResponse(
                 m.getId(),
                 m.getModelCode(),
+                m.getSerialPrefix(),
                 m.getProvidencia(),
                 m.getApprovalDate(),
                 m.getCreatedAt(),
