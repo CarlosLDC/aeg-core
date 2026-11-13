@@ -281,7 +281,7 @@ public class AnnualInspectionMqttService {
     }
 
     private static void assertPrinterEligible(Printer printer) {
-        if (printer.getStatus() != PrinterStatus.ENAJENADA) {
+        if (printer.getStatus() == null || !printer.getStatus().isDisposed()) {
             throw new IllegalArgumentException(
                     "La inspección anual MQTT solo aplica a impresoras enajenadas.");
         }

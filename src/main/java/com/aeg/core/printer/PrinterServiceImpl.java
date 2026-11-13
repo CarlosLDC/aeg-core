@@ -182,8 +182,8 @@ public class PrinterServiceImpl implements PrinterService {
             p.setHeader(null);
             p.setTrailer(null);
             p.setInstallationDate(null);
-        } else if (request.status() != PrinterStatus.ENAJENADA) {
-            if (p.getStatus() == PrinterStatus.ENAJENADA || p.getClient() == null) {
+        } else if (!request.status().isDisposed()) {
+            if (p.getStatus().isDisposed() || p.getClient() == null) {
                 p.setHeader(null);
                 p.setTrailer(null);
             }
@@ -488,6 +488,11 @@ public class PrinterServiceImpl implements PrinterService {
                     && previousStatus != PrinterStatus.ASIGNADA) {
                 status = PrinterStatus.ASIGNADA;
                 printer.setStatus(status);
+            } else if (status == PrinterStatus.A_CREDITO
+                    && Boolean.TRUE.equals(requestedPaid)
+                    && previousStatus != PrinterStatus.ENAJENADA) {
+                status = PrinterStatus.ENAJENADA;
+                printer.setStatus(status);
             }
         }
         printer.setPaid(status == PrinterStatus.ASIGNADA || status == PrinterStatus.ENAJENADA);
@@ -495,10 +500,12 @@ public class PrinterServiceImpl implements PrinterService {
 
     private Printer applyDisposition(Printer printer, PrinterDispositionRequest request) {
         if (printer.getStatus() != PrinterStatus.ASIGNADA
-                && printer.getStatus() != PrinterStatus.ENAJENADA) {
-            throw new IllegalArgumentException("Only assigned or disposed printers can configure disposition ticket");
+                && printer.getStatus() != PrinterStatus.EN_CONSIGNACION
+                && !printer.getStatus().isDisposed()) {
+            throw new IllegalArgumentException(
+                    "Only assigned, consignment, or disposed printers can configure disposition ticket");
         }
-        if (!Boolean.TRUE.equals(printer.getPaid())) {
+        if (printer.getStatus() == PrinterStatus.ASIGNADA && !Boolean.TRUE.equals(printer.getPaid())) {
             throw new IllegalArgumentException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
         }
@@ -515,7 +522,7 @@ public class PrinterServiceImpl implements PrinterService {
         if (request.installationDate() != null) {
             printer.setInstallationDate(request.installationDate());
         } else if (printer.getInstallationDate() == null
-                || printer.getStatus() != PrinterStatus.ENAJENADA) {
+                || !printer.getStatus().isDisposed()) {
             printer.setInstallationDate(java.time.OffsetDateTime.now());
         }
         return repository.save(printer);

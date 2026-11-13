@@ -367,7 +367,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 
 	private boolean isFiscalBookListedPrinter(Printer printer) {
 		PrinterStatus status = printer.getStatus();
-		return status == PrinterStatus.ENAJENADA || status == PrinterStatus.DESINCORPORADA;
+		return status != null && (status.isDisposed() || status == PrinterStatus.DESINCORPORADA);
 	}
 
 	private static String statusValue(PrinterStatus status) {

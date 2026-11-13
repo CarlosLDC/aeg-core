@@ -24,13 +24,14 @@ public class EnajenacionPreconditionValidator {
         Printer printer = printerRepository.findEnajenacionCandidateByFiscalSerial(ptrReg)
                 .orElseThrow(() -> new EnajenacionProtocolException("Printer not found for ptrReg " + ptrReg));
 
-        if (printer.getStatus() == PrinterStatus.ENAJENADA) {
+        if (printer.getStatus().isDisposed()) {
             throw new EnajenacionAlreadyCompletedException("Printer already enajenada");
         }
         if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
-            throw new EnajenacionProtocolException("Printer status must be ASIGNADA or LABORATORIO");
+            throw new EnajenacionProtocolException(
+                    "Printer status must be ASIGNADA, EN_CONSIGNACION or LABORATORIO");
         }
-        if (printer.getStatus() != PrinterStatus.LABORATORIO && !Boolean.TRUE.equals(printer.getPaid())) {
+        if (printer.getStatus() == PrinterStatus.ASIGNADA && !Boolean.TRUE.equals(printer.getPaid())) {
             throw new EnajenacionProtocolException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
         }

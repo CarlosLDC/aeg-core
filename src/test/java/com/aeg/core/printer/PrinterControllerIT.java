@@ -186,15 +186,43 @@ public class PrinterControllerIT {
     }
 
     @Test
-    void disposeRejectsUnpaidPrinter() throws Exception {
+    void disposeAllowsEnConsignacionPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
 
         var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
 
-        assertThat(res.statusCode()).isEqualTo(400);
-        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
-                .isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(res.statusCode()).isEqualTo(200);
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(updated.getPaid()).isFalse();
+        assertThat(updated.getClientId()).isEqualTo(client.getId());
+        assertThat(updated.getHeader()).isNotNull();
+        assertThat(updated.getTrailer()).isNotNull();
+    }
+
+    @Test
+    void markingPaidMovesACreditoToEnajenada() throws Exception {
+        Distributor distributor = createDistributor();
+        Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.A_CREDITO, false);
+
+        String body = "{"
+                + "\"modelId\":" + printer.getModelId() + ","
+                + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
+                + "\"paid\":true,"
+                + "\"status\":\"a_credito\","
+                + "\"deviceType\":\"interno\","
+                + "\"distributorId\":" + distributor.getId()
+                + "}";
+
+        var res = putPrinter(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"status\":\"enajenada\"");
+        assertThat(res.body()).contains("\"paid\":true");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(updated.getPaid()).isTrue();
     }
 
     @Test

@@ -9,6 +9,7 @@ public enum PrinterStatus {
     ASIGNADA("asignada"),
     EN_CONSIGNACION("en_consignacion"),
     ENAJENADA("enajenada"),
+    A_CREDITO("a_credito"),
     DESINCORPORADA("desincorporada"),
     LABORATORIO("laboratorio");
 
@@ -23,9 +24,14 @@ public enum PrinterStatus {
         return value;
     }
 
-    /** Impresoras en campo o en laboratorio pueden iniciar enajenación MQTT. */
+    /** Impresoras asignadas, en consignación o en laboratorio pueden iniciar enajenación MQTT. */
     public boolean isEligibleForMqttEnajenacion() {
-        return this == ASIGNADA || this == LABORATORIO;
+        return this == ASIGNADA || this == EN_CONSIGNACION || this == LABORATORIO;
+    }
+
+    /** Impresoras enajenadas al cliente (pagadas o a crédito). */
+    public boolean isDisposed() {
+        return this == ENAJENADA || this == A_CREDITO;
     }
 
     @JsonCreator

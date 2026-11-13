@@ -26,7 +26,7 @@ public class EnajenacionCompletionService {
     public void markEnajenada(Long printerId, String encryptionKey) {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new EnajenacionProtocolException("Printer not found for completion"));
-        if (printer.getStatus() == PrinterStatus.ENAJENADA) {
+        if (printer.getStatus().isDisposed()) {
             if (encryptionKey != null && !encryptionKey.isBlank()) {
                 printer.setEncryptionKey(encryptionKey);
                 printerRepository.save(printer);
@@ -43,8 +43,13 @@ public class EnajenacionCompletionService {
         if (!printer.getStatus().isEligibleForMqttEnajenacion()) {
             throw new EnajenacionProtocolException("Cannot complete enajenacion from status " + printer.getStatus());
         }
-        printer.setStatus(PrinterStatus.ENAJENADA);
-        printer.setPaid(true);
+        if (printer.getStatus() == PrinterStatus.EN_CONSIGNACION) {
+            printer.setStatus(PrinterStatus.A_CREDITO);
+            printer.setPaid(false);
+        } else {
+            printer.setStatus(PrinterStatus.ENAJENADA);
+            printer.setPaid(true);
+        }
         if (printer.getInstallationDate() == null) {
             printer.setInstallationDate(OffsetDateTime.now());
         }

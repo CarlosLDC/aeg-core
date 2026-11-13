@@ -39,7 +39,7 @@ public class EnajenacionTestInvoiceService {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
 
-        if (printer.getStatus() != PrinterStatus.ENAJENADA) {
+        if (printer.getStatus() == null || !printer.getStatus().isDisposed()) {
             throw new IllegalArgumentException("Solo se puede emitir factura de prueba en impresoras enajenadas.");
         }
         if (printer.getClientId() == null) {

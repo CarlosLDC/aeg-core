@@ -12,7 +12,8 @@ public final class AnnualInspectionMqttEligibility {
         if (printer == null) {
             return false;
         }
-        return printer.getStatus() == PrinterStatus.ENAJENADA
+        return printer.getStatus() != null
+                && printer.getStatus().isDisposed()
                 && printer.getClientId() != null
                 && printer.getFiscalSerial() != null
                 && !printer.getFiscalSerial().isBlank()

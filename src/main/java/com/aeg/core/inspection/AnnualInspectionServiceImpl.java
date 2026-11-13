@@ -122,7 +122,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 
 	private void assertPrinterEligibleForInspection(Printer printer) {
 		if (printer.getStatus() != PrinterStatus.ASIGNADA
-				&& printer.getStatus() != PrinterStatus.ENAJENADA) {
+				&& !printer.getStatus().isDisposed()) {
 			throw new IllegalArgumentException(
 					"Only assigned or enajenada printers can have annual inspections");
 		}

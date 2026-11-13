@@ -77,4 +77,23 @@ class EnajenacionCompletionServiceTest {
         assertThat(printer.getEncryptionKey()).isEqualTo("482266916ca28364");
         verify(printerRepository).save(printer);
     }
+
+    @Test
+    void markEnajenadaFromEnConsignacionMovesToACreditoAndKeepsPaidFalse() {
+        Printer printer = new Printer();
+        printer.setId(4L);
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setPaid(false);
+        printer.setFiscalSerial("GRA0000019");
+
+        when(printerRepository.findById(4L)).thenReturn(Optional.of(printer));
+
+        service.markEnajenada(4L, "55a42534f4d2d8b9");
+
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.A_CREDITO);
+        assertThat(printer.getPaid()).isFalse();
+        assertThat(printer.getEncryptionKey()).isEqualTo("55a42534f4d2d8b9");
+        assertThat(printer.getInstallationDate()).isNotNull();
+        verify(printerRepository).save(printer);
+    }
 }
