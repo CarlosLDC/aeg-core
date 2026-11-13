@@ -6,7 +6,6 @@ import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.printermodel.PrinterModelRepository;
 import com.aeg.core.seal.Seal;
@@ -74,7 +73,6 @@ final class FiscalizacionTestData {
         printer.setMacAddress(colonMac);
         printer.setStatus(PrinterStatus.SIN_ASIGNAR);
         printer.setPaid(false);
-        printer.setDeviceType(DeviceType.INTERNO);
         return printerRepository.save(printer);
     }
 

@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.printer.PrinterTicketSection;
 
@@ -24,7 +23,6 @@ public record PrinterResponse(
         Long firmwareId,
         String versionFirmware,
         String macAddress,
-        DeviceType deviceType,
         PrinterTicketSection header,
         PrinterTicketSection trailer,
         String encryptionKey,
@@ -53,7 +51,6 @@ public record PrinterResponse(
             Long firmwareId,
             String versionFirmware,
             String macAddress,
-            DeviceType deviceType,
             PrinterTicketSection header,
             PrinterTicketSection trailer,
             String encryptionKey,
@@ -61,7 +58,7 @@ public record PrinterResponse(
             boolean firmwareUpdateUnverified) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                firmwareId, versionFirmware, macAddress, deviceType, header, trailer,
+                firmwareId, versionFirmware, macAddress, header, trailer,
                 encryptionKey, hasTicketConfig, firmwareUpdateUnverified,
                 false, null, null, null, BigDecimal.ZERO, 0L);
     }
@@ -81,14 +78,13 @@ public record PrinterResponse(
             OffsetDateTime installationDate,
             String versionFirmware,
             String macAddress,
-            DeviceType deviceType,
             PrinterTicketSection header,
             PrinterTicketSection trailer,
             String encryptionKey,
             Boolean hasTicketConfig) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                null, versionFirmware, macAddress, deviceType, header, trailer, encryptionKey, hasTicketConfig, false);
+                null, versionFirmware, macAddress, header, trailer, encryptionKey, hasTicketConfig, false);
     }
 
     public PrinterResponse(
@@ -106,12 +102,11 @@ public record PrinterResponse(
             OffsetDateTime installationDate,
             String versionFirmware,
             String macAddress,
-            DeviceType deviceType,
             PrinterTicketSection header,
             PrinterTicketSection trailer) {
         this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
                 creationBatchId, status, distributorId, paid, installationDate,
-                null, versionFirmware, macAddress, deviceType, header, trailer, null, ticketConfigured(header), false);
+                null, versionFirmware, macAddress, header, trailer, null, ticketConfigured(header), false);
     }
 
     /** Indica si la cabecera del ticket tiene al menos una línea configurada. */

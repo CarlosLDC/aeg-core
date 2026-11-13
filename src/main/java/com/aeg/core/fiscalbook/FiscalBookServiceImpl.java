@@ -164,7 +164,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				printer.getId(),
 				printer.getFiscalSerial(),
 				statusValue(printer.getStatus()),
-				printer.getDeviceType() != null ? printer.getDeviceType().getValue() : "interno",
+				"interno",
 				printer.getFinalSalePrice(),
 				printer.getPaid(),
 				printer.getVersionFirmware(),

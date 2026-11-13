@@ -97,7 +97,6 @@ public class PrinterControllerIT {
                 "1.0.0",
                 "AA:BB:CC:DD:EE:FF",
                 PrinterStatus.LABORATORIO,
-                DeviceType.INTERNO,
                 null);
         String body = "{"
                 + "\"modelId\":" + req.modelId() + ","
@@ -109,8 +108,7 @@ public class PrinterControllerIT {
                 + "\"installationDate\":\"" + req.installationDate() + "\","
                 + "\"versionFirmware\":\"1.0.0\","
                 + "\"macAddress\":\"AA:BB:CC:DD:EE:FF\","
-                + "\"status\":\"LABORATORIO\","
-                + "\"deviceType\":\"INTERNO\""
+                + "\"status\":\"LABORATORIO\""
                 + "}";
 
         var httpClient = java.net.http.HttpClient.newHttpClient();
@@ -146,7 +144,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"laboratorio\","
-                + "\"deviceType\":\"interno\","
                 + "\"macAddress\":\"" + mac + "\""
                 + "}";
         assertThat(postPrinter(firstBody).statusCode()).isEqualTo(201);
@@ -156,7 +153,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"laboratorio\","
-                + "\"deviceType\":\"interno\","
                 + "\"macAddress\":\"" + mac + "\""
                 + "}";
         var res = postPrinter(duplicateBody);
@@ -226,7 +222,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":true,"
                 + "\"status\":\"a_credito\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId()
                 + "}";
 
@@ -249,7 +244,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + nextFiscalSerial() + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"asignada\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId()
                 + "}";
 
@@ -269,7 +263,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":true,"
                 + "\"status\":\"en_consignacion\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId()
                 + "}";
 
@@ -291,7 +284,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":true,"
                 + "\"status\":\"en_consignacion\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId()
                 + "}";
 
@@ -314,7 +306,6 @@ public class PrinterControllerIT {
                 + "\"modelId\":" + printer.getModelId() + ","
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"status\":\"asignada\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId()
                 + "}";
 
@@ -385,7 +376,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":" + printer.getPaid() + ","
                 + "\"status\":\"asignada\","
-                + "\"deviceType\":\"interno\","
                 + "\"clientId\":null"
                 + "}";
 
@@ -414,7 +404,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"sin_asignar\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":null,"
                 + "\"clientId\":null"
                 + "}";
@@ -446,7 +435,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":true,"
                 + "\"status\":\"asignada\","
-                + "\"deviceType\":\"interno\","
                 + "\"distributorId\":" + distributor.getId() + ","
                 + "\"clientId\":null"
                 + "}";
@@ -537,7 +525,6 @@ public class PrinterControllerIT {
         printer.setFinalSalePrice(new BigDecimal("100.00"));
         printer.setPaid(paid);
         printer.setStatus(status);
-        printer.setDeviceType(DeviceType.INTERNO);
         printer.setMacAddress(nextMacAddress());
         return printerRepository.save(printer);
     }
@@ -553,7 +540,6 @@ public class PrinterControllerIT {
         printer.setFinalSalePrice(new BigDecimal("100.00"));
         printer.setPaid(paid);
         printer.setStatus(status);
-        printer.setDeviceType(DeviceType.INTERNO);
         printer.setMacAddress(nextMacAddress());
         return printerRepository.save(printer);
     }
@@ -570,7 +556,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + serial + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"laboratorio\","
-                + "\"deviceType\":\"interno\","
                 + "\"macAddress\":\"" + mac + "\""
                 + "}";
 
@@ -591,7 +576,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + serial + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"laboratorio\","
-                + "\"deviceType\":\"interno\","
                 + "\"macAddress\":\"" + initialMac + "\""
                 + "}";
         var createRes = postPrinter(createBody);
@@ -609,7 +593,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + serial + "\","
                 + "\"paid\":false,"
                 + "\"status\":\"laboratorio\","
-                + "\"deviceType\":\"interno\","
                 + "\"macAddress\":\"" + updatedMac + "\""
                 + "}";
 
@@ -629,7 +612,6 @@ public class PrinterControllerIT {
                 + "\"fiscalSerial\":\"" + printer.getFiscalSerial() + "\","
                 + "\"paid\":true,"
                 + "\"status\":\"enajenada\","
-                + "\"deviceType\":\"interno\","
                 + "\"clientId\":" + client.getId()
                 + "}";
 

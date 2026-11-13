@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.PrinterStatus;
 
 public record PrinterRequest(
@@ -25,7 +24,6 @@ public record PrinterRequest(
         @Pattern(regexp = "^[0-9]+\\.[0-9]+\\.[0-9]+$") String versionFirmware,
         @Pattern(regexp = "^([0-9A-F]{2}:){5}[0-9A-F]{2}$") String macAddress,
         @NotNull PrinterStatus status,
-        @NotNull DeviceType deviceType,
         UUID creationBatchId,
         String encryptionKey
 ) {
@@ -41,11 +39,10 @@ public record PrinterRequest(
             String versionFirmware,
             String macAddress,
             PrinterStatus status,
-            DeviceType deviceType,
             UUID creationBatchId,
             String encryptionKey) {
         this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
-                paid, installationDate, null, versionFirmware, macAddress, status, deviceType,
+                paid, installationDate, null, versionFirmware, macAddress, status,
                 creationBatchId, encryptionKey);
     }
 
@@ -61,10 +58,9 @@ public record PrinterRequest(
             String versionFirmware,
             String macAddress,
             PrinterStatus status,
-            DeviceType deviceType,
             UUID creationBatchId) {
         this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
-                paid, installationDate, null, versionFirmware, macAddress, status, deviceType,
+                paid, installationDate, null, versionFirmware, macAddress, status,
                 creationBatchId, null);
     }
 }

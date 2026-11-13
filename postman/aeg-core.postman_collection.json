@@ -1760,7 +1760,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"modelId\": \"{{printerModelId}}\",\n  \"softwareId\": \"{{softwareId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"fiscalSerial\": \"{{tempSerial}}\",\n  \"finalSalePrice\": 1899.99,\n  \"paid\": true,\n  \"installationDate\": \"2025-01-20T10:00:00Z\",\n  \"versionFirmware\": \"1.0.0\",\n  \"macAddress\": \"AA:BB:CC:DD:EE:FF\",\n  \"status\": \"activo\",\n  \"deviceType\": \"interno\"\n}",
+              "raw": "{\n  \"modelId\": \"{{printerModelId}}\",\n  \"softwareId\": \"{{softwareId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"fiscalSerial\": \"{{tempSerial}}\",\n  \"finalSalePrice\": 1899.99,\n  \"paid\": true,\n  \"installationDate\": \"2025-01-20T10:00:00Z\",\n  \"versionFirmware\": \"1.0.0\",\n  \"macAddress\": \"AA:BB:CC:DD:EE:FF\",\n  \"status\": \"activo\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1857,7 +1857,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"modelId\": \"{{printerModelId}}\",\n  \"softwareId\": \"{{softwareId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"fiscalSerial\": \"{{tempSerial}}\",\n  \"status\": \"activo\",\n  \"deviceType\": \"interno\"\n}",
+              "raw": "{\n  \"modelId\": \"{{printerModelId}}\",\n  \"softwareId\": \"{{softwareId}}\",\n  \"clientId\": \"{{clientId}}\",\n  \"distributorId\": \"{{distributorId}}\",\n  \"fiscalSerial\": \"{{tempSerial}}\",\n  \"status\": \"activo\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

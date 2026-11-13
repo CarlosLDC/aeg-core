@@ -92,7 +92,7 @@ class PrinterServiceImplTest {
     void update_distributorThrowsAccessDenied() {
         PrinterRequest request = new PrinterRequest(
                 1L, 77L, null, 5L, "ABC1234567", null, true, null, null, null,
-                PrinterStatus.ASIGNADA, DeviceType.INTERNO, null, null);
+                PrinterStatus.ASIGNADA, null, null);
 
         assertThatThrownBy(() -> service.update(1L, request))
                 .isInstanceOf(AccessDeniedException.class)

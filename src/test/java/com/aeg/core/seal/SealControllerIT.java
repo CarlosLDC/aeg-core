@@ -17,7 +17,6 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -61,7 +60,6 @@ public class SealControllerIT {
         Printer p = new Printer();
         p.setFiscalSerial("DEF1234567");
         p.setStatus(PrinterStatus.LABORATORIO);
-        p.setDeviceType(DeviceType.INTERNO);
         p.setPaid(Boolean.FALSE);
         p.setClient(testClient);
         p = printerRepository.save(p);

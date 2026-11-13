@@ -10,7 +10,6 @@ import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -76,7 +75,6 @@ final class EnajenacionTestData {
         printer.setFiscalSerial(fiscalSerial);
         printer.setMacAddress(colonMac);
         printer.setStatus(status);
-        printer.setDeviceType(DeviceType.INTERNO);
         printer.setPaid(true);
         printer.setFinalSalePrice(BigDecimal.ZERO);
         printer.setHeader(EnajenacionTicketExtractor.buildDefaultHeader(branch, company));

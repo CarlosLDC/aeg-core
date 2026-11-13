@@ -169,7 +169,6 @@ public class PrinterServiceImpl implements PrinterService {
         p.setFirmware(resolveFirmware(request.firmwareId(), request.versionFirmware(), request.modelId()));
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
-        p.setDeviceType(request.deviceType());
         p.setCreationBatchId(request.creationBatchId());
         String encryptionKey = request.encryptionKey();
         if ((encryptionKey == null || encryptionKey.isBlank()) && normalizedMac != null && request.fiscalSerial() != null) {
@@ -249,7 +248,6 @@ public class PrinterServiceImpl implements PrinterService {
         boolean macChanged = !java.util.Objects.equals(p.getMacAddress(), normalizedMac);
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
-        p.setDeviceType(request.deviceType());
         if (request.encryptionKey() != null) {
             p.setEncryptionKey(request.encryptionKey().isBlank() ? null : request.encryptionKey());
         } else if (macChanged || p.getEncryptionKey() == null) {
@@ -646,7 +644,6 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getFirmwareId(),
                 p.getVersionFirmware(),
                 p.getMacAddress(),
-                p.getDeviceType(),
                 includeTicketBody ? p.getHeader() : null,
                 includeTicketBody ? p.getTrailer() : null,
                 p.getEncryptionKey(),

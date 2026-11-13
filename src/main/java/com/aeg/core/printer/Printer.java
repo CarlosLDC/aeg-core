@@ -76,10 +76,6 @@ public class Printer {
     @Column(name = "direccion_mac")
     private String macAddress;
 
-    @Convert(converter = DeviceTypeConverter.class)
-    @Column(name = "tipo_dispositivo", nullable = false)
-    private DeviceType deviceType;
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "header")
     private PrinterTicketSection header;
@@ -154,9 +150,6 @@ public class Printer {
     public String getMacAddress() { return macAddress; }
     public void setMacAddress(String macAddress) { this.macAddress = macAddress; }
 
-    public DeviceType getDeviceType() { return deviceType; }
-    public void setDeviceType(DeviceType deviceType) { this.deviceType = deviceType; }
-
     public PrinterTicketSection getHeader() { return header; }
     public void setHeader(PrinterTicketSection header) { this.header = header; }
 
@@ -186,6 +179,5 @@ public class Printer {
         if (paid == null) paid = false;
         if (enajenacionAutorizada == null) enajenacionAutorizada = false;
         if (status == null) status = PrinterStatus.DE_FABRICA;
-        if (deviceType == null) deviceType = DeviceType.INTERNO;
     }
 }

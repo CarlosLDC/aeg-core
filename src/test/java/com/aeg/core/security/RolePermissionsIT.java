@@ -28,7 +28,6 @@ import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.mqtt.MqttConnectionProbeService;
 import com.aeg.core.mqtt.MqttService;
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -116,7 +115,6 @@ class RolePermissionsIT {
         Printer printer = new Printer();
         printer.setFiscalSerial("RP1234567");
         printer.setStatus(PrinterStatus.ASIGNADA);
-        printer.setDeviceType(DeviceType.INTERNO);
         printer.setPaid(Boolean.FALSE);
         printer.setClient(client);
         printer.setDistributor(distributor);

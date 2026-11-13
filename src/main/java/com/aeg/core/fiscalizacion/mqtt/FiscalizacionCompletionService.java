@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.firmware.Firmware;
 import com.aeg.core.firmware.FirmwareRepository;
-import com.aeg.core.printer.DeviceType;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -49,7 +48,6 @@ public class FiscalizacionCompletionService {
                 context.printerModel() == null ? null : context.printerModel().getId()));
         printer.setStatus(PrinterStatus.SIN_ASIGNAR);
         printer.setPaid(false);
-        printer.setDeviceType(DeviceType.INTERNO);
         printer = printerRepository.save(printer);
 
         seal.setPrinter(printer);
