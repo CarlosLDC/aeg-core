@@ -34,9 +34,6 @@ class EnajenacionMqttAdminControllerTest {
     @Mock
     private EnajenacionTestInvoiceService testInvoiceService;
 
-    @Mock
-    private com.aeg.core.enajenacion.mqtt.EnajenacionVerifyStatusService verifyStatusService;
-
     private EnajenacionActivityStore activityStore;
     private EnajenacionSessionRegistry sessionRegistry;
     private EnajenacionMqttAdminController controller;
@@ -46,7 +43,7 @@ class EnajenacionMqttAdminControllerTest {
         activityStore = new EnajenacionActivityStore(new InMemoryEnajenacionActivityPersistence());
         sessionRegistry = new EnajenacionSessionRegistry();
         controller = new EnajenacionMqttAdminController(
-                preconditionValidator, activityStore, sessionRegistry, testInvoiceService, verifyStatusService);
+                preconditionValidator, activityStore, sessionRegistry, testInvoiceService);
     }
 
   @Test

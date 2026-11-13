@@ -96,7 +96,6 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/software-modification-requests/*/approve", "/api/software-modification-requests/*/reject").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/software-modification-requests/*/cancel").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers("/api/mqtt/enajenacion/stream").permitAll()
-				.requestMatchers(HttpMethod.POST, "/api/mqtt/enajenacion/verify-status").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers("/api/mqtt/fiscalizacion/stream").permitAll()
 				.requestMatchers("/ota/**").permitAll()
 				.requestMatchers("/api/mqtt/annual-inspection/**").hasAnyRole(ANNUAL_INSPECTION_WRITE_ROLES)

@@ -16,7 +16,6 @@ import com.aeg.core.enajenacion.mqtt.EnajenacionPreconditionValidator;
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.EnajenacionSessionRegistry;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTestInvoiceService;
-import com.aeg.core.enajenacion.mqtt.EnajenacionVerifyStatusService;
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityDirection;
 import com.aeg.core.enajenacion.mqtt.activity.EnajenacionActivityQuery;
@@ -28,8 +27,6 @@ import com.aeg.core.mqtt.dto.EnajenacionActivityListResponse;
 import com.aeg.core.mqtt.dto.EnajenacionMqttPrecheckResponse;
 import com.aeg.core.mqtt.dto.EnajenacionTestInvoiceRequest;
 import com.aeg.core.mqtt.dto.EnajenacionTestInvoiceResponse;
-import com.aeg.core.mqtt.dto.EnajenacionVerifyStatusRequest;
-import com.aeg.core.mqtt.dto.EnajenacionVerifyStatusResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,16 +42,6 @@ public class EnajenacionMqttAdminController {
     private final EnajenacionActivityStore activityStore;
     private final EnajenacionSessionRegistry sessionRegistry;
     private final EnajenacionTestInvoiceService testInvoiceService;
-    private final EnajenacionVerifyStatusService verifyStatusService;
-
-    @PostMapping("/verify-status")
-    public ResponseEntity<EnajenacionVerifyStatusResponse> verifyStatus(
-            @Valid @RequestBody EnajenacionVerifyStatusRequest request) {
-        EnajenacionVerifyStatusResponse response = verifyStatusService.verifyAndSyncStatus(
-                request.printerId(),
-                request.autoSync());
-        return ResponseEntity.ok(response);
-    }
 
     @PostMapping("/test-invoice")
     public ResponseEntity<EnajenacionTestInvoiceResponse> sendTestInvoice(
