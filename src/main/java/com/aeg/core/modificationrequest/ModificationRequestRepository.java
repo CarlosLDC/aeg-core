@@ -29,5 +29,14 @@ public interface ModificationRequestRepository extends JpaRepository<Modificatio
 			""")
 	List<Long> findPendingRequestIdsByTarget(ModificationTargetType targetType, Long targetId);
 
+	@Query("""
+			select mr.targetId, mr.id
+			from ModificationRequest mr
+			where mr.targetType = :targetType
+			and mr.status = com.aeg.core.modificationrequest.ModificationRequestStatus.PENDING
+			order by mr.createdAt desc
+			""")
+	List<Object[]> findPendingTargetIdsAndRequestIds(ModificationTargetType targetType);
+
 	void deleteByRequestedBy_Id(Long requestedById);
 }

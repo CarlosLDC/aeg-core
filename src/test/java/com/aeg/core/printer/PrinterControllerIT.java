@@ -186,9 +186,24 @@ public class PrinterControllerIT {
     }
 
     @Test
-    void disposeAllowsEnConsignacionPrinter() throws Exception {
+    void disposeRejectsUnauthorizedEnConsignacionPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+
+        var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.EN_CONSIGNACION);
+    }
+
+    @Test
+    void disposeAllowsAuthorizedEnConsignacionPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+        printer.setEnajenacionAutorizada(true);
+        printer.setCreditInstallments(4);
+        printerRepository.save(printer);
 
         var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
 

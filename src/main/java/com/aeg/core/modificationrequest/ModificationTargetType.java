@@ -3,6 +3,7 @@ package com.aeg.core.modificationrequest;
 public enum ModificationTargetType {
 	EMPLOYEE,
 	CLIENT,
-	SOFTWARE
+	SOFTWARE,
+	PRINTER_ENAJENACION
 }
 

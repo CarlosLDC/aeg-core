@@ -1,11 +1,20 @@
 package com.aeg.core.printer;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.aeg.core.modificationrequest.ModificationRequestRepository;
+import com.aeg.core.modificationrequest.ModificationRequestStatus;
+import com.aeg.core.modificationrequest.ModificationTargetType;
+import com.aeg.core.printer.credit.PrinterCreditPaymentRepository;
 
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDependencyRef;
@@ -47,6 +56,8 @@ public class PrinterServiceImpl implements PrinterService {
     private final TechnicalServiceVisitRepository technicalServiceVisitRepository;
     private final SecurityScopeService securityScope;
     private final OrganizationCapabilityService organizationCapability;
+    private final ModificationRequestRepository modificationRequestRepository;
+    private final PrinterCreditPaymentRepository creditPaymentRepository;
     /**
      * Si es true, el listado omite header/trailer (JSON pesado) y expone solo hasTicketConfig.
      * Poner printers.list.slim-ticket=false para revertir sin tocar código.
@@ -65,6 +76,25 @@ public class PrinterServiceImpl implements PrinterService {
                               TechnicalServiceVisitRepository technicalServiceVisitRepository,
                               SecurityScopeService securityScope,
                               OrganizationCapabilityService organizationCapability) {
+        this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
+                clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
+                securityScope, organizationCapability, null, null);
+    }
+
+    @Autowired
+    public PrinterServiceImpl(PrinterRepository repository,
+                              com.aeg.core.printermodel.PrinterModelRepository modelRepository,
+                              com.aeg.core.software.SoftwareRepository softwareRepository,
+                              com.aeg.core.firmware.FirmwareRepository firmwareRepository,
+                              com.aeg.core.distributor.DistributorRepository distributorRepository,
+                              com.aeg.core.client.ClientRepository clientRepository,
+                              SealRepository sealRepository,
+                              AnnualInspectionRepository annualInspectionRepository,
+                              TechnicalServiceVisitRepository technicalServiceVisitRepository,
+                              SecurityScopeService securityScope,
+                              OrganizationCapabilityService organizationCapability,
+                              ModificationRequestRepository modificationRequestRepository,
+                              PrinterCreditPaymentRepository creditPaymentRepository) {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
@@ -76,13 +106,25 @@ public class PrinterServiceImpl implements PrinterService {
         this.technicalServiceVisitRepository = technicalServiceVisitRepository;
         this.securityScope = securityScope;
         this.organizationCapability = organizationCapability;
+        this.modificationRequestRepository = modificationRequestRepository;
+        this.creditPaymentRepository = creditPaymentRepository;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PrinterResponse> findAll() {
-        return securityScope.findVisiblePrinters().stream()
-                .map(slimTicketInList ? this::toListResponse : this::toResponse)
+        List<Printer> printers = securityScope.findVisiblePrinters();
+        if (printers.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Long> pendingRequestsByPrinter = loadPendingEnajenacionRequestMap();
+        Map<Long, CreditTotals> creditTotalsByPrinter = loadCreditTotalsMap(printers);
+        return printers.stream()
+                .map(p -> toResponse(
+                        p,
+                        !slimTicketInList,
+                        pendingRequestsByPrinter.get(p.getId()),
+                        creditTotalsByPrinter.get(p.getId())))
                 .toList();
     }
 
@@ -182,12 +224,21 @@ public class PrinterServiceImpl implements PrinterService {
             p.setHeader(null);
             p.setTrailer(null);
             p.setInstallationDate(null);
+            p.setEnajenacionAutorizada(false);
+            p.setEnajenacionAutorizadaAt(null);
+            p.setEnajenacionAutorizadaBy(null);
+            p.setCreditInstallments(null);
         } else if (!request.status().isDisposed()) {
             if (p.getStatus().isDisposed() || p.getClient() == null) {
                 p.setHeader(null);
                 p.setTrailer(null);
             }
             p.setInstallationDate(request.installationDate());
+            if (request.status() != PrinterStatus.EN_CONSIGNACION) {
+                p.setEnajenacionAutorizada(false);
+                p.setEnajenacionAutorizadaAt(null);
+                p.setEnajenacionAutorizadaBy(null);
+            }
         } else if (request.installationDate() != null) {
             p.setInstallationDate(request.installationDate());
         }
@@ -488,6 +539,9 @@ public class PrinterServiceImpl implements PrinterService {
                     && previousStatus != PrinterStatus.ASIGNADA) {
                 status = PrinterStatus.ASIGNADA;
                 printer.setStatus(status);
+                printer.setEnajenacionAutorizada(false);
+                printer.setEnajenacionAutorizadaAt(null);
+                printer.setEnajenacionAutorizadaBy(null);
             } else if (status == PrinterStatus.A_CREDITO
                     && Boolean.TRUE.equals(requestedPaid)
                     && previousStatus != PrinterStatus.ENAJENADA) {
@@ -508,6 +562,11 @@ public class PrinterServiceImpl implements PrinterService {
         if (printer.getStatus() == PrinterStatus.ASIGNADA && !Boolean.TRUE.equals(printer.getPaid())) {
             throw new IllegalArgumentException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
+        }
+        if (printer.getStatus() == PrinterStatus.EN_CONSIGNACION
+                && !Boolean.TRUE.equals(printer.getEnajenacionAutorizada())) {
+            throw new IllegalArgumentException(
+                    "Esta impresora en consignación requiere permiso aprobado del administrador antes de poder enajenarse.");
         }
         if (request.clientId() == null) {
             throw new IllegalArgumentException("clientId is required to dispose a printer");
@@ -551,6 +610,26 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     private PrinterResponse toResponse(Printer p) {
+        Long pendingRequestId = modificationRequestRepository != null && p.getId() != null
+                ? modificationRequestRepository
+                        .findFirstByTargetTypeAndTargetIdAndStatusOrderByCreatedAtDesc(
+                                ModificationTargetType.PRINTER_ENAJENACION,
+                                p.getId(),
+                                ModificationRequestStatus.PENDING)
+                        .map(mr -> mr.getId())
+                        .orElse(null)
+                : null;
+        CreditTotals totals = p.getId() != null
+                ? loadCreditTotalsMap(List.of(p)).get(p.getId())
+                : null;
+        return toResponse(p, true, pendingRequestId, totals);
+    }
+
+    private PrinterResponse toResponse(
+            Printer p,
+            boolean includeTicketBody,
+            Long pendingEnajenacionRequestId,
+            CreditTotals creditTotals) {
         return new PrinterResponse(
                 p.getId(),
                 p.getModelId(),
@@ -568,38 +647,55 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getVersionFirmware(),
                 p.getMacAddress(),
                 p.getDeviceType(),
-                p.getHeader(),
-                p.getTrailer(),
+                includeTicketBody ? p.getHeader() : null,
+                includeTicketBody ? p.getTrailer() : null,
                 p.getEncryptionKey(),
                 PrinterResponse.ticketConfigured(p.getHeader()),
-                p.isFirmwareUpdateUnverified()
+                p.isFirmwareUpdateUnverified(),
+                Boolean.TRUE.equals(p.getEnajenacionAutorizada()),
+                p.getEnajenacionAutorizadaAt(),
+                p.getCreditInstallments(),
+                pendingEnajenacionRequestId,
+                creditTotals != null ? creditTotals.totalPaid() : BigDecimal.ZERO,
+                creditTotals != null ? creditTotals.paymentCount() : 0L
         );
     }
 
-    /** Variante liviana para listados: sin header/trailer. */
-    private PrinterResponse toListResponse(Printer p) {
-        return new PrinterResponse(
-                p.getId(),
-                p.getModelId(),
-                p.getSoftwareId(),
-                p.getClientId(),
-                p.getFiscalSerial(),
-                p.getFinalSalePrice(),
-                p.getCreatedAt(),
-                p.getCreationBatchId(),
-                p.getStatus(),
-                p.getDistributorId(),
-                p.getPaid(),
-                p.getInstallationDate(),
-                p.getFirmwareId(),
-                p.getVersionFirmware(),
-                p.getMacAddress(),
-                p.getDeviceType(),
-                null,
-                null,
-                p.getEncryptionKey(),
-                PrinterResponse.ticketConfigured(p.getHeader()),
-                p.isFirmwareUpdateUnverified()
-        );
+    private Map<Long, Long> loadPendingEnajenacionRequestMap() {
+        if (modificationRequestRepository == null) {
+            return Map.of();
+        }
+        Map<Long, Long> map = new HashMap<>();
+        for (Object[] row : modificationRequestRepository
+                .findPendingTargetIdsAndRequestIds(ModificationTargetType.PRINTER_ENAJENACION)) {
+            if (row != null && row.length >= 2 && row[0] instanceof Number targetId && row[1] instanceof Number reqId) {
+                map.putIfAbsent(targetId.longValue(), reqId.longValue());
+            }
+        }
+        return map;
     }
+
+    private Map<Long, CreditTotals> loadCreditTotalsMap(List<Printer> printers) {
+        if (creditPaymentRepository == null || printers.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = printers.stream()
+                .map(Printer::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, CreditTotals> map = new HashMap<>();
+        for (Object[] row : creditPaymentRepository.summarizeByPrinterIds(ids)) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number printerId) {
+                long count = row[1] instanceof Number n ? n.longValue() : 0L;
+                BigDecimal total = row[2] instanceof BigDecimal b ? b : BigDecimal.ZERO;
+                map.put(printerId.longValue(), new CreditTotals(count, total));
+            }
+        }
+        return map;
+    }
+
+    private record CreditTotals(long paymentCount, BigDecimal totalPaid) {}
 }

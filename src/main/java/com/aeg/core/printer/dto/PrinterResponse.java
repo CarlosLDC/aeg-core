@@ -29,8 +29,43 @@ public record PrinterResponse(
         PrinterTicketSection trailer,
         String encryptionKey,
         Boolean hasTicketConfig,
-        boolean firmwareUpdateUnverified
+        boolean firmwareUpdateUnverified,
+        Boolean enajenacionAutorizada,
+        OffsetDateTime enajenacionAutorizadaAt,
+        Integer creditInstallments,
+        Long pendingEnajenacionRequestId,
+        BigDecimal creditPaidTotal,
+        Long creditPaymentCount
 ) {
+    public PrinterResponse(
+            Long id,
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            OffsetDateTime createdAt,
+            UUID creationBatchId,
+            PrinterStatus status,
+            Long distributorId,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            Long firmwareId,
+            String versionFirmware,
+            String macAddress,
+            DeviceType deviceType,
+            PrinterTicketSection header,
+            PrinterTicketSection trailer,
+            String encryptionKey,
+            Boolean hasTicketConfig,
+            boolean firmwareUpdateUnverified) {
+        this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
+                creationBatchId, status, distributorId, paid, installationDate,
+                firmwareId, versionFirmware, macAddress, deviceType, header, trailer,
+                encryptionKey, hasTicketConfig, firmwareUpdateUnverified,
+                false, null, null, null, BigDecimal.ZERO, 0L);
+    }
+
     public PrinterResponse(
             Long id,
             Long modelId,

@@ -35,6 +35,11 @@ public class EnajenacionPreconditionValidator {
             throw new EnajenacionProtocolException(
                     "Solo se pueden enajenar impresoras con estatus de pago Pagada.");
         }
+        if (printer.getStatus() == PrinterStatus.EN_CONSIGNACION
+                && !Boolean.TRUE.equals(printer.getEnajenacionAutorizada())) {
+            throw new EnajenacionProtocolException(
+                    "Esta impresora en consignación requiere autorización del administrador antes de poder enajenarse.");
+        }
         if (printer.getClient() == null) {
             throw new EnajenacionProtocolException("Printer has no assigned client");
         }

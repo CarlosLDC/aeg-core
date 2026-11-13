@@ -91,6 +91,18 @@ public class Printer {
     @Column(name = "llave_encriptacion")
     private String encryptionKey;
 
+    @Column(name = "enajenacion_autorizada", nullable = false)
+    private Boolean enajenacionAutorizada = false;
+
+    @Column(name = "enajenacion_autorizada_at")
+    private OffsetDateTime enajenacionAutorizadaAt;
+
+    @Column(name = "enajenacion_autorizada_by")
+    private Long enajenacionAutorizadaBy;
+
+    @Column(name = "cuotas_credito")
+    private Integer creditInstallments;
+
     // Getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -156,10 +168,23 @@ public class Printer {
     public String getLlaveEncrip() { return encryptionKey; }
     public void setLlaveEncrip(String llaveEncrip) { this.encryptionKey = llaveEncrip; }
 
+    public Boolean getEnajenacionAutorizada() { return enajenacionAutorizada; }
+    public void setEnajenacionAutorizada(Boolean enajenacionAutorizada) { this.enajenacionAutorizada = enajenacionAutorizada; }
+
+    public OffsetDateTime getEnajenacionAutorizadaAt() { return enajenacionAutorizadaAt; }
+    public void setEnajenacionAutorizadaAt(OffsetDateTime enajenacionAutorizadaAt) { this.enajenacionAutorizadaAt = enajenacionAutorizadaAt; }
+
+    public Long getEnajenacionAutorizadaBy() { return enajenacionAutorizadaBy; }
+    public void setEnajenacionAutorizadaBy(Long enajenacionAutorizadaBy) { this.enajenacionAutorizadaBy = enajenacionAutorizadaBy; }
+
+    public Integer getCreditInstallments() { return creditInstallments; }
+    public void setCreditInstallments(Integer creditInstallments) { this.creditInstallments = creditInstallments; }
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = OffsetDateTime.now();
         if (paid == null) paid = false;
+        if (enajenacionAutorizada == null) enajenacionAutorizada = false;
         if (status == null) status = PrinterStatus.DE_FABRICA;
         if (deviceType == null) deviceType = DeviceType.INTERNO;
     }
