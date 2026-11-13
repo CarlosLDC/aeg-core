@@ -238,7 +238,7 @@ public class PrinterEnajenacionRequestServiceImpl implements PrinterEnajenacionR
         ModificationRequest req = findRequest(id);
         assertPending(req);
         assertRequesterOrAdmin(req);
-        req.setStatus(ModificationRequestStatus.REJECTED);
+        req.setStatus(ModificationRequestStatus.CANCELLED);
         ModificationRequest saved = repository.save(req);
         Printer printer = printerRepository.findById(req.getTargetId()).orElse(null);
         return toDetailResponse(saved, printer);

@@ -95,10 +95,24 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 		client.setReviewStatus(ClientReviewStatus.PENDING_REVIEW);
 		clientRepository.save(client);
 
+		Map<String, Object> snapshotData = new LinkedHashMap<>();
+		if (client.getBranch() != null && client.getBranch().getCompany() != null) {
+			Company company = client.getBranch().getCompany();
+			if (company.getBusinessName() != null) {
+				snapshotData.put("businessName", company.getBusinessName());
+			}
+			if (company.getRif() != null) {
+				snapshotData.put("rif", company.getRif());
+			}
+		}
+
 		ModificationRequest request = new ModificationRequest();
 		request.setTargetType(ModificationTargetType.CLIENT);
 		request.setTargetId(client.getId());
 		request.setActionType(ModificationActionType.DELETE);
+		if (!snapshotData.isEmpty()) {
+			request.setProposedData(snapshotData);
+		}
 		request.setRequestedBy(requestedBy);
 		request.setStatus(ModificationRequestStatus.PENDING);
 
@@ -184,7 +198,7 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 		client.setReviewStatus(ClientReviewStatus.ACTIVE);
 		clientRepository.save(client);
 
-		request.setStatus(ModificationRequestStatus.REJECTED);
+		request.setStatus(ModificationRequestStatus.CANCELLED);
 		return toDetailResponse(repository.save(request), client);
 	}
 
@@ -295,9 +309,18 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 
 	private ClientModificationRequestListItemResponse toListItemResponse(ModificationRequest request) {
 		Client client = clientRepository.findById(request.getTargetId()).orElse(null);
-		String clientName = "Cliente eliminado";
+		String clientName = null;
 		if (client != null && client.getBranch() != null && client.getBranch().getCompany() != null) {
 			clientName = client.getBranch().getCompany().getBusinessName();
+		}
+		if ((clientName == null || clientName.isBlank()) && request.getProposedData() != null) {
+			Object rawName = request.getProposedData().get("businessName");
+			if (rawName != null && !String.valueOf(rawName).isBlank()) {
+				clientName = String.valueOf(rawName).trim();
+			}
+		}
+		if (clientName == null || clientName.isBlank()) {
+			clientName = "Cliente eliminado";
 		}
 		return new ClientModificationRequestListItemResponse(
 				request.getId(),
