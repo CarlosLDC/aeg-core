@@ -215,7 +215,7 @@ class UserControllerUnitTest {
     }
 
     @Test
-    void createUser_technician_withoutNationalId_returnsBadRequest() {
+    void createUser_technician_withoutNationalId_succeeds() {
         UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
         req.setName("Técnico");
         req.setEmail("tech@aeg.local");
@@ -230,10 +230,18 @@ class UserControllerUnitTest {
         when(userRepository.findByUsername("tech@aeg.local")).thenReturn(Optional.empty());
         when(branchRepository.findById(12L)).thenReturn(Optional.of(branch));
         when(serviceCenterRepository.findByBranch_Id(12L)).thenReturn(Optional.of(center));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(5L);
+            return saved;
+        });
 
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        verify(userRepository, never()).save(ArgumentMatchers.any());
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.TECHNICIAN);
+        assertThat(resp.getBody().getNationalId()).isNull();
     }
 
     @Test
@@ -261,7 +269,7 @@ class UserControllerUnitTest {
     }
 
     @Test
-    void createUser_asAdminWithoutNationalId_returnsBadRequest() {
+    void createUser_asAdminWithoutNationalId_succeeds() {
         UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
         req.setName("Admin");
         req.setEmail("admin-new@aeg.local");
@@ -269,10 +277,45 @@ class UserControllerUnitTest {
         req.setRole("ADMIN");
 
         when(userRepository.findByUsername("admin-new@aeg.local")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("p")).thenReturn("encoded");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(98L);
+            return saved;
+        });
 
         ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        verify(userRepository, never()).save(ArgumentMatchers.any());
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.ADMIN);
+        assertThat(resp.getBody().getNationalId()).isNull();
+    }
+
+    @Test
+    void createUser_distributor_withoutNationalId_succeeds() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Distribuidor");
+        req.setEmail("dist-noid@aeg.local");
+        req.setPassword("p");
+        req.setRole("DISTRIBUTOR");
+        req.setDistributorId(7L);
+
+        Distributor distributor = distributorWithOrgRole(7L, BranchOrganizationRole.DISTRIBUTOR);
+
+        when(userRepository.findByUsername("dist-noid@aeg.local")).thenReturn(Optional.empty());
+        when(distributorRepository.findById(7L)).thenReturn(Optional.of(distributor));
+        when(passwordEncoder.encode("p")).thenReturn("enc-p");
+        when(userRepository.save(ArgumentMatchers.any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setId(97L);
+            return saved;
+        });
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getRole()).isEqualTo(Role.DISTRIBUTOR);
+        assertThat(resp.getBody().getNationalId()).isNull();
     }
 
     @Test

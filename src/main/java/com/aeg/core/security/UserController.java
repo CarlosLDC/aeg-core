@@ -172,9 +172,6 @@ public class UserController {
             User existing) {
         if (role == Role.ADMIN) {
             String nationalId = resolveNationalIdFromRequest(createRequest, updateRequest, existing);
-            if (nationalId == null) {
-                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
-            }
             ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
             if (nationalIdConflict != null) {
                 return nationalIdConflict;
@@ -191,7 +188,7 @@ public class UserController {
                     : createRequest != null
                             ? createRequest.getDistributorId()
                             : existing != null ? existing.getDistributorId() : null;
-            if (nationalId == null || distributorId == null) {
+            if (distributorId == null) {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
             ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
@@ -221,9 +218,6 @@ public class UserController {
                 return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
             }
             String nationalId = resolveNationalIdFromRequest(createRequest, updateRequest, existing);
-            if (nationalId == null) {
-                return ProfileAssignment.error(org.springframework.http.HttpStatus.BAD_REQUEST);
-            }
             ProfileAssignment nationalIdConflict = assertNationalIdAvailable(nationalId, existing);
             if (nationalIdConflict != null) {
                 return nationalIdConflict;
@@ -247,6 +241,9 @@ public class UserController {
     }
 
     private ProfileAssignment assertNationalIdAvailable(String nationalId, User existing) {
+        if (nationalId == null) {
+            return null;
+        }
         Long excludeId = existing != null ? existing.getId() : null;
         if (excludeId != null
                 ? userRepository.existsByNationalIdAndIdNot(nationalId, excludeId)
