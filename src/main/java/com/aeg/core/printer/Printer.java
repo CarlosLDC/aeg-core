@@ -103,6 +103,16 @@ public class Printer {
     @JoinColumn(name = "id_caja")
     private com.aeg.core.inventorybox.InventoryBox box;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_factura_comercial")
+    private com.aeg.core.commercial.FacturaComercial facturaComercial;
+
+    @Column(name = "pendiente_etiqueta", nullable = false)
+    private Boolean pendienteEtiqueta = false;
+
+    @Column(name = "condicion_hardware", nullable = false, length = 30)
+    private String condicionHardware = "OPERATIVA";
+
     // Getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -181,11 +191,23 @@ public class Printer {
     public void setBox(com.aeg.core.inventorybox.InventoryBox box) { this.box = box; }
     public Long getBoxId() { return box == null ? null : box.getId(); }
 
+    public com.aeg.core.commercial.FacturaComercial getFacturaComercial() { return facturaComercial; }
+    public void setFacturaComercial(com.aeg.core.commercial.FacturaComercial facturaComercial) { this.facturaComercial = facturaComercial; }
+    public Long getFacturaComercialId() { return facturaComercial == null ? null : facturaComercial.getId(); }
+
+    public Boolean getPendienteEtiqueta() { return pendienteEtiqueta; }
+    public void setPendienteEtiqueta(Boolean pendienteEtiqueta) { this.pendienteEtiqueta = pendienteEtiqueta; }
+
+    public String getCondicionHardware() { return condicionHardware; }
+    public void setCondicionHardware(String condicionHardware) { this.condicionHardware = condicionHardware; }
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) createdAt = OffsetDateTime.now();
         if (paid == null) paid = false;
         if (enajenacionAutorizada == null) enajenacionAutorizada = false;
+        if (pendienteEtiqueta == null) pendienteEtiqueta = false;
+        if (condicionHardware == null || condicionHardware.isBlank()) condicionHardware = "OPERATIVA";
         if (status == null) status = PrinterStatus.DE_FABRICA;
     }
 }
