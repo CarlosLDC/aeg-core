@@ -99,6 +99,10 @@ public class Printer {
     @Column(name = "cuotas_credito")
     private Integer creditInstallments;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_caja")
+    private com.aeg.core.inventorybox.InventoryBox box;
+
     // Getters / setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -172,6 +176,10 @@ public class Printer {
 
     public Integer getCreditInstallments() { return creditInstallments; }
     public void setCreditInstallments(Integer creditInstallments) { this.creditInstallments = creditInstallments; }
+
+    public com.aeg.core.inventorybox.InventoryBox getBox() { return box; }
+    public void setBox(com.aeg.core.inventorybox.InventoryBox box) { this.box = box; }
+    public Long getBoxId() { return box == null ? null : box.getId(); }
 
     @PrePersist
     public void prePersist() {

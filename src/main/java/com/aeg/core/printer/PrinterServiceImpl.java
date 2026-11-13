@@ -59,6 +59,7 @@ public class PrinterServiceImpl implements PrinterService {
     private final OrganizationCapabilityService organizationCapability;
     private final ModificationRequestRepository modificationRequestRepository;
     private final PrinterCreditPaymentRepository creditPaymentRepository;
+    private final com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository;
     /**
      * Si es true, el listado omite header/trailer (JSON pesado) y expone solo hasTicketConfig.
      * Poner printers.list.slim-ticket=false para revertir sin tocar código.
@@ -79,7 +80,25 @@ public class PrinterServiceImpl implements PrinterService {
                               OrganizationCapabilityService organizationCapability) {
         this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
                 clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
-                securityScope, organizationCapability, null, null);
+                securityScope, organizationCapability, null, null, null);
+    }
+
+    public PrinterServiceImpl(PrinterRepository repository,
+                              com.aeg.core.printermodel.PrinterModelRepository modelRepository,
+                              com.aeg.core.software.SoftwareRepository softwareRepository,
+                              com.aeg.core.firmware.FirmwareRepository firmwareRepository,
+                              com.aeg.core.distributor.DistributorRepository distributorRepository,
+                              com.aeg.core.client.ClientRepository clientRepository,
+                              SealRepository sealRepository,
+                              AnnualInspectionRepository annualInspectionRepository,
+                              TechnicalServiceVisitRepository technicalServiceVisitRepository,
+                              SecurityScopeService securityScope,
+                              OrganizationCapabilityService organizationCapability,
+                              ModificationRequestRepository modificationRequestRepository,
+                              PrinterCreditPaymentRepository creditPaymentRepository) {
+        this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
+                clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
+                securityScope, organizationCapability, modificationRequestRepository, creditPaymentRepository, null);
     }
 
     @Autowired
@@ -95,7 +114,8 @@ public class PrinterServiceImpl implements PrinterService {
                               SecurityScopeService securityScope,
                               OrganizationCapabilityService organizationCapability,
                               ModificationRequestRepository modificationRequestRepository,
-                              PrinterCreditPaymentRepository creditPaymentRepository) {
+                              PrinterCreditPaymentRepository creditPaymentRepository,
+                              com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository) {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
@@ -109,6 +129,7 @@ public class PrinterServiceImpl implements PrinterService {
         this.organizationCapability = organizationCapability;
         this.modificationRequestRepository = modificationRequestRepository;
         this.creditPaymentRepository = creditPaymentRepository;
+        this.inventoryBoxRepository = inventoryBoxRepository;
     }
 
     @Override
@@ -120,12 +141,14 @@ public class PrinterServiceImpl implements PrinterService {
         }
         Map<Long, Long> pendingRequestsByPrinter = loadPendingEnajenacionRequestMap();
         Map<Long, CreditTotals> creditTotalsByPrinter = loadCreditTotalsMap(printers);
+        Map<Long, Integer> boxNumbersById = loadBoxNumberMap();
         return printers.stream()
                 .map(p -> toResponse(
                         p,
                         !slimTicketInList,
                         pendingRequestsByPrinter.get(p.getId()),
-                        creditTotalsByPrinter.get(p.getId())))
+                        creditTotalsByPrinter.get(p.getId()),
+                        resolveBoxNumber(p, boxNumbersById)))
                 .toList();
     }
 
@@ -172,6 +195,7 @@ public class PrinterServiceImpl implements PrinterService {
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
         p.setCreationBatchId(request.creationBatchId());
+        applyBox(p, request.boxId());
         String encryptionKey = request.encryptionKey();
         if ((encryptionKey == null || encryptionKey.isBlank()) && normalizedMac != null && request.fiscalSerial() != null) {
             encryptionKey = PrinterEncryptionKeyGenerator.generateKey(request.fiscalSerial(), normalizedMac);
@@ -251,6 +275,7 @@ public class PrinterServiceImpl implements PrinterService {
         boolean macChanged = !java.util.Objects.equals(p.getMacAddress(), normalizedMac);
         p.setMacAddress(normalizedMac);
         p.setStatus(request.status());
+        applyBox(p, request.boxId());
         if (request.encryptionKey() != null) {
             p.setEncryptionKey(request.encryptionKey().isBlank() ? null : request.encryptionKey());
         } else if (macChanged || p.getEncryptionKey() == null) {
@@ -671,14 +696,15 @@ public class PrinterServiceImpl implements PrinterService {
         CreditTotals totals = p.getId() != null
                 ? loadCreditTotalsMap(List.of(p)).get(p.getId())
                 : null;
-        return toResponse(p, true, pendingRequestId, totals);
+        return toResponse(p, true, pendingRequestId, totals, resolveSingleBoxNumber(p));
     }
 
     private PrinterResponse toResponse(
             Printer p,
             boolean includeTicketBody,
             Long pendingEnajenacionRequestId,
-            CreditTotals creditTotals) {
+            CreditTotals creditTotals,
+            Integer boxNumber) {
         return new PrinterResponse(
                 p.getId(),
                 p.getModelId(),
@@ -705,8 +731,53 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getCreditInstallments(),
                 pendingEnajenacionRequestId,
                 creditTotals != null ? creditTotals.totalPaid() : BigDecimal.ZERO,
-                creditTotals != null ? creditTotals.paymentCount() : 0L
+                creditTotals != null ? creditTotals.paymentCount() : 0L,
+                p.getBoxId(),
+                boxNumber
         );
+    }
+
+    private void applyBox(Printer printer, Long boxId) {
+        if (boxId == null) {
+            printer.setBox(null);
+            return;
+        }
+        if (inventoryBoxRepository == null) {
+            throw new IllegalStateException("InventoryBoxRepository not available");
+        }
+        printer.setBox(inventoryBoxRepository.findById(boxId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inventory box not found with id: " + boxId)));
+    }
+
+    private Map<Long, Integer> loadBoxNumberMap() {
+        if (inventoryBoxRepository == null) {
+            return Map.of();
+        }
+        Map<Long, Integer> map = new HashMap<>();
+        for (com.aeg.core.inventorybox.InventoryBox box : inventoryBoxRepository.findAll()) {
+            if (box.getId() != null && box.getBoxNumber() != null) {
+                map.put(box.getId(), box.getBoxNumber());
+            }
+        }
+        return map;
+    }
+
+    private Integer resolveBoxNumber(Printer p, Map<Long, Integer> boxNumbersById) {
+        Long boxId = p.getBoxId();
+        if (boxId == null) {
+            return null;
+        }
+        return boxNumbersById.get(boxId);
+    }
+
+    private Integer resolveSingleBoxNumber(Printer p) {
+        Long boxId = p.getBoxId();
+        if (boxId == null || inventoryBoxRepository == null) {
+            return null;
+        }
+        return inventoryBoxRepository.findById(boxId)
+                .map(com.aeg.core.inventorybox.InventoryBox::getBoxNumber)
+                .orElse(null);
     }
 
     private Map<Long, Long> loadPendingEnajenacionRequestMap() {

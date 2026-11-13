@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -54,4 +55,18 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
                OR (p.distributor IS NOT NULL AND p.distributor.branch.id IN :branchIds)
             """)
     List<Printer> findByVisibleBranchIds(@Param("branchIds") Collection<Long> branchIds);
+
+    long countByBox_Id(Long boxId);
+
+    @Query("""
+            SELECT p.box.id, COUNT(p)
+            FROM Printer p
+            WHERE p.box IS NOT NULL
+            GROUP BY p.box.id
+            """)
+    List<Object[]> countPrintersGroupedByBoxId();
+
+    @Modifying
+    @Query("UPDATE Printer p SET p.box = NULL WHERE p.box.id = :boxId")
+    int clearBoxByBoxId(@Param("boxId") Long boxId);
 }
