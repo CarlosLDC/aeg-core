@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
+import com.aeg.core.printer.dto.PrinterEnajenacionAuthorizeRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterFirmwareQueryRequest;
 import com.aeg.core.printer.dto.PrinterFirmwareQueryResponse;
@@ -76,6 +77,13 @@ public class PrinterController {
     @PostMapping("/{id}/enajenar")
     public PrinterResponse dispose(@PathVariable Long id, @Valid @RequestBody PrinterDispositionRequest request) {
         return service.dispose(id, request);
+    }
+
+    @PostMapping("/{id}/autorizar-enajenacion")
+    public PrinterResponse authorizeEnajenacion(
+            @PathVariable Long id,
+            @Valid @RequestBody PrinterEnajenacionAuthorizeRequest request) {
+        return service.authorizeEnajenacion(id, request);
     }
 
     @PostMapping("/query-firmware")

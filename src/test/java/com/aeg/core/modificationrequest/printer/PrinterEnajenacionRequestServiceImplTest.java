@@ -73,24 +73,17 @@ class PrinterEnajenacionRequestServiceImplTest {
     }
 
     @Test
-    void createRequestCreatesPendingRequestForEnConsignacionPrinter() {
+    void createRequestRejectsDistributor() {
         when(securityScope.currentUser()).thenReturn(distributorUser);
-        when(repository.findFirstByTargetTypeAndTargetIdAndStatusOrderByCreatedAtDesc(
-                ModificationTargetType.PRINTER_ENAJENACION, 10L, ModificationRequestStatus.PENDING))
-                .thenReturn(Optional.empty());
 
-        var res = service.createRequest(new PrinterEnajenacionCreateRequest(10L, 4, "Cliente solicita 4 cuotas"));
-
-        assertThat(res.id()).isEqualTo(99L);
-        assertThat(res.status()).isEqualTo(ModificationRequestStatus.PENDING);
-        assertThat(res.suggestedInstallments()).isEqualTo(4);
-        assertThat(res.notes()).isEqualTo("Cliente solicita 4 cuotas");
+        assertThatThrownBy(() -> service.createRequest(new PrinterEnajenacionCreateRequest(10L, 4, "Cliente solicita 4 cuotas")))
+                .isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
     void createRequestRejectsNonConsignmentPrinter() {
         printer.setStatus(PrinterStatus.ASIGNADA);
-        when(securityScope.currentUser()).thenReturn(distributorUser);
+        when(securityScope.currentUser()).thenReturn(adminUser);
 
         assertThatThrownBy(() -> service.createRequest(new PrinterEnajenacionCreateRequest(10L, 3, null)))
                 .isInstanceOf(IllegalArgumentException.class);

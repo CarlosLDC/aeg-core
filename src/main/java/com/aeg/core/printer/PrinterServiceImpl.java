@@ -19,6 +19,7 @@ import com.aeg.core.printer.credit.PrinterCreditPaymentRepository;
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDependencyRef;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
+import com.aeg.core.printer.dto.PrinterEnajenacionAuthorizeRequest;
 import com.aeg.core.printer.dto.PrinterEnajenacionTicketResponse;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
@@ -585,6 +586,54 @@ public class PrinterServiceImpl implements PrinterService {
             printer.setInstallationDate(java.time.OffsetDateTime.now());
         }
         return repository.save(printer);
+    }
+
+    @Override
+    public PrinterResponse authorizeEnajenacion(Long id, PrinterEnajenacionAuthorizeRequest request) {
+        User admin = securityScope.currentUser();
+        if (admin.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Solo un administrador puede dar permiso para enajenar una impresora en consignación.");
+        }
+        Printer printer = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + id));
+        if (printer.getStatus() != PrinterStatus.EN_CONSIGNACION) {
+            throw new IllegalArgumentException(
+                    "Solo se puede dar permiso de enajenación a impresoras en consignación.");
+        }
+        if (Boolean.TRUE.equals(printer.getEnajenacionAutorizada())) {
+            throw new IllegalArgumentException(
+                    "Esta impresora ya tiene permiso aprobado para enajenarse.");
+        }
+
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        printer.setEnajenacionAutorizada(true);
+        printer.setEnajenacionAutorizadaAt(now);
+        printer.setEnajenacionAutorizadaBy(admin.getId());
+        printer.setCreditInstallments(request.creditInstallments());
+        if (request.finalSalePrice() != null) {
+            printer.setFinalSalePrice(request.finalSalePrice());
+        }
+        Printer saved = repository.save(printer);
+
+        if (modificationRequestRepository != null) {
+            modificationRequestRepository
+                    .findFirstByTargetTypeAndTargetIdAndStatusOrderByCreatedAtDesc(
+                            ModificationTargetType.PRINTER_ENAJENACION,
+                            printer.getId(),
+                            ModificationRequestStatus.PENDING)
+                    .ifPresent(req -> {
+                        Map<String, Object> data = new java.util.LinkedHashMap<>(
+                                req.getProposedData() != null ? req.getProposedData() : Map.of());
+                        data.put("approvedInstallments", request.creditInstallments());
+                        data.put("reviewedAt", now.toString());
+                        data.put("reviewedByName", admin.getName());
+                        req.setProposedData(data);
+                        req.setStatus(ModificationRequestStatus.APPROVED);
+                        modificationRequestRepository.save(req);
+                    });
+        }
+
+        return toResponse(saved);
     }
 
     private com.aeg.core.firmware.Firmware resolveFirmware(Long firmwareId, String versionFirmware, Long modelId) {

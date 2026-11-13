@@ -95,7 +95,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/software-modification-requests/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/software-modification-requests/*/approve", "/api/software-modification-requests/*/reject").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/software-modification-requests/*/cancel").hasAnyRole("ADMIN", "DISTRIBUTOR")
-				.requestMatchers(HttpMethod.POST, "/api/printer-enajenacion-requests").hasAnyRole("ADMIN", "DISTRIBUTOR")
+				.requestMatchers(HttpMethod.POST, "/api/printer-enajenacion-requests").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printer-enajenacion-requests/pending").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.GET, "/api/printer-enajenacion-requests/*").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.GET, "/api/printer-enajenacion-requests/**").hasRole("ADMIN")

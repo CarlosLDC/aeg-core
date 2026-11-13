@@ -213,6 +213,44 @@ public class PrinterControllerIT {
     }
 
     @Test
+    void authorizeEnajenacionAllowsAdminForConsignmentPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printer.getId() + "/autorizar-enajenacion"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"creditInstallments\":6,\"finalSalePrice\":500.00}"))
+                .build();
+        var res = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getEnajenacionAutorizada()).isTrue();
+        assertThat(updated.getCreditInstallments()).isEqualTo(6);
+        assertThat(updated.getFinalSalePrice()).isEqualByComparingTo("500.00");
+    }
+
+    @Test
+    void authorizeEnajenacionRejectsNonConsignmentPrinter() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printer.getId() + "/autorizar-enajenacion"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"creditInstallments\":4}"))
+                .build();
+        var res = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        assertThat(res.statusCode()).isEqualTo(400);
+    }
+
+    @Test
     void markingPaidMovesACreditoToEnajenada() throws Exception {
         Distributor distributor = createDistributor();
         Printer printer = createPrinterWithDistributor(distributor, PrinterStatus.A_CREDITO, false);

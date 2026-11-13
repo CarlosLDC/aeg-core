@@ -47,6 +47,11 @@ public class PrinterEnajenacionRequestServiceImpl implements PrinterEnajenacionR
 
     @Override
     public PrinterEnajenacionRequestDetailResponse createRequest(PrinterEnajenacionCreateRequest request) {
+        User currentUser = securityScope.currentUser();
+        if (currentUser.getRole() != com.aeg.core.security.Role.ADMIN) {
+            throw new AccessDeniedException(
+                    "Los distribuidores no pueden solicitar permiso para enajenar impresoras en consignación.");
+        }
         Printer printer = printerRepository.findById(request.printerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + request.printerId()));
         securityScope.assertPrinterInScope(printer);
