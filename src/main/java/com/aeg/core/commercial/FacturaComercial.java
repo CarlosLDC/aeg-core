@@ -21,14 +21,11 @@ public class FacturaComercial {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_factura", length = 30)
+    @Column(name = "numero_factura", nullable = false, length = 30)
     private String numeroFactura;
 
-    @Column(name = "sufijo_control", length = 10)
-    private String sufijoControl;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_cliente_comercial")
+    @JoinColumn(name = "id_cliente_comercial", nullable = false)
     private ClienteComercial clienteComercial;
 
     @Column(name = "modalidad", nullable = false, length = 30)
@@ -36,9 +33,6 @@ public class FacturaComercial {
 
     @Column(name = "estado_cobro", nullable = false, length = 30)
     private String estadoCobro = "PAGADO";
-
-    @Column(name = "notas_comerciales", columnDefinition = "TEXT")
-    private String notasComerciales;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -68,14 +62,6 @@ public class FacturaComercial {
         this.numeroFactura = numeroFactura;
     }
 
-    public String getSufijoControl() {
-        return sufijoControl;
-    }
-
-    public void setSufijoControl(String sufijoControl) {
-        this.sufijoControl = sufijoControl;
-    }
-
     public ClienteComercial getClienteComercial() {
         return clienteComercial;
     }
@@ -98,14 +84,6 @@ public class FacturaComercial {
 
     public void setEstadoCobro(String estadoCobro) {
         this.estadoCobro = estadoCobro;
-    }
-
-    public String getNotasComerciales() {
-        return notasComerciales;
-    }
-
-    public void setNotasComerciales(String notasComerciales) {
-        this.notasComerciales = notasComerciales;
     }
 
     public OffsetDateTime getCreatedAt() {

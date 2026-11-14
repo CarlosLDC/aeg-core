@@ -169,7 +169,7 @@ class ToolsMqttServiceTest {
         assertEquals("RedFiscal", scanResponse.networks().get(0).ssid());
 
         FiscalMqttResponseItem fpItem = new FiscalMqttResponseItem(
-                "StaInf", 0, 0, "{\"1\":\"[1]EFECTIVO\",\"2\":\"[2]PUNTO DE VENTA\"}");
+                "StaInf", 0, 0, "{\"[1]EFECTIVO\":\"ACTIVO\",\"[2]PUNTO DE VENTA\":\"ACTIVO\"}");
         when(legacyClient.publishAndAwaitItem(eq(MAC), anyString(), any(Predicate.class), anyInt()))
                 .thenReturn(fpItem);
 

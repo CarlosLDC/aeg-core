@@ -99,17 +99,22 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
     }
 
     private void applyRequest(FacturaComercial target, CommercialInvoiceRequest request) {
+        String numeroFactura = trimToNull(request.getNumeroFactura());
+        if (numeroFactura == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El número de factura es obligatorio.");
+        }
+        if (request.getClienteComercialId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El cliente es obligatorio.");
+        }
         String modalidad = normalizeRequiredEnum(request.getModalidad(), ALLOWED_MODALIDADES, "modalidad");
         String estadoCobro = normalizeRequiredEnum(request.getEstadoCobro(), ALLOWED_ESTADOS_COBRO, "estadoCobro");
 
         ClienteComercial cliente = resolveCliente(request.getClienteComercialId());
 
-        target.setNumeroFactura(trimToNull(request.getNumeroFactura()));
-        target.setSufijoControl(trimToNull(request.getSufijoControl()));
+        target.setNumeroFactura(numeroFactura);
         target.setClienteComercial(cliente);
         target.setModalidad(modalidad);
         target.setEstadoCobro(estadoCobro);
-        target.setNotasComerciales(trimToNull(request.getNotasComerciales()));
     }
 
     private ClienteComercial resolveCliente(Long clienteId) {
@@ -191,12 +196,10 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         return CommercialInvoiceResponse.builder()
                 .id(invoice.getId())
                 .numeroFactura(invoice.getNumeroFactura())
-                .sufijoControl(invoice.getSufijoControl())
                 .clienteComercialId(cliente != null ? cliente.getId() : null)
                 .clienteComercialNombre(cliente != null ? cliente.getNombre() : null)
                 .modalidad(invoice.getModalidad())
                 .estadoCobro(invoice.getEstadoCobro())
-                .notasComerciales(invoice.getNotasComerciales())
                 .createdAt(invoice.getCreatedAt())
                 .paymentCount(paymentCount)
                 .paidAmountTotal(paidAmountTotal != null ? paidAmountTotal : BigDecimal.ZERO)
