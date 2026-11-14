@@ -13,8 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.aeg.core.branch.Branch;
+import com.aeg.core.client.Client;
+import com.aeg.core.client.ClientRepository;
 import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.commercial.dto.CommercialInvoiceResponse;
+import com.aeg.core.company.Company;
+import com.aeg.core.distributor.Distributor;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
@@ -29,17 +35,20 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
             "PAGADO", "PAGO_PARCIAL", "DEBE_IVA", "PENDIENTE_PAGO", "POR_FACTURAR", "SIN_CARGO");
 
     private final FacturaComercialRepository facturaRepository;
-    private final ClienteComercialRepository clienteRepository;
+    private final DistributorRepository distributorRepository;
+    private final ClientRepository clientRepository;
     private final PagoComercialRepository pagoRepository;
     private final PrinterRepository printerRepository;
 
     public CommercialInvoiceServiceImpl(
             FacturaComercialRepository facturaRepository,
-            ClienteComercialRepository clienteRepository,
+            DistributorRepository distributorRepository,
+            ClientRepository clientRepository,
             PagoComercialRepository pagoRepository,
             PrinterRepository printerRepository) {
         this.facturaRepository = facturaRepository;
-        this.clienteRepository = clienteRepository;
+        this.distributorRepository = distributorRepository;
+        this.clientRepository = clientRepository;
         this.pagoRepository = pagoRepository;
         this.printerRepository = printerRepository;
     }
@@ -103,26 +112,33 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         if (numeroFactura == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El número de factura es obligatorio.");
         }
-        if (request.getClienteComercialId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El cliente es obligatorio.");
+        Long distribuidorId = request.getDistribuidorId();
+        Long clienteId = request.getClienteId();
+        if (distribuidorId == null && clienteId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe seleccionar un distribuidor o un cliente.");
+        }
+        if (distribuidorId != null && clienteId != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Seleccione un distribuidor o un cliente, no ambos.");
         }
         String modalidad = normalizeRequiredEnum(request.getModalidad(), ALLOWED_MODALIDADES, "modalidad");
         String estadoCobro = normalizeRequiredEnum(request.getEstadoCobro(), ALLOWED_ESTADOS_COBRO, "estadoCobro");
 
-        ClienteComercial cliente = resolveCliente(request.getClienteComercialId());
+        if (distribuidorId != null) {
+            Distributor distributor = distributorRepository.findById(distribuidorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Distributor not found with id: " + distribuidorId));
+            target.setDistributor(distributor);
+            target.setClient(null);
+        } else {
+            Client client = clientRepository.findById(clienteId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + clienteId));
+            target.setClient(client);
+            target.setDistributor(null);
+        }
 
+        target.setClienteComercial(null);
         target.setNumeroFactura(numeroFactura);
-        target.setClienteComercial(cliente);
         target.setModalidad(modalidad);
         target.setEstadoCobro(estadoCobro);
-    }
-
-    private ClienteComercial resolveCliente(Long clienteId) {
-        if (clienteId == null) {
-            return null;
-        }
-        return clienteRepository.findById(clienteId)
-                .orElseThrow(() -> new ResourceNotFoundException("Commercial client not found with id: " + clienteId));
     }
 
     private CommercialInvoiceResponse buildSingleResponse(FacturaComercial invoice) {
@@ -187,17 +203,61 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    static String resolveBranchDisplayName(Branch branch) {
+        if (branch == null) {
+            return null;
+        }
+        Company company = branch.getCompany();
+        if (company == null) {
+            return null;
+        }
+        String businessName = trimToNull(company.getBusinessName());
+        if (businessName != null) {
+            return businessName;
+        }
+        return trimToNull(company.getRif());
+    }
+
+    static String resolveRecipientDisplayName(FacturaComercial invoice) {
+        if (invoice == null) {
+            return null;
+        }
+        if (invoice.getDistributor() != null) {
+            String name = resolveBranchDisplayName(invoice.getDistributor().getBranch());
+            if (name != null) {
+                return name;
+            }
+        }
+        if (invoice.getClient() != null) {
+            String name = resolveBranchDisplayName(invoice.getClient().getBranch());
+            if (name != null) {
+                return name;
+            }
+        }
+        ClienteComercial legacy = invoice.getClienteComercial();
+        return legacy != null ? legacy.getNombre() : null;
+    }
+
     private static CommercialInvoiceResponse toResponse(
             FacturaComercial invoice,
             long paymentCount,
             BigDecimal paidAmountTotal,
             long printerCount) {
-        ClienteComercial cliente = invoice.getClienteComercial();
+        Distributor distributor = invoice.getDistributor();
+        Client client = invoice.getClient();
+        ClienteComercial legacy = invoice.getClienteComercial();
+        String distributorName = distributor != null ? resolveBranchDisplayName(distributor.getBranch()) : null;
+        String clientName = client != null ? resolveBranchDisplayName(client.getBranch()) : null;
+        String recipientName = resolveRecipientDisplayName(invoice);
         return CommercialInvoiceResponse.builder()
                 .id(invoice.getId())
                 .numeroFactura(invoice.getNumeroFactura())
-                .clienteComercialId(cliente != null ? cliente.getId() : null)
-                .clienteComercialNombre(cliente != null ? cliente.getNombre() : null)
+                .distribuidorId(distributor != null ? distributor.getId() : null)
+                .distribuidorNombre(distributorName)
+                .clienteId(client != null ? client.getId() : null)
+                .clienteNombre(clientName)
+                .clienteComercialId(legacy != null ? legacy.getId() : null)
+                .clienteComercialNombre(recipientName)
                 .modalidad(invoice.getModalidad())
                 .estadoCobro(invoice.getEstadoCobro())
                 .createdAt(invoice.getCreatedAt())

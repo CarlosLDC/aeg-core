@@ -13,46 +13,66 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.aeg.core.branch.Branch;
+import com.aeg.core.client.Client;
+import com.aeg.core.client.ClientRepository;
 import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.commercial.dto.CommercialInvoiceResponse;
+import com.aeg.core.company.Company;
+import com.aeg.core.distributor.Distributor;
+import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.printer.PrinterRepository;
 
 class CommercialInvoiceServiceImplTest {
 
     private FacturaComercialRepository facturaRepository;
-    private ClienteComercialRepository clienteRepository;
+    private DistributorRepository distributorRepository;
+    private ClientRepository clientRepository;
     private PagoComercialRepository pagoRepository;
     private PrinterRepository printerRepository;
     private CommercialInvoiceServiceImpl service;
 
-    private ClienteComercial cliente;
-
     @BeforeEach
     void setUp() {
         facturaRepository = mock(FacturaComercialRepository.class);
-        clienteRepository = mock(ClienteComercialRepository.class);
+        distributorRepository = mock(DistributorRepository.class);
+        clientRepository = mock(ClientRepository.class);
         pagoRepository = mock(PagoComercialRepository.class);
         printerRepository = mock(PrinterRepository.class);
 
-        cliente = new ClienteComercial();
-        cliente.setId(10L);
-        cliente.setNombre("Inversiones Ejemplo");
+        Company distCompany = new Company();
+        distCompany.setBusinessName("Distribuidora Norte C.A.");
+        Branch distBranch = new Branch();
+        distBranch.setCompany(distCompany);
+        Distributor distributor = new Distributor();
+        distributor.setId(5L);
+        distributor.setBranch(distBranch);
 
-        when(clienteRepository.findById(10L)).thenReturn(Optional.of(cliente));
+        Company clientCompany = new Company();
+        clientCompany.setBusinessName("Inversiones Ejemplo C.A.");
+        Branch clientBranch = new Branch();
+        clientBranch.setCompany(clientCompany);
+        Client client = new Client();
+        client.setId(10L);
+        client.setBranch(clientBranch);
+
+        when(distributorRepository.findById(5L)).thenReturn(Optional.of(distributor));
+        when(clientRepository.findById(10L)).thenReturn(Optional.of(client));
         when(facturaRepository.save(any(FacturaComercial.class))).thenAnswer(inv -> inv.getArgument(0));
 
         service = new CommercialInvoiceServiceImpl(
                 facturaRepository,
-                clienteRepository,
+                distributorRepository,
+                clientRepository,
                 pagoRepository,
                 printerRepository);
     }
 
     @Test
-    void create_withFourRequiredFields_succeeds() {
+    void create_withDistributor_succeeds() {
         CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
                 .numeroFactura("FAC-001")
-                .clienteComercialId(10L)
+                .distribuidorId(5L)
                 .modalidad("VENTA")
                 .estadoCobro("PAGADO")
                 .build();
@@ -61,10 +81,32 @@ class CommercialInvoiceServiceImplTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getNumeroFactura()).isEqualTo("FAC-001");
-        assertThat(response.getClienteComercialId()).isEqualTo(10L);
-        assertThat(response.getClienteComercialNombre()).isEqualTo("Inversiones Ejemplo");
+        assertThat(response.getDistribuidorId()).isEqualTo(5L);
+        assertThat(response.getDistribuidorNombre()).isEqualTo("Distribuidora Norte C.A.");
+        assertThat(response.getClienteId()).isNull();
+        assertThat(response.getClienteComercialNombre()).isEqualTo("Distribuidora Norte C.A.");
         assertThat(response.getModalidad()).isEqualTo("VENTA");
         assertThat(response.getEstadoCobro()).isEqualTo("PAGADO");
+        verify(facturaRepository).save(any(FacturaComercial.class));
+    }
+
+    @Test
+    void create_withClient_succeeds() {
+        CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-002")
+                .clienteId(10L)
+                .modalidad("CONSIGNACION")
+                .estadoCobro("PENDIENTE_PAGO")
+                .build();
+
+        CommercialInvoiceResponse response = service.create(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getNumeroFactura()).isEqualTo("FAC-002");
+        assertThat(response.getClienteId()).isEqualTo(10L);
+        assertThat(response.getClienteNombre()).isEqualTo("Inversiones Ejemplo C.A.");
+        assertThat(response.getDistribuidorId()).isNull();
+        assertThat(response.getClienteComercialNombre()).isEqualTo("Inversiones Ejemplo C.A.");
         verify(facturaRepository).save(any(FacturaComercial.class));
     }
 
@@ -72,7 +114,7 @@ class CommercialInvoiceServiceImplTest {
     void create_withoutNumeroFactura_throwsResponseStatusException() {
         CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
                 .numeroFactura("   ")
-                .clienteComercialId(10L)
+                .distribuidorId(5L)
                 .modalidad("VENTA")
                 .estadoCobro("PAGADO")
                 .build();
@@ -83,16 +125,30 @@ class CommercialInvoiceServiceImplTest {
     }
 
     @Test
-    void create_withoutCliente_throwsResponseStatusException() {
+    void create_withoutDistributorOrClient_throwsResponseStatusException() {
         CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
                 .numeroFactura("FAC-001")
-                .clienteComercialId(null)
                 .modalidad("VENTA")
                 .estadoCobro("PAGADO")
                 .build();
 
         assertThatThrownBy(() -> service.create(request))
                 .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("cliente es obligatorio");
+                .hasMessageContaining("distribuidor o un cliente");
+    }
+
+    @Test
+    void create_withBothDistributorAndClient_throwsResponseStatusException() {
+        CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-001")
+                .distribuidorId(5L)
+                .clienteId(10L)
+                .modalidad("VENTA")
+                .estadoCobro("PAGADO")
+                .build();
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("no ambos");
     }
 }

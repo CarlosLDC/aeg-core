@@ -122,7 +122,7 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
                 .facturaComercialId(factura != null ? factura.getId() : null)
                 .numeroFactura(factura != null ? factura.getNumeroFactura() : null)
                 .clienteComercialId(cliente != null ? cliente.getId() : null)
-                .clienteComercialNombre(cliente != null ? cliente.getNombre() : null)
+                .clienteComercialNombre(CommercialInvoiceServiceImpl.resolveRecipientDisplayName(factura))
                 .metodoBanco(payment.getMetodoBanco())
                 .referencia(payment.getReferencia())
                 .monto(payment.getMonto())

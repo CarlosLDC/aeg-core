@@ -25,7 +25,15 @@ public class FacturaComercial {
     private String numeroFactura;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_cliente_comercial", nullable = false)
+    @JoinColumn(name = "id_distribuidora")
+    private com.aeg.core.distributor.Distributor distributor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_cliente")
+    private com.aeg.core.client.Client client;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_cliente_comercial")
     private ClienteComercial clienteComercial;
 
     @Column(name = "modalidad", nullable = false, length = 30)
@@ -60,6 +68,22 @@ public class FacturaComercial {
 
     public void setNumeroFactura(String numeroFactura) {
         this.numeroFactura = numeroFactura;
+    }
+
+    public com.aeg.core.distributor.Distributor getDistributor() {
+        return distributor;
+    }
+
+    public void setDistributor(com.aeg.core.distributor.Distributor distributor) {
+        this.distributor = distributor;
+    }
+
+    public com.aeg.core.client.Client getClient() {
+        return client;
+    }
+
+    public void setClient(com.aeg.core.client.Client client) {
+        this.client = client;
     }
 
     public ClienteComercial getClienteComercial() {
