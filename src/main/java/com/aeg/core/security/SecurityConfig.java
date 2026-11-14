@@ -121,8 +121,7 @@ public class SecurityConfig {
 				.requestMatchers(
 						"/api/commercial-invoices/**",
 						"/api/commercial-payments/**",
-						"/api/commercial-clients/**",
-						"/api/commercial-promoters/**"
+						"/api/commercial-clients/**"
 				).hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printers/*/credit-payments").hasAnyRole("ADMIN", "DISTRIBUTOR")

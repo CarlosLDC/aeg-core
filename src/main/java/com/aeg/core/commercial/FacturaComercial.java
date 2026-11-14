@@ -37,10 +37,6 @@ public class FacturaComercial {
     @Column(name = "estado_cobro", nullable = false, length = 30)
     private String estadoCobro = "PAGADO";
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_promotor")
-    private PromotorComercial promotor;
-
     @Column(name = "notas_comerciales", columnDefinition = "TEXT")
     private String notasComerciales;
 
@@ -102,14 +98,6 @@ public class FacturaComercial {
 
     public void setEstadoCobro(String estadoCobro) {
         this.estadoCobro = estadoCobro;
-    }
-
-    public PromotorComercial getPromotor() {
-        return promotor;
-    }
-
-    public void setPromotor(PromotorComercial promotor) {
-        this.promotor = promotor;
     }
 
     public String getNotasComerciales() {

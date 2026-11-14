@@ -8,11 +8,11 @@ import java.util.Optional;
 
 public interface FacturaComercialRepository extends JpaRepository<FacturaComercial, Long> {
 
-    @EntityGraph(attributePaths = {"clienteComercial", "promotor"})
+    @EntityGraph(attributePaths = {"clienteComercial"})
     List<FacturaComercial> findAllByOrderByCreatedAtDesc();
 
     @Override
-    @EntityGraph(attributePaths = {"clienteComercial", "promotor"})
+    @EntityGraph(attributePaths = {"clienteComercial"})
     Optional<FacturaComercial> findById(Long id);
 
     List<FacturaComercial> findByNumeroFactura(String numeroFactura);

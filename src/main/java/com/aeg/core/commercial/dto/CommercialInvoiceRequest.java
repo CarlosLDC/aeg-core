@@ -27,8 +27,6 @@ public class CommercialInvoiceRequest {
     @Size(max = 30)
     private String estadoCobro;
 
-    private Long promotorId;
-
     @Size(max = 5000)
     private String notasComerciales;
 }
