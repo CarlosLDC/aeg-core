@@ -737,6 +737,8 @@ public class PrinterServiceImpl implements PrinterService {
         );
     }
 
+    private static final int MAX_PRINTERS_PER_BOX = 8;
+
     private void applyBox(Printer printer, Long boxId) {
         if (boxId == null) {
             printer.setBox(null);
@@ -744,6 +746,10 @@ public class PrinterServiceImpl implements PrinterService {
         }
         if (inventoryBoxRepository == null) {
             throw new IllegalStateException("InventoryBoxRepository not available");
+        }
+        boolean isBoxChange = printer.getBox() == null || !boxId.equals(printer.getBox().getId());
+        if (isBoxChange && repository.countByBox_Id(boxId) >= MAX_PRINTERS_PER_BOX) {
+            throw new IllegalArgumentException("La caja seleccionada ya tiene el límite máximo de 8 impresoras.");
         }
         printer.setBox(inventoryBoxRepository.findById(boxId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inventory box not found with id: " + boxId)));

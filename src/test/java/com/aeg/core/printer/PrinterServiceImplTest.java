@@ -126,4 +126,45 @@ class PrinterServiceImplTest {
         assertThat(printer.getSoftware()).isNull();
         verify(repository).save(printer);
     }
+
+    @Test
+    void create_boxWith8Printers_throwsIllegalArgumentException() {
+        com.aeg.core.inventorybox.InventoryBoxRepository boxRepo = mock(com.aeg.core.inventorybox.InventoryBoxRepository.class);
+        User adminUser = new User();
+        adminUser.setId(1L);
+        adminUser.setRole(Role.ADMIN);
+        when(securityScope.currentUser()).thenReturn(adminUser);
+
+        com.aeg.core.printermodel.PrinterModel model = new com.aeg.core.printermodel.PrinterModel();
+        model.setId(1L);
+        model.setSerialPrefix("ABC");
+        when(modelRepository.findById(1L)).thenReturn(Optional.of(model));
+
+        when(repository.existsByFiscalSerialIgnoreCase("ABC1234567")).thenReturn(false);
+        when(repository.countByBox_Id(10L)).thenReturn(8L);
+
+        PrinterServiceImpl adminService = new PrinterServiceImpl(
+                repository,
+                modelRepository,
+                softwareRepository,
+                firmwareRepository,
+                distributorRepository,
+                clientRepository,
+                sealRepository,
+                annualInspectionRepository,
+                technicalServiceVisitRepository,
+                securityScope,
+                organizationCapability,
+                null,
+                null,
+                boxRepo);
+
+        PrinterRequest request = new PrinterRequest(
+                1L, null, null, null, "ABC1234567", null, false, null, null, null,
+                null, PrinterStatus.SIN_ASIGNAR, null, null, 10L);
+
+        assertThatThrownBy(() -> adminService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ya tiene el límite máximo de 8 impresoras");
+    }
 }
