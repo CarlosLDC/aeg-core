@@ -6,6 +6,8 @@ import java.util.List;
 
 public interface FacturaComercialRepository extends JpaRepository<FacturaComercial, Long> {
 
+    List<FacturaComercial> findAllByOrderByCreatedAtDesc();
+
     List<FacturaComercial> findByNumeroFactura(String numeroFactura);
 
     List<FacturaComercial> findByModalidad(String modalidad);

@@ -69,4 +69,18 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
     @Modifying
     @Query("UPDATE Printer p SET p.box = NULL WHERE p.box.id = :boxId")
     int clearBoxByBoxId(@Param("boxId") Long boxId);
+
+    long countByFacturaComercial_Id(Long facturaComercialId);
+
+    @Query("""
+            SELECT p.facturaComercial.id, COUNT(p)
+            FROM Printer p
+            WHERE p.facturaComercial IS NOT NULL
+            GROUP BY p.facturaComercial.id
+            """)
+    List<Object[]> countPrintersGroupedByFacturaComercialId();
+
+    @Modifying
+    @Query("UPDATE Printer p SET p.facturaComercial = NULL WHERE p.facturaComercial.id = :facturaId")
+    int clearFacturaComercialByFacturaId(@Param("facturaId") Long facturaId);
 }
