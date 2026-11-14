@@ -17,7 +17,8 @@ public class CommercialPaymentResponse {
     private Long id;
     private Long facturaComercialId;
     private String numeroFactura;
-    private String facturaCliente;
+    private Long clienteComercialId;
+    private String clienteComercialNombre;
     private String metodoBanco;
     private String referencia;
     private BigDecimal monto;

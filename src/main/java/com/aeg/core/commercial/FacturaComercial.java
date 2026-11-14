@@ -2,9 +2,12 @@ package com.aeg.core.commercial;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
@@ -24,8 +27,9 @@ public class FacturaComercial {
     @Column(name = "sufijo_control", length = 10)
     private String sufijoControl;
 
-    @Column(name = "factura_cliente", length = 50)
-    private String facturaCliente;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_cliente_comercial")
+    private ClienteComercial clienteComercial;
 
     @Column(name = "modalidad", nullable = false, length = 30)
     private String modalidad = "VENTA";
@@ -33,8 +37,9 @@ public class FacturaComercial {
     @Column(name = "estado_cobro", nullable = false, length = 30)
     private String estadoCobro = "PAGADO";
 
-    @Column(name = "promotor_vendedor", length = 100)
-    private String promotorVendedor;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_promotor")
+    private PromotorComercial promotor;
 
     @Column(name = "notas_comerciales", columnDefinition = "TEXT")
     private String notasComerciales;
@@ -75,12 +80,12 @@ public class FacturaComercial {
         this.sufijoControl = sufijoControl;
     }
 
-    public String getFacturaCliente() {
-        return facturaCliente;
+    public ClienteComercial getClienteComercial() {
+        return clienteComercial;
     }
 
-    public void setFacturaCliente(String facturaCliente) {
-        this.facturaCliente = facturaCliente;
+    public void setClienteComercial(ClienteComercial clienteComercial) {
+        this.clienteComercial = clienteComercial;
     }
 
     public String getModalidad() {
@@ -99,12 +104,12 @@ public class FacturaComercial {
         this.estadoCobro = estadoCobro;
     }
 
-    public String getPromotorVendedor() {
-        return promotorVendedor;
+    public PromotorComercial getPromotor() {
+        return promotor;
     }
 
-    public void setPromotorVendedor(String promotorVendedor) {
-        this.promotorVendedor = promotorVendedor;
+    public void setPromotor(PromotorComercial promotor) {
+        this.promotor = promotor;
     }
 
     public String getNotasComerciales() {

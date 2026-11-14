@@ -29,14 +29,20 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
             "PAGADO", "PAGO_PARCIAL", "DEBE_IVA", "PENDIENTE_PAGO", "POR_FACTURAR", "SIN_CARGO");
 
     private final FacturaComercialRepository facturaRepository;
+    private final ClienteComercialRepository clienteRepository;
+    private final PromotorComercialRepository promotorRepository;
     private final PagoComercialRepository pagoRepository;
     private final PrinterRepository printerRepository;
 
     public CommercialInvoiceServiceImpl(
             FacturaComercialRepository facturaRepository,
+            ClienteComercialRepository clienteRepository,
+            PromotorComercialRepository promotorRepository,
             PagoComercialRepository pagoRepository,
             PrinterRepository printerRepository) {
         this.facturaRepository = facturaRepository;
+        this.clienteRepository = clienteRepository;
+        this.promotorRepository = promotorRepository;
         this.pagoRepository = pagoRepository;
         this.printerRepository = printerRepository;
     }
@@ -99,13 +105,32 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         String modalidad = normalizeRequiredEnum(request.getModalidad(), ALLOWED_MODALIDADES, "modalidad");
         String estadoCobro = normalizeRequiredEnum(request.getEstadoCobro(), ALLOWED_ESTADOS_COBRO, "estadoCobro");
 
+        ClienteComercial cliente = resolveCliente(request.getClienteComercialId());
+        PromotorComercial promotor = resolvePromotor(request.getPromotorId());
+
         target.setNumeroFactura(trimToNull(request.getNumeroFactura()));
         target.setSufijoControl(trimToNull(request.getSufijoControl()));
-        target.setFacturaCliente(trimToNull(request.getFacturaCliente()));
+        target.setClienteComercial(cliente);
         target.setModalidad(modalidad);
         target.setEstadoCobro(estadoCobro);
-        target.setPromotorVendedor(trimToNull(request.getPromotorVendedor()));
+        target.setPromotor(promotor);
         target.setNotasComerciales(trimToNull(request.getNotasComerciales()));
+    }
+
+    private ClienteComercial resolveCliente(Long clienteId) {
+        if (clienteId == null) {
+            return null;
+        }
+        return clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commercial client not found with id: " + clienteId));
+    }
+
+    private PromotorComercial resolvePromotor(Long promotorId) {
+        if (promotorId == null) {
+            return null;
+        }
+        return promotorRepository.findById(promotorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commercial promoter not found with id: " + promotorId));
     }
 
     private CommercialInvoiceResponse buildSingleResponse(FacturaComercial invoice) {
@@ -175,14 +200,18 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
             long paymentCount,
             BigDecimal paidAmountTotal,
             long printerCount) {
+        ClienteComercial cliente = invoice.getClienteComercial();
+        PromotorComercial promotor = invoice.getPromotor();
         return CommercialInvoiceResponse.builder()
                 .id(invoice.getId())
                 .numeroFactura(invoice.getNumeroFactura())
                 .sufijoControl(invoice.getSufijoControl())
-                .facturaCliente(invoice.getFacturaCliente())
+                .clienteComercialId(cliente != null ? cliente.getId() : null)
+                .clienteComercialNombre(cliente != null ? cliente.getNombre() : null)
                 .modalidad(invoice.getModalidad())
                 .estadoCobro(invoice.getEstadoCobro())
-                .promotorVendedor(invoice.getPromotorVendedor())
+                .promotorId(promotor != null ? promotor.getId() : null)
+                .promotorNombre(promotor != null ? promotor.getNombre() : null)
                 .notasComerciales(invoice.getNotasComerciales())
                 .createdAt(invoice.getCreatedAt())
                 .paymentCount(paymentCount)

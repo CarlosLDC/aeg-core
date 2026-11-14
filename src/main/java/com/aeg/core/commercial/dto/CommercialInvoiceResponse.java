@@ -17,10 +17,12 @@ public class CommercialInvoiceResponse {
     private Long id;
     private String numeroFactura;
     private String sufijoControl;
-    private String facturaCliente;
+    private Long clienteComercialId;
+    private String clienteComercialNombre;
     private String modalidad;
     private String estadoCobro;
-    private String promotorVendedor;
+    private Long promotorId;
+    private String promotorNombre;
     private String notasComerciales;
     private OffsetDateTime createdAt;
     private long paymentCount;

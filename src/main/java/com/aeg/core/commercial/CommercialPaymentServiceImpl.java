@@ -116,11 +116,13 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
 
     private static CommercialPaymentResponse toResponse(PagoComercial payment) {
         FacturaComercial factura = payment.getFacturaComercial();
+        ClienteComercial cliente = factura != null ? factura.getClienteComercial() : null;
         return CommercialPaymentResponse.builder()
                 .id(payment.getId())
                 .facturaComercialId(factura != null ? factura.getId() : null)
                 .numeroFactura(factura != null ? factura.getNumeroFactura() : null)
-                .facturaCliente(factura != null ? factura.getFacturaCliente() : null)
+                .clienteComercialId(cliente != null ? cliente.getId() : null)
+                .clienteComercialNombre(cliente != null ? cliente.getNombre() : null)
                 .metodoBanco(payment.getMetodoBanco())
                 .referencia(payment.getReferencia())
                 .monto(payment.getMonto())

@@ -17,8 +17,7 @@ public class CommercialInvoiceRequest {
     @Size(max = 10)
     private String sufijoControl;
 
-    @Size(max = 50)
-    private String facturaCliente;
+    private Long clienteComercialId;
 
     @NotBlank
     @Size(max = 30)
@@ -28,8 +27,7 @@ public class CommercialInvoiceRequest {
     @Size(max = 30)
     private String estadoCobro;
 
-    @Size(max = 100)
-    private String promotorVendedor;
+    private Long promotorId;
 
     @Size(max = 5000)
     private String notasComerciales;
