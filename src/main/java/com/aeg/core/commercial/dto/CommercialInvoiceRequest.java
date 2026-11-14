@@ -1,6 +1,7 @@
 package com.aeg.core.commercial.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,9 +20,8 @@ public class CommercialInvoiceRequest {
     @Size(max = 30, message = "El número de factura no puede superar los 30 caracteres.")
     private String numeroFactura;
 
-    private Long distribuidorId;
-
-    private Long clienteId;
+    @NotNull(message = "La empresa es obligatoria.")
+    private Long empresaId;
 
     @NotBlank(message = "La modalidad es obligatoria.")
     @Size(max = 30, message = "La modalidad no puede superar los 30 caracteres.")

@@ -11,6 +11,7 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
 
     @EntityGraph(attributePaths = {
             "facturaComercial",
+            "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
             "facturaComercial.clienteComercial"
@@ -20,6 +21,7 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
     @Override
     @EntityGraph(attributePaths = {
             "facturaComercial",
+            "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
             "facturaComercial.clienteComercial"
@@ -30,6 +32,7 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
 
     @EntityGraph(attributePaths = {
             "facturaComercial",
+            "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
             "facturaComercial.clienteComercial"

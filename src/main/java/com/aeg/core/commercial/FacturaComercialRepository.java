@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface FacturaComercialRepository extends JpaRepository<FacturaComercial, Long> {
 
     @EntityGraph(attributePaths = {
+            "company",
             "distributor", "distributor.branch", "distributor.branch.company",
             "client", "client.branch", "client.branch.company",
             "clienteComercial"
@@ -17,6 +18,7 @@ public interface FacturaComercialRepository extends JpaRepository<FacturaComerci
 
     @Override
     @EntityGraph(attributePaths = {
+            "company",
             "distributor", "distributor.branch", "distributor.branch.company",
             "client", "client.branch", "client.branch.company",
             "clienteComercial"

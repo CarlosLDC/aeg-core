@@ -16,10 +16,9 @@ public class CommercialInvoiceResponse {
 
     private Long id;
     private String numeroFactura;
-    private Long distribuidorId;
-    private String distribuidorNombre;
-    private Long clienteId;
-    private String clienteNombre;
+    private Long empresaId;
+    private String empresaNombre;
+    private String empresaRif;
     private Long clienteComercialId;
     private String clienteComercialNombre;
     private String modalidad;
