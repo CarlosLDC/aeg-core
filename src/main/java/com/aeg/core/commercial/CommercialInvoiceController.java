@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.aeg.core.commercial.dto.CommercialInvoicePrintersRequest;
 import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.commercial.dto.CommercialInvoiceResponse;
 
@@ -49,6 +50,21 @@ public class CommercialInvoiceController {
             @PathVariable Long id,
             @Valid @RequestBody CommercialInvoiceRequest request) {
         return service.update(id, request);
+    }
+
+    @PutMapping("/{id}/printers")
+    public CommercialInvoiceResponse syncPrinters(
+            @PathVariable Long id,
+            @RequestBody(required = false) CommercialInvoicePrintersRequest request) {
+        List<Long> printerIds = request != null ? request.getPrinterIds() : List.of();
+        return service.syncPrinters(id, printerIds);
+    }
+
+    @DeleteMapping("/{id}/printers/{printerId}")
+    public CommercialInvoiceResponse unlinkPrinter(
+            @PathVariable Long id,
+            @PathVariable Long printerId) {
+        return service.unlinkPrinter(id, printerId);
     }
 
     @DeleteMapping("/{id}")

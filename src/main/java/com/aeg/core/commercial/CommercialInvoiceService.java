@@ -16,4 +16,8 @@ public interface CommercialInvoiceService {
     CommercialInvoiceResponse update(Long id, CommercialInvoiceRequest request);
 
     void delete(Long id);
+
+    CommercialInvoiceResponse syncPrinters(Long id, List<Long> printerIds);
+
+    CommercialInvoiceResponse unlinkPrinter(Long id, Long printerId);
 }

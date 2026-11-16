@@ -72,6 +72,23 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
 
     long countByFacturaComercial_Id(Long facturaComercialId);
 
+    List<Printer> findByFacturaComercial_IdOrderByFiscalSerialAsc(Long facturaComercialId);
+
+    @Query("""
+            SELECT p.id, f.id, f.numeroFactura
+            FROM Printer p
+            JOIN p.facturaComercial f
+            """)
+    List<Object[]> findAllPrinterCommercialInvoiceRefs();
+
+    @Query("""
+            SELECT f.id, f.numeroFactura
+            FROM Printer p
+            JOIN p.facturaComercial f
+            WHERE p.id = :printerId
+            """)
+    List<Object[]> findPrinterCommercialInvoiceRef(@Param("printerId") Long printerId);
+
     @Query("""
             SELECT p.facturaComercial.id, COUNT(p)
             FROM Printer p
@@ -80,7 +97,19 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
             """)
     List<Object[]> countPrintersGroupedByFacturaComercialId();
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Printer p SET p.facturaComercial = NULL WHERE p.facturaComercial.id = :facturaId")
     int clearFacturaComercialByFacturaId(@Param("facturaId") Long facturaId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Printer p SET p.facturaComercial = :factura WHERE p.id IN :printerIds")
+    int assignFacturaComercialByPrinterIds(
+            @Param("factura") com.aeg.core.commercial.FacturaComercial factura,
+            @Param("printerIds") Collection<Long> printerIds);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Printer p SET p.facturaComercial = NULL WHERE p.facturaComercial.id = :facturaId AND p.id = :printerId")
+    int clearFacturaComercialByFacturaIdAndPrinterId(
+            @Param("facturaId") Long facturaId,
+            @Param("printerId") Long printerId);
 }

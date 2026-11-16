@@ -35,8 +35,47 @@ public record PrinterResponse(
         BigDecimal creditPaidTotal,
         Long creditPaymentCount,
         Long boxId,
-        Integer boxNumber
+        Integer boxNumber,
+        Long facturaComercialId,
+        String facturaComercialNumero
 ) {
+    public PrinterResponse(
+            Long id,
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            OffsetDateTime createdAt,
+            UUID creationBatchId,
+            PrinterStatus status,
+            Long distributorId,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            Long firmwareId,
+            String versionFirmware,
+            String macAddress,
+            PrinterTicketSection header,
+            PrinterTicketSection trailer,
+            String encryptionKey,
+            Boolean hasTicketConfig,
+            boolean firmwareUpdateUnverified,
+            Boolean enajenacionAutorizada,
+            OffsetDateTime enajenacionAutorizadaAt,
+            Integer creditInstallments,
+            Long pendingEnajenacionRequestId,
+            BigDecimal creditPaidTotal,
+            Long creditPaymentCount,
+            Long boxId,
+            Integer boxNumber) {
+        this(id, modelId, softwareId, clientId, fiscalSerial, finalSalePrice, createdAt,
+                creationBatchId, status, distributorId, paid, installationDate,
+                firmwareId, versionFirmware, macAddress, header, trailer,
+                encryptionKey, hasTicketConfig, firmwareUpdateUnverified,
+                enajenacionAutorizada, enajenacionAutorizadaAt, creditInstallments,
+                pendingEnajenacionRequestId, creditPaidTotal, creditPaymentCount,
+                boxId, boxNumber, null, null);
+    }
     public PrinterResponse(
             Long id,
             Long modelId,

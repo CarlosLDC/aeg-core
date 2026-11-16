@@ -142,13 +142,15 @@ public class PrinterServiceImpl implements PrinterService {
         Map<Long, Long> pendingRequestsByPrinter = loadPendingEnajenacionRequestMap();
         Map<Long, CreditTotals> creditTotalsByPrinter = loadCreditTotalsMap(printers);
         Map<Long, Integer> boxNumbersById = loadBoxNumberMap();
+        Map<Long, CommercialInvoiceRef> invoiceRefsByPrinter = loadCommercialInvoiceRefMap();
         return printers.stream()
                 .map(p -> toResponse(
                         p,
                         !slimTicketInList,
                         pendingRequestsByPrinter.get(p.getId()),
                         creditTotalsByPrinter.get(p.getId()),
-                        resolveBoxNumber(p, boxNumbersById)))
+                        resolveBoxNumber(p, boxNumbersById),
+                        invoiceRefsByPrinter.get(p.getId())))
                 .toList();
     }
 
@@ -696,7 +698,13 @@ public class PrinterServiceImpl implements PrinterService {
         CreditTotals totals = p.getId() != null
                 ? loadCreditTotalsMap(List.of(p)).get(p.getId())
                 : null;
-        return toResponse(p, true, pendingRequestId, totals, resolveSingleBoxNumber(p));
+        return toResponse(
+                p,
+                true,
+                pendingRequestId,
+                totals,
+                resolveSingleBoxNumber(p),
+                resolveSingleCommercialInvoiceRef(p));
     }
 
     private PrinterResponse toResponse(
@@ -704,7 +712,10 @@ public class PrinterServiceImpl implements PrinterService {
             boolean includeTicketBody,
             Long pendingEnajenacionRequestId,
             CreditTotals creditTotals,
-            Integer boxNumber) {
+            Integer boxNumber,
+            CommercialInvoiceRef commercialInvoiceRef) {
+        Long invoiceId = commercialInvoiceRef != null ? commercialInvoiceRef.id() : p.getFacturaComercialId();
+        String invoiceNumber = commercialInvoiceRef != null ? commercialInvoiceRef.numeroFactura() : null;
         return new PrinterResponse(
                 p.getId(),
                 p.getModelId(),
@@ -733,7 +744,9 @@ public class PrinterServiceImpl implements PrinterService {
                 creditTotals != null ? creditTotals.totalPaid() : BigDecimal.ZERO,
                 creditTotals != null ? creditTotals.paymentCount() : 0L,
                 p.getBoxId(),
-                boxNumber
+                boxNumber,
+                invoiceId,
+                invoiceNumber
         );
     }
 
@@ -836,5 +849,46 @@ public class PrinterServiceImpl implements PrinterService {
         return normalized;
     }
 
+    private Map<Long, CommercialInvoiceRef> loadCommercialInvoiceRefMap() {
+        List<Object[]> rows = repository.findAllPrinterCommercialInvoiceRefs();
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, CommercialInvoiceRef> map = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number printerId && row[1] instanceof Number invoiceId) {
+                String numeroFactura = row[2] != null ? row[2].toString() : null;
+                map.put(printerId.longValue(), new CommercialInvoiceRef(invoiceId.longValue(), numeroFactura));
+            }
+        }
+        return map;
+    }
+
+    private CommercialInvoiceRef resolveSingleCommercialInvoiceRef(Printer p) {
+        if (p == null) {
+            return null;
+        }
+        if (p.getFacturaComercial() != null) {
+            return new CommercialInvoiceRef(
+                    p.getFacturaComercial().getId(),
+                    p.getFacturaComercial().getNumeroFactura());
+        }
+        if (p.getId() == null) {
+            return null;
+        }
+        List<Object[]> rows = repository.findPrinterCommercialInvoiceRef(p.getId());
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        Object[] row = rows.get(0);
+        if (row != null && row.length >= 2 && row[0] instanceof Number invoiceId) {
+            String numeroFactura = row[1] != null ? row[1].toString() : null;
+            return new CommercialInvoiceRef(invoiceId.longValue(), numeroFactura);
+        }
+        return null;
+    }
+
     private record CreditTotals(long paymentCount, BigDecimal totalPaid) {}
+
+    private record CommercialInvoiceRef(Long id, String numeroFactura) {}
 }

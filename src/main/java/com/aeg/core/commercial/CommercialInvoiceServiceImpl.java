@@ -3,10 +3,12 @@ package com.aeg.core.commercial;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -94,6 +96,50 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         FacturaComercial invoice = findEntityById(id);
         printerRepository.clearFacturaComercialByFacturaId(invoice.getId());
         facturaRepository.delete(invoice);
+    }
+
+    @Override
+    public CommercialInvoiceResponse syncPrinters(Long id, List<Long> printerIds) {
+        FacturaComercial invoice = findEntityById(id);
+        Set<Long> distinctIds = new LinkedHashSet<>();
+        if (printerIds != null) {
+            for (Long printerId : printerIds) {
+                if (printerId == null) {
+                    continue;
+                }
+                if (printerId <= 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de impresora inválido.");
+                }
+                distinctIds.add(printerId);
+            }
+        }
+
+        if (!distinctIds.isEmpty()) {
+            Set<Long> foundIds = printerRepository.findAllById(distinctIds).stream()
+                    .map(com.aeg.core.printer.Printer::getId)
+                    .collect(Collectors.toSet());
+            for (Long expectedId : distinctIds) {
+                if (!foundIds.contains(expectedId)) {
+                    throw new ResourceNotFoundException("Printer not found with id: " + expectedId);
+                }
+            }
+        }
+
+        printerRepository.clearFacturaComercialByFacturaId(invoice.getId());
+        if (!distinctIds.isEmpty()) {
+            printerRepository.assignFacturaComercialByPrinterIds(invoice, distinctIds);
+        }
+        return buildSingleResponse(invoice);
+    }
+
+    @Override
+    public CommercialInvoiceResponse unlinkPrinter(Long id, Long printerId) {
+        FacturaComercial invoice = findEntityById(id);
+        if (printerId == null || printerId <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de impresora inválido.");
+        }
+        printerRepository.clearFacturaComercialByFacturaIdAndPrinterId(invoice.getId(), printerId);
+        return buildSingleResponse(invoice);
     }
 
     private FacturaComercial findEntityById(Long id) {
