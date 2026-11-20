@@ -2,6 +2,7 @@ package com.aeg.core.inspection;
 
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import com.aeg.core.organization.OrgCapability;
 import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
+import com.aeg.core.security.Role;
 import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 import com.aeg.core.security.UserRepository;
@@ -86,6 +88,7 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
 		AnnualInspection e = findEntity(id);
 		assertInspectionInScope(e);
+		assertInspectionOwnedForMutation(e);
 		applyRequest(e, request);
 		AnnualInspection saved = repository.save(e);
 		recordSealAbnormality(saved);
@@ -95,8 +98,10 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 	@Override
 	public void delete(Long id) {
 		securityScope.assertCanWriteAnnualInspection();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
 		AnnualInspection inspection = findEntity(id);
 		assertInspectionInScope(inspection);
+		assertInspectionOwnedForMutation(inspection);
 		repository.delete(inspection);
 	}
 
@@ -117,6 +122,24 @@ public class AnnualInspectionServiceImpl implements AnnualInspectionService {
 		Printer printer = inspection.getPrinter();
 		if (printer != null) {
 			securityScope.assertPrinterInScope(printer);
+		}
+	}
+
+	private void assertInspectionOwnedForMutation(AnnualInspection inspection) {
+		User actor = securityScope.currentUser();
+		if (actor.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (Role.isServiceCenterStaff(actor)) {
+			User inspector = inspection.getInspectorUser();
+			boolean sameUser = actor.getId() != null && actor.getId().equals(inspection.getUserId());
+			boolean sameBranch = actor.getBranchId() != null
+					&& inspector != null
+					&& actor.getBranchId().equals(inspector.getBranchId());
+			if (!sameUser && !sameBranch) {
+				throw new AccessDeniedException(
+						"Service center user can only modify inspections from their own center");
+			}
 		}
 	}
 

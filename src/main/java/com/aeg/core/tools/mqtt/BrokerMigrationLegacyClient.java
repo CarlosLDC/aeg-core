@@ -23,6 +23,7 @@ import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttSyncResponseAwaiter.ToolsMqttTextChunksResult;
 import com.aeg.core.enajenacion.mqtt.FiscalMqttTopics;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
+import com.aeg.core.mqtt.MqttPayloadSanitizer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -126,7 +127,7 @@ public class BrokerMigrationLegacyClient {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     String msg = new String(message.getPayload(), StandardCharsets.UTF_8);
-                    log.info("Received message on legacy topic {}: {}", topic, msg);
+                    log.info("Received message on legacy topic {}: {}", topic, MqttPayloadSanitizer.sanitize(msg));
                     FiscalMqttResponseItem extracted = extractMatchingResponseItem(
                             msg, item -> cmdMatches(item.cmd(), terminalCmd));
                     if (extracted != null && matchedResponse.compareAndSet(null, extracted)) {
@@ -146,7 +147,7 @@ public class BrokerMigrationLegacyClient {
                 MqttMessage message = new MqttMessage(currentPayload.getBytes(StandardCharsets.UTF_8));
                 message.setQos(0);
                 log.info("Publishing sequence payload {}/{} to legacy broker topic {}: {}",
-                        i + 1, payloads.size(), commandTopic, currentPayload);
+                        i + 1, payloads.size(), commandTopic, MqttPayloadSanitizer.sanitize(currentPayload));
                 client.publish(commandTopic, message);
                 if (i < payloads.size() - 1 && commandDelayMs > 0) {
                     Thread.sleep(commandDelayMs);
@@ -202,7 +203,7 @@ public class BrokerMigrationLegacyClient {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     String msg = new String(message.getPayload(), StandardCharsets.UTF_8);
-                    log.info("Received message on legacy topic {}: {}", topic, msg);
+                    log.info("Received message on legacy topic {}: {}", topic, MqttPayloadSanitizer.sanitize(msg));
                     ToolsMqttTextChunksResult result = processTextChunksMessage(state, topic, msg);
                     if (result != null && matchedResult.compareAndSet(null, result)) {
                         latch.countDown();
@@ -219,7 +220,7 @@ public class BrokerMigrationLegacyClient {
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(0);
 
-            log.info("Publishing payload to legacy broker topic {}: {}", commandTopic, payload);
+            log.info("Publishing payload to legacy broker topic {}: {}", commandTopic, MqttPayloadSanitizer.sanitize(payload));
             client.publish(commandTopic, message);
 
             boolean received = latch.await(timeoutSeconds, TimeUnit.SECONDS);
@@ -252,7 +253,8 @@ public class BrokerMigrationLegacyClient {
             client = connectClient(broker, clientId);
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(0);
-            log.info("Publishing fire-and-forget payload to legacy broker topic {}: {}", commandTopic, payload);
+            log.info("Publishing fire-and-forget payload to legacy broker topic {}: {}",
+                    commandTopic, MqttPayloadSanitizer.sanitize(payload));
             client.publish(commandTopic, message);
         } catch (Exception e) {
             log.error("Error publishing fire-and-forget to legacy broker", e);
@@ -418,7 +420,7 @@ public class BrokerMigrationLegacyClient {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     String msg = new String(message.getPayload(), StandardCharsets.UTF_8);
-                    log.info("Received message on legacy topic {}: {}", topic, msg);
+                    log.info("Received message on legacy topic {}: {}", topic, MqttPayloadSanitizer.sanitize(msg));
                     T extracted = extractor.apply(msg);
                     if (extracted != null && matchedResponse.compareAndSet(null, extracted)) {
                         latch.countDown();
@@ -435,7 +437,7 @@ public class BrokerMigrationLegacyClient {
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(0);
 
-            log.info("Publishing payload to legacy broker topic {}: {}", commandTopic, payload);
+            log.info("Publishing payload to legacy broker topic {}: {}", commandTopic, MqttPayloadSanitizer.sanitize(payload));
             client.publish(commandTopic, message);
 
             boolean received = latch.await(timeoutSeconds, TimeUnit.SECONDS);

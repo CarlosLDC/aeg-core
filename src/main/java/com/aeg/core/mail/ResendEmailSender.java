@@ -60,10 +60,9 @@ public class ResendEmailSender implements EmailSender {
         String apiKey = mailProperties.getResend() != null ? mailProperties.getResend().getApiKey() : null;
         if (apiKey == null || apiKey.isBlank()) {
             log.warn(
-                    "[MAIL-FALLBACK] RESEND_API_KEY no configurada. Correo simulado -> to={}, subject={}\n{}",
+                    "[MAIL-FALLBACK] RESEND_API_KEY no configurada. Correo simulado -> to={}, subject={}",
                     message.to(),
-                    message.subject(),
-                    message.textBody()
+                    message.subject()
             );
             return EmailSendResult.LOGGED_ONLY;
         }

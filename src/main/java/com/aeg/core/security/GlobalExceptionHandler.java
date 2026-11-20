@@ -73,7 +73,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UsernameNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleUserNotFound(UsernameNotFoundException e) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Usuario no encontrado", e.getMessage());
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Autenticación fallida", "Usuario o contraseña incorrectos");
     }
 
     @ExceptionHandler({ResourceNotFoundException.class, EntityNotFoundException.class})
@@ -129,10 +129,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException e) {
-        String message = e.getMessage() != null && !e.getMessage().isBlank()
-                ? e.getMessage()
-                : "El servicio no está configurado correctamente.";
+        String raw = e.getMessage();
+        log.warn("Service unavailable IllegalStateException: {}", raw);
+        String message = (raw == null || raw.isBlank() || containsSensitiveInfraHint(raw))
+                ? "El servicio no está disponible temporalmente o requiere configuración."
+                : raw;
         return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Servicio no disponible", message);
+    }
+
+    private static boolean containsSensitiveInfraHint(String raw) {
+        String lower = raw.toLowerCase();
+        return lower.contains("sftp")
+                || lower.contains("droplet")
+                || lower.contains("firmware_")
+                || lower.contains("app_")
+                || lower.contains("scripts/")
+                || lower.contains("sshd");
     }
 
     @ExceptionHandler(EnajenacionProtocolException.class)
@@ -225,12 +237,20 @@ public class GlobalExceptionHandler {
             return buildResponse(HttpStatus.CONFLICT, "Registro duplicado", 
                 "Ya existe un registro con estos datos únicos.");
         }
-        return buildResponse(HttpStatus.BAD_REQUEST, "Error de integridad de datos", message);
+        log.warn("Unhandled data integrity violation: {}", message);
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "Error de integridad de datos",
+                "No se pudo completar la operación por una restricción de integridad de datos.");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, Object>> handleJsonError(HttpMessageNotReadableException e) {
-        return buildResponse(HttpStatus.BAD_REQUEST, "JSON mal formado", e.getMostSpecificCause().getMessage());
+        log.debug("Malformed JSON request: {}", e.getMostSpecificCause().getMessage());
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "JSON mal formado",
+                "El cuerpo JSON de la petición es inválido o tiene un formato incorrecto.");
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

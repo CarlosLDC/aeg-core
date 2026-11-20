@@ -29,10 +29,11 @@ public class MqttInboundBridge {
 		String payload = stringifyPayload(message.getPayload(), topic);
 		Integer qos = integerHeader(message, MqttHeaders.RECEIVED_QOS);
 		MqttInboundMessage inbound = new MqttInboundMessage(topic, payload, Instant.now(), qos);
+		String sanitizedPayload = MqttPayloadSanitizer.sanitize(payload);
 		if (FiscalMqttTopics.isDebugMqttTopic(topic)) {
-			log.debug("MQTT debug inbound topic={} payload={}", topic, payload);
+			log.debug("MQTT debug inbound topic={} payload={}", topic, sanitizedPayload);
 		} else {
-			log.info("MQTT inbound topic={} payload={}", topic, payload);
+			log.info("MQTT inbound topic={} payload={}", topic, sanitizedPayload);
 		}
 		eventPublisher.publishEvent(new MqttInboundReceivedEvent(this, inbound));
 	}

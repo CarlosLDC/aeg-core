@@ -56,6 +56,7 @@ class BrokerMigrationServiceTest {
     private BrokerMigrationLegacyClient legacyClient;
     private FiscalMqttSyncResponseAwaiter awaiter;
     private MqttService mqttService;
+    private SecurityScopeService securityScope;
     private BrokerMigrationService service;
 
     @BeforeEach
@@ -68,8 +69,9 @@ class BrokerMigrationServiceTest {
         legacyClient = mock(BrokerMigrationLegacyClient.class);
         awaiter = mock(FiscalMqttSyncResponseAwaiter.class);
         mqttService = mock(MqttService.class);
+        securityScope = mock(SecurityScopeService.class);
         service = new BrokerMigrationService(
-                repo, mock(FirmwareRepository.class), mock(SecurityScopeService.class), legacyClient, mqttService, awaiter, objectMapper) {
+                repo, mock(FirmwareRepository.class), securityScope, legacyClient, mqttService, awaiter, objectMapper) {
             @Override
             void pause(long millis) {
                 // sin esperas en tests
@@ -226,9 +228,18 @@ class BrokerMigrationServiceTest {
     }
 
     @Test
-    void queryFirmwareByMacReturnsVersionFromNewBroker() {
+    void queryFirmwareByMacReturnsVersionFromNewBrokerForAdmin() {
+        when(securityScope.isAdmin()).thenReturn(true);
         newBrokerReplies(new FiscalMqttResponseItem("statFirmSinDNF", 0, 2, "FIRMWARE DEL SISTEMA: 1.1.2"));
         var res = service.queryFirmwareByMac("F4:12:FA:CE:CE:B8", null);
         assertEquals("1.1.2", res.versionFirmware());
+    }
+
+    @Test
+    void queryFirmwareByMacRejectsUnregisteredMacForNonAdmin() {
+        when(securityScope.isAdmin()).thenReturn(false);
+        assertThrows(
+                org.springframework.security.access.AccessDeniedException.class,
+                () -> service.queryFirmwareByMac("F4:12:FA:CE:CE:B8", null));
     }
 }

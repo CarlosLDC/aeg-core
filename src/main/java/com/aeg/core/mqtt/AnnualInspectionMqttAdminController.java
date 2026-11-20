@@ -10,6 +10,9 @@ import com.aeg.core.enajenacion.mqtt.AnnualInspectionMqttService;
 import com.aeg.core.inspection.qr.AnnualInspectionQrDecoder;
 import com.aeg.core.inspection.qr.AnnualInspectionQrPayload;
 import com.aeg.core.inspection.qr.AnnualInspectionQrValidator;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.mqtt.dto.AnnualInspectionDecodeQrRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfRequest;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
@@ -33,10 +36,14 @@ public class AnnualInspectionMqttAdminController {
     private final AnnualInspectionMqttService annualInspectionMqttService;
     private final AnnualInspectionQrValidator annualInspectionQrValidator;
     private final AnnualInspectionQrDecoder annualInspectionQrDecoder;
+    private final SecurityScopeService securityScope;
+    private final OrganizationCapabilityService organizationCapability;
 
     @PostMapping("/decode-qr")
     public ResponseEntity<AnnualInspectionVerifyQrResponse> decodeQr(
             @Valid @RequestBody AnnualInspectionDecodeQrRequest request) {
+        securityScope.assertCanWriteAnnualInspection();
+        organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
         AnnualInspectionQrPayload payload = annualInspectionQrDecoder.decode(request.qrCodigo());
         return ResponseEntity.ok(new AnnualInspectionVerifyQrResponse(
                 true,

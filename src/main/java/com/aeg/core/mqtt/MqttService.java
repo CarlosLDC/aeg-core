@@ -14,7 +14,7 @@ public class MqttService {
     private final MqttGateway mqttGateway;
 
     public void publish(String topic, String payload) {
-        log.info("Publishing to MQTT topic {}: {}", topic, payload);
+        log.info("Publishing to MQTT topic {}: {}", topic, MqttPayloadSanitizer.sanitize(payload));
         mqttGateway.sendToMqtt(FiscalTicketLatin2.encodeMqttPayload(topic, payload), topic);
     }
 

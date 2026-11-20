@@ -291,6 +291,11 @@ public class PrinterServiceImpl implements PrinterService {
 
     @Override
     public PrinterResponse updateSoftware(Long id, Long softwareId) {
+        securityScope.assertCanWriteOperationalData();
+        Role actorRole = securityScope.currentUser().getRole();
+        if (actorRole != Role.ADMIN && !Role.isDistributorScoped(actorRole)) {
+            throw new AccessDeniedException("Not allowed to update printer software");
+        }
         Printer p = findEntityById(id);
         securityScope.assertPrinterInScope(p);
         if (softwareId != null) {

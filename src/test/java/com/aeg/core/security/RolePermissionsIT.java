@@ -262,6 +262,76 @@ class RolePermissionsIT {
         assertThat(inspection.body()).contains("\"userId\":" + admin.getId());
     }
 
+    @Test
+    void enforcesPatchSoftwarePostOperationalAndCrossTenantAnnualInspectionGuards() throws Exception {
+        ensureUser("seniat-perm@test.local", Role.SENIAT, null, null, null);
+        String seniatToken = tokenFor("seniat-perm@test.local");
+        String technicianToken = tokenFor("sc-tech@test.local");
+        String distributorToken = tokenFor("distributor@test.local");
+
+        var seniatPatch = patch(
+                "/api/printers/" + printerId + "/software",
+                "{\"softwareId\":null}",
+                seniatToken);
+        assertThat(seniatPatch.statusCode()).isEqualTo(403);
+
+        var techPatch = patch(
+                "/api/printers/" + printerId + "/software",
+                "{\"softwareId\":null}",
+                technicianToken);
+        assertThat(techPatch.statusCode()).isEqualTo(403);
+
+        var distCreateDistributor = post(
+                "/api/distributors",
+                "{\"branchId\":999999}",
+                distributorToken);
+        assertThat(distCreateDistributor.statusCode()).isEqualTo(403);
+
+        var distCreateServiceCenter = post(
+                "/api/service-centers",
+                "{\"branchId\":999999}",
+                distributorToken);
+        assertThat(distCreateServiceCenter.statusCode()).isEqualTo(403);
+
+        Company otherCompany = new Company();
+        otherCompany.setBusinessName("Other Dist Co");
+        otherCompany.setRif("V88877766");
+        otherCompany.setContributorType(ContributorType.ORDINARIO);
+        otherCompany = companyRepository.save(otherCompany);
+
+        Branch otherBranch = new Branch();
+        otherBranch.setCompany(otherCompany);
+        otherBranch.setCity("Maracay");
+        otherBranch.setState("Aragua");
+        otherBranch.setOrganizationRole(BranchOrganizationRole.DISTRIBUTOR);
+        otherBranch.setIsDistributor(true);
+        otherBranch = branchRepository.save(otherBranch);
+
+        Distributor otherDistributor = new Distributor();
+        otherDistributor.setBranch(otherBranch);
+        otherDistributor = distributorRepository.save(otherDistributor);
+
+        Client otherClient = new Client();
+        otherClient.setBranch(otherBranch);
+        otherClient.setDistributorId(otherDistributor.getId());
+        otherClient = clientRepository.save(otherClient);
+
+        Printer otherPrinter = new Printer();
+        otherPrinter.setFiscalSerial("RP9998887");
+        otherPrinter.setMacAddress("AA:BB:CC:DD:EE:01");
+        otherPrinter.setStatus(PrinterStatus.ENAJENADA);
+        otherPrinter.setPaid(Boolean.TRUE);
+        otherPrinter.setClient(otherClient);
+        otherPrinter.setDistributor(otherDistributor);
+        otherPrinter = printerRepository.save(otherPrinter);
+
+        var crossTenantStaInf = post(
+                "/api/mqtt/annual-inspection/sta-inf",
+                "{\"printerId\":" + otherPrinter.getId() + "}",
+                distributorToken);
+        assertThat(crossTenantStaInf.statusCode()).isEqualTo(403);
+    }
+
     private User ensureUser(
             String username,
             Role role,
@@ -358,6 +428,19 @@ class RolePermissionsIT {
                 .uri(java.net.URI.create("http://localhost:" + port + path))
                 .header("Content-Type", "application/json")
                 .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body));
+        if (token != null) {
+            builder.header("Authorization", "Bearer " + token);
+        }
+        return java.net.http.HttpClient.newHttpClient().send(
+                builder.build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    private java.net.http.HttpResponse<String> patch(String path, String body, String token) throws Exception {
+        var builder = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + path))
+                .header("Content-Type", "application/json")
+                .method("PATCH", java.net.http.HttpRequest.BodyPublishers.ofString(body));
         if (token != null) {
             builder.header("Authorization", "Bearer " + token);
         }

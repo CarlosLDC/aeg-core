@@ -161,11 +161,10 @@ public class EnajenacionMqttOrchestrator {
             }
             sessionRegistry.register(session);
             log.info(
-                    "Enajenacion session started printerId={} ptrReg={} mac={} encryptionKey={}",
+                    "Enajenacion session started printerId={} ptrReg={} mac={}",
                     printerId,
                     ptrReg,
-                    compactMac,
-                    session.encryptionKey());
+                    compactMac);
             PublishedMqttCommand dnfCommand = publishDnf(session);
             sseNotifier.notifySessionStarted(session, dnfCommand.topic(), dnfCommand.payload());
             return EnajenacionStartOutcome.started();
@@ -496,11 +495,10 @@ public class EnajenacionMqttOrchestrator {
                 completionService.markEnajenada(session.printerId(), session.encryptionKey());
                 session.setState(EnajenacionSessionState.COMPLETED);
                 log.info(
-                        "Enajenacion completed printerId={} ptrReg={} mac={} encryptionKey={}",
+                        "Enajenacion completed printerId={} ptrReg={} mac={}",
                         session.printerId(),
                         session.context().fiscalSerial(),
-                        session.compactMac(),
-                        session.encryptionKey());
+                        session.compactMac());
                 sseNotifier.notifySessionCompleted(session);
                 activityRecorder.recordSessionEvent(
                         session,

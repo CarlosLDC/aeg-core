@@ -24,6 +24,9 @@ public class AdminJwtTokenValidator {
         try {
             String username = jwtService.extractUsername(token);
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (!userDetails.isEnabled()) {
+                return Optional.empty();
+            }
             if (!jwtService.isTokenValid(token, userDetails)) {
                 return Optional.empty();
             }

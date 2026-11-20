@@ -88,7 +88,8 @@ public class SecurityConfig {
 				authorize
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
-				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/distributors/**", "/api/service-centers/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/companies/**", "/api/branches/**", "/api/clients/**").hasAnyRole(PANEL_ROLES)
+				.requestMatchers(HttpMethod.POST, "/api/distributors/**", "/api/service-centers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/companies/**", "/api/branches/**").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.PUT, "/api/distributors/**", "/api/service-centers/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.PUT, "/api/clients/**").hasRole("ADMIN")
@@ -132,6 +133,7 @@ public class SecurityConfig {
 				).hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printers/*/credit-payments").hasAnyRole("ADMIN", "DISTRIBUTOR")
+				.requestMatchers(HttpMethod.PATCH, "/api/printers/*/software").hasAnyRole("ADMIN", "DISTRIBUTOR")
 				.requestMatchers(HttpMethod.PATCH, "/api/printers/*/credit-plan").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/printers/*/credit-payments").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.DELETE, "/api/printers/*/credit-payments/*").hasRole("ADMIN")

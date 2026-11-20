@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.Branch;
+import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
 import com.aeg.core.client.ClientBranchLinkPolicy;
@@ -153,6 +154,21 @@ public class SecurityScopeService {
 			if (userDistributorId == null) {
 				throw new AccessDeniedException("Distributor-scoped user has no distributor id");
 			}
+			var targetBranch = branchRepository.findById(branchId);
+			if (targetBranch.isPresent()) {
+				BranchOrganizationRole orgRole = targetBranch.get().getOrganizationRole();
+				if (orgRole == BranchOrganizationRole.SERVICE_CENTER
+						|| orgRole == BranchOrganizationRole.DISTRIBUTOR) {
+					throw new AccessDeniedException("Not allowed to access operational branch");
+				}
+			}
+			if (serviceCenterRepository.findByBranch_Id(branchId).isPresent()) {
+				throw new AccessDeniedException("Not allowed to access service center branch");
+			}
+			var branchDistributor = distributorRepository.findByBranch_Id(branchId);
+			if (branchDistributor.isPresent() && !userDistributorId.equals(branchDistributor.get().getId())) {
+				throw new AccessDeniedException("Not allowed to access another distributor branch");
+			}
 			var clientOnBranch = clientRepository.findByBranch_Id(branchId);
 			if (clientOnBranch.isEmpty()) {
 				return;
@@ -252,16 +268,20 @@ public class SecurityScopeService {
 		if (signer == null || !Role.canSignTechnicalService(signer.getRole())) {
 			throw new AccessDeniedException("Technical service signer must be an admin or service center technician");
 		}
-		if (signer.getRole() == Role.ADMIN) {
-			return;
-		}
-		if (!Role.isServiceCenterStaff(signer)) {
-			throw new AccessDeniedException("Technical service signer must be a service center technician");
-		}
 		if (isAdmin()) {
 			return;
 		}
-		if (Role.isServiceCenterStaff(currentUser())) {
+		if (signer.getRole() == Role.ADMIN) {
+			throw new AccessDeniedException("Only admins can assign an admin technical service signer");
+		}
+		User actor = currentUser();
+		if (!Role.isServiceCenterStaff(actor) || !Role.isServiceCenterStaff(signer)) {
+			throw new AccessDeniedException("Not allowed to assign this technician signer");
+		}
+		if (signer.getId() != null && signer.getId().equals(actor.getId())) {
+			return;
+		}
+		if (actor.getBranchId() != null && actor.getBranchId().equals(signer.getBranchId())) {
 			return;
 		}
 		throw new AccessDeniedException("Not allowed to assign this technician signer");

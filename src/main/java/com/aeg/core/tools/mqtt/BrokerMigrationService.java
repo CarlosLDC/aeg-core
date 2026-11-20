@@ -435,7 +435,13 @@ public class BrokerMigrationService {
         } catch (IllegalArgumentException ex) {
             throw new EnajenacionProtocolException("Dirección MAC no válida: " + macAddress);
         }
-        printerRepository.findByMacAddressCompact(compactMac).ifPresent(securityScope::assertPrinterInScope);
+        var maybePrinter = printerRepository.findByMacAddressCompact(compactMac);
+        if (maybePrinter.isPresent()) {
+            securityScope.assertPrinterInScope(maybePrinter.get());
+        } else if (!securityScope.isAdmin()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Only admins can query firmware for unregistered printers");
+        }
 
         PrinterContext ctx = new PrinterContext(compactMac, FiscalMqttTopics.comandoTopic(compactMac));
         log.info("Querying firmware version for MAC {}", compactMac);

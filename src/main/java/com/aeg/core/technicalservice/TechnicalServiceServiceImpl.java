@@ -2,6 +2,7 @@ package com.aeg.core.technicalservice;
 
 import java.util.List;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,7 +95,7 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		securityScope.assertCanWriteTechnicalService();
 		organizationCapability.assertActorCan(OrgCapability.WRITE_TECHNICAL_SERVICE);
 		TechnicalServiceVisit e = new TechnicalServiceVisit();
-		applyRequest(e, request, true);
+		applyRequest(e, request);
 		applySealStatusChanges(e, request);
 		TechnicalServiceVisit saved = repository.save(e);
 		recordSealAbnormality(saved);
@@ -107,7 +108,8 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		organizationCapability.assertActorCan(OrgCapability.WRITE_TECHNICAL_SERVICE);
 		TechnicalServiceVisit e = findEntity(id);
 		assertVisitInScope(e);
-		applyRequest(e, request, false);
+		assertVisitOwnedForMutation(e);
+		applyRequest(e, request);
 		TechnicalServiceVisit saved = repository.save(e);
 		recordSealAbnormality(saved);
 		return toResponse(saved);
@@ -116,8 +118,10 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 	@Override
 	public void delete(Long id) {
 		securityScope.assertCanWriteTechnicalService();
+		organizationCapability.assertActorCan(OrgCapability.WRITE_TECHNICAL_SERVICE);
 		TechnicalServiceVisit visit = findEntity(id);
 		assertVisitInScope(visit);
+		assertVisitOwnedForMutation(visit);
 		repository.delete(visit);
 	}
 
@@ -142,12 +146,27 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 		securityScope.assertPrinterInScope(printer);
 	}
 
+	private void assertVisitOwnedForMutation(TechnicalServiceVisit visit) {
+		User actor = securityScope.currentUser();
+		if (actor.getRole() == Role.ADMIN) {
+			return;
+		}
+		if (Role.isServiceCenterStaff(actor)) {
+			if (visit.getServiceCenter() == null
+					|| actor.getBranchId() == null
+					|| !actor.getBranchId().equals(visit.getServiceCenter().getBranchId())) {
+				throw new AccessDeniedException(
+						"Service center user can only modify visits from their own center");
+			}
+		}
+	}
+
 	private TechnicalServiceVisit findEntity(Long id) {
 		return repository.findWithRelationsById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Technical service not found with id: " + id));
 	}
 
-	private void applyRequest(TechnicalServiceVisit e, TechnicalServiceRequest r, boolean creating) {
+	private void applyRequest(TechnicalServiceVisit e, TechnicalServiceRequest r) {
 		Printer printer = printerRepository.findById(r.printerId())
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + r.printerId()));
 		securityScope.assertPrinterInScope(printer);
@@ -162,12 +181,10 @@ public class TechnicalServiceServiceImpl implements TechnicalServiceService {
 			var serviceCenter = serviceCenterRepository.findById(r.serviceCenterId())
 					.orElseThrow(() -> new ResourceNotFoundException("Service center not found with id: " + r.serviceCenterId()));
 			securityScope.assertBranchInScope(serviceCenter.getBranchId());
-			if (creating) {
-				securityScope.assertServiceCenterActorOwnsCenter(r.serviceCenterId());
-			}
+			securityScope.assertServiceCenterActorOwnsCenter(r.serviceCenterId());
 			e.setServiceCenter(serviceCenter);
 		} else {
-			if (creating && Role.isServiceCenterStaff(securityScope.currentUser())) {
+			if (Role.isServiceCenterStaff(securityScope.currentUser())) {
 				throw new IllegalArgumentException("Service center is required for technical service visits");
 			}
 			e.setServiceCenter(null);

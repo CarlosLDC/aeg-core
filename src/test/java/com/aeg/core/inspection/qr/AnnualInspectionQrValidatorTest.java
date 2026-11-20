@@ -1,8 +1,8 @@
 package com.aeg.core.inspection.qr;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -11,8 +11,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.security.SecurityScopeService;
 
 class AnnualInspectionQrValidatorTest {
 
@@ -21,6 +24,8 @@ class AnnualInspectionQrValidatorTest {
     private static final String SECRET = "AeGsGrAsFeCh2024";
 
     private PrinterRepository printerRepository;
+    private SecurityScopeService securityScope;
+    private OrganizationCapabilityService organizationCapability;
     private AnnualInspectionQrValidator validator;
     private AnnualInspectionQrPayload examplePayload;
 
@@ -32,7 +37,13 @@ class AnnualInspectionQrValidatorTest {
         examplePayload = decoder.decode(EXAMPLE_QR);
 
         printerRepository = mock(PrinterRepository.class);
-        validator = new AnnualInspectionQrValidator(printerRepository, decoder);
+        securityScope = mock(SecurityScopeService.class);
+        organizationCapability = mock(OrganizationCapabilityService.class);
+        validator = new AnnualInspectionQrValidator(
+                printerRepository,
+                decoder,
+                securityScope,
+                organizationCapability);
     }
 
     @Test
@@ -59,7 +70,7 @@ class AnnualInspectionQrValidatorTest {
     }
 
     @Test
-    void acceptsMatchingRegistroAndMac() {
+    void acceptsMatchingRegistroAndMacAndChecksScope() {
         Printer printer = printerWithMac(examplePayload.mac());
         when(printerRepository.findById(1L)).thenReturn(Optional.of(printer));
 
@@ -68,6 +79,9 @@ class AnnualInspectionQrValidatorTest {
                 EXAMPLE_QR,
                 examplePayload.registro());
 
+        verify(securityScope).assertCanWriteAnnualInspection();
+        verify(organizationCapability).assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
+        verify(securityScope).assertPrinterInScope(printer);
         org.assertj.core.api.Assertions.assertThat(result.registro()).isEqualTo(examplePayload.registro());
         org.assertj.core.api.Assertions.assertThat(result.mac()).isEqualTo(examplePayload.mac());
     }

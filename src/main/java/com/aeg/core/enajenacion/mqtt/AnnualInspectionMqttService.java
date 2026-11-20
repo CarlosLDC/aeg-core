@@ -15,9 +15,11 @@ import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionSubmitResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionTestCreditNoteResponse;
 import com.aeg.core.mqtt.dto.AnnualInspectionTestInvoiceResponse;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
-import com.aeg.core.printer.PrinterStatus;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,8 @@ public class AnnualInspectionMqttService {
     private final FiscalMqttSyncResponseAwaiter syncResponseAwaiter;
     private final FiscalResponseValidator responseValidator;
     private final EnajenacionMqttSettings settings;
+    private final SecurityScopeService securityScope;
+    private final OrganizationCapabilityService organizationCapability;
 
     public AnnualInspectionMqttService(
             PrinterRepository printerRepository,
@@ -45,18 +49,23 @@ public class AnnualInspectionMqttService {
             MqttService mqttService,
             FiscalMqttSyncResponseAwaiter syncResponseAwaiter,
             FiscalResponseValidator responseValidator,
-            EnajenacionMqttSettings settings) {
+            EnajenacionMqttSettings settings,
+            SecurityScopeService securityScope,
+            OrganizationCapabilityService organizationCapability) {
         this.printerRepository = printerRepository;
         this.payloadBuilder = payloadBuilder;
         this.mqttService = mqttService;
         this.syncResponseAwaiter = syncResponseAwaiter;
         this.responseValidator = responseValidator;
         this.settings = settings;
+        this.securityScope = securityScope;
+        this.organizationCapability = organizationCapability;
     }
 
     public AnnualInspectionStaInfResponse requestRegistrationStatus(Long printerId) {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        assertActorAuthorizedForPrinter(printer);
         assertPrinterEligible(printer);
 
         String compactMac = MacAddressNormalizer.requireCompactForm(printer.getMacAddress());
@@ -105,6 +114,7 @@ public class AnnualInspectionMqttService {
     public AnnualInspectionTestInvoiceResponse sendTestInvoice(Long printerId, String productDescription) {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        assertActorAuthorizedForPrinter(printer);
         assertPrinterEligible(printer);
 
         String compactMac = MacAddressNormalizer.requireCompactForm(printer.getMacAddress());
@@ -166,6 +176,7 @@ public class AnnualInspectionMqttService {
 
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        assertActorAuthorizedForPrinter(printer);
         assertPrinterEligible(printer);
 
         String compactMac = MacAddressNormalizer.requireCompactForm(printer.getMacAddress());
@@ -225,6 +236,7 @@ public class AnnualInspectionMqttService {
             boolean chkSensorPapel) {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        assertActorAuthorizedForPrinter(printer);
         assertPrinterEligible(printer);
 
         AnnualInspectionInspAo inspAo = AnnualInspectionInspAo.fromChecklist(
@@ -278,6 +290,12 @@ public class AnnualInspectionMqttService {
         } finally {
             syncResponseAwaiter.cancel(compactMac);
         }
+    }
+
+    private void assertActorAuthorizedForPrinter(Printer printer) {
+        securityScope.assertCanWriteAnnualInspection();
+        organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
+        securityScope.assertPrinterInScope(printer);
     }
 
     private static void assertPrinterEligible(Printer printer) {

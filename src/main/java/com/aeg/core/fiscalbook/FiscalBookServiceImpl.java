@@ -194,7 +194,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 				seals.stream().map(this::toSeal).toList(),
 				services.stream().map(s -> toTechnicalService(s, seals)).toList(),
 				inspections.stream().map(this::toAnnualInspection).toList(),
-				printer.getEncryptionKey());
+				null);
 	}
 
 	private FiscalBookBranchResponse toBranch(Branch branch) {

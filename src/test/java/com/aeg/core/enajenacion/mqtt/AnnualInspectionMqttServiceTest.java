@@ -20,9 +20,12 @@ import com.aeg.core.client.Client;
 import com.aeg.core.enajenacion.mqtt.dto.FiscalMqttResponseItem;
 import com.aeg.core.mqtt.MqttService;
 import com.aeg.core.mqtt.dto.AnnualInspectionStaInfResponse;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
+import com.aeg.core.security.SecurityScopeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +49,12 @@ class AnnualInspectionMqttServiceTest {
     @Mock
     private EnajenacionMqttSettings settings;
 
+    @Mock
+    private SecurityScopeService securityScope;
+
+    @Mock
+    private OrganizationCapabilityService organizationCapability;
+
     private AnnualInspectionMqttService service;
 
     @BeforeEach
@@ -57,7 +66,9 @@ class AnnualInspectionMqttServiceTest {
                 mqttService,
                 syncResponseAwaiter,
                 responseValidator,
-                settings);
+                settings,
+                securityScope,
+                organizationCapability);
     }
 
     @Test
@@ -73,6 +84,9 @@ class AnnualInspectionMqttServiceTest {
 
         AnnualInspectionStaInfResponse response = service.requestRegistrationStatus(1L);
 
+        verify(securityScope).assertCanWriteAnnualInspection();
+        verify(organizationCapability).assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
+        verify(securityScope).assertPrinterInScope(printer);
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         verify(mqttService).publish(topicCaptor.capture(), any(String.class));
 

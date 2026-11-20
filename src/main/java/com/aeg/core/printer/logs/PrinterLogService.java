@@ -186,12 +186,17 @@ public class PrinterLogService {
         List<PartitionMeta> partitions = listMonthlyPartitions();
         for (PartitionMeta part : partitions) {
             if (part.upperBound() != null && !part.upperBound().isAfter(cutoff)) {
+                String tableName = part.tableName();
+                if (tableName == null || !tableName.matches("^printer_mqtt_logs_y\\d{4}m\\d{2}$")) {
+                    log.warn("Skipping unexpected partition identifier: {}", tableName);
+                    continue;
+                }
                 try {
-                    jdbcTemplate.execute("DROP TABLE IF EXISTS public." + part.tableName() + ";");
-                    droppedPartitions.add(part.tableName());
-                    log.info("Dropped expired printer log partition: {}", part.tableName());
+                    jdbcTemplate.execute("DROP TABLE IF EXISTS public.\"" + tableName + "\";");
+                    droppedPartitions.add(tableName);
+                    log.info("Dropped expired printer log partition: {}", tableName);
                 } catch (Exception ex) {
-                    log.error("Failed to drop partition {}: {}", part.tableName(), ex.getMessage());
+                    log.error("Failed to drop partition {}: {}", tableName, ex.getMessage());
                 }
             }
         }

@@ -190,7 +190,6 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 	}
 
 	private IllegalStateException sftpOperationException(Exception e) {
-		log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
 		String hint;
 		if (port == 22) {
 			hint = " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222).";
@@ -204,7 +203,8 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 		} else {
 			hint = "";
 		}
-		return new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage() + hint, e);
+		log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}{}", host, port, remoteDir, e.getMessage(), hint);
+		return new IllegalStateException("Error al comunicarse con el almacenamiento de firmware.", e);
 	}
 
 	private void closeQuietly(AutoCloseable... closeables) {

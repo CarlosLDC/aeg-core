@@ -3,6 +3,7 @@ package com.aeg.core.branch;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +67,14 @@ public class BranchServiceImpl implements BranchService {
         return repository
                 .findFirstByCompany_IdAndCityIgnoreCaseAndStateIgnoreCase(
                         companyId, city.trim(), state.trim())
+                .filter(branch -> {
+                    try {
+                        securityScope.assertBranchReadable(branch.getId());
+                        return true;
+                    } catch (AccessDeniedException ex) {
+                        return false;
+                    }
+                })
                 .map(this::toResponse);
     }
 
@@ -79,7 +88,18 @@ public class BranchServiceImpl implements BranchService {
                 request.city() != null ? request.city().trim() : "",
                 request.state() != null ? request.state().trim() : "");
         if (existing.isPresent()) {
+            securityScope.assertBranchReadable(existing.get().getId());
             return toResponse(existing.get());
+        }
+        boolean isAdmin = securityScope.currentUser().getRole() == Role.ADMIN;
+        if (!isAdmin) {
+            BranchOrganizationRole desiredRole = BranchOrganizationRoleSupport.resolveFromRequest(
+                    request.organizationRole(),
+                    request.isDistributor(),
+                    request.isServiceCenter());
+            if (desiredRole != BranchOrganizationRole.NONE) {
+                throw new AccessDeniedException("Only admins can assign operational branch roles");
+            }
         }
         Branch b = new Branch();
         b.setCompany(companyRepository.findById(request.companyId())
@@ -97,8 +117,25 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public BranchResponse update(Long id, BranchRequest request) {
         Branch b = findEntityById(id);
-        securityScope.assertBranchReadable(b.getId());
-        if (Role.isDistributorScoped(securityScope.currentUser().getRole())
+        securityScope.assertBranchInScope(b.getId());
+        Role actorRole = securityScope.currentUser().getRole();
+        boolean isAdmin = actorRole == Role.ADMIN;
+        if (!isAdmin) {
+            if (request.companyId() != null && !request.companyId().equals(b.getCompanyId())) {
+                throw new AccessDeniedException("Only admins can change branch company");
+            }
+            BranchOrganizationRole desiredRole = BranchOrganizationRoleSupport.resolveFromRequest(
+                    request.organizationRole(),
+                    request.isDistributor(),
+                    request.isServiceCenter());
+            BranchOrganizationRole currentRole = b.getOrganizationRole() != null
+                    ? b.getOrganizationRole()
+                    : BranchOrganizationRole.NONE;
+            if (desiredRole != currentRole) {
+                throw new AccessDeniedException("Only admins can change operational branch roles");
+            }
+        }
+        if (Role.isDistributorScoped(actorRole)
                 && clientRepository.existsByBranch_Id(b.getId())) {
             throw new IllegalArgumentException("client updates must be requested for review");
         }
@@ -117,7 +154,7 @@ public class BranchServiceImpl implements BranchService {
     @Override
     public void delete(Long id) {
         Branch b = findEntityById(id);
-        securityScope.assertBranchReadable(b.getId());
+        securityScope.assertBranchInScope(b.getId());
         if (userRepository.existsByBranchId(id)) {
             throw new IllegalArgumentException("branch has linked users and cannot be deleted: " + id);
         }

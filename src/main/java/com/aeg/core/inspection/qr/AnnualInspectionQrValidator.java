@@ -3,8 +3,11 @@ package com.aeg.core.inspection.qr;
 import org.springframework.stereotype.Component;
 
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
+import com.aeg.core.organization.OrgCapability;
+import com.aeg.core.organization.OrganizationCapabilityService;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Component
@@ -12,12 +15,18 @@ public class AnnualInspectionQrValidator {
 
     private final PrinterRepository printerRepository;
     private final AnnualInspectionQrDecoder decoder;
+    private final SecurityScopeService securityScope;
+    private final OrganizationCapabilityService organizationCapability;
 
     public AnnualInspectionQrValidator(
             PrinterRepository printerRepository,
-            AnnualInspectionQrDecoder decoder) {
+            AnnualInspectionQrDecoder decoder,
+            SecurityScopeService securityScope,
+            OrganizationCapabilityService organizationCapability) {
         this.printerRepository = printerRepository;
         this.decoder = decoder;
+        this.securityScope = securityScope;
+        this.organizationCapability = organizationCapability;
     }
 
     public AnnualInspectionQrPayload decodeAndValidate(
@@ -26,6 +35,9 @@ public class AnnualInspectionQrValidator {
             String registroImpresora) {
         Printer printer = printerRepository.findById(printerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+        securityScope.assertCanWriteAnnualInspection();
+        organizationCapability.assertActorCan(OrgCapability.WRITE_ANNUAL_INSPECTION);
+        securityScope.assertPrinterInScope(printer);
 
         AnnualInspectionQrPayload payload = decoder.decode(qrCodigo);
         validateAgainstPrinter(printer, payload, registroImpresora);

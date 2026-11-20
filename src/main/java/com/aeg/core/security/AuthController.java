@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -38,13 +39,25 @@ public class AuthController {
     private final AuthRateLimiter authRateLimiter;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        String clientIp = extractClientIp(httpRequest);
+        authRateLimiter.checkLoginIp(clientIp);
+        authRateLimiter.checkLoginAccountLock(clientIp, request.getUsername());
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
+                    )
+            );
+        } catch (AuthenticationException ex) {
+            authRateLimiter.recordLoginFailure(clientIp, request.getUsername());
+            throw ex;
+        }
+        authRateLimiter.clearLoginFailures(clientIp, request.getUsername());
         User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
         String token = issueTokenForUser(user, request.getPortal());
         return ResponseEntity.ok(new AuthResponse(token));
@@ -158,12 +171,18 @@ public class AuthController {
     }
 
     private static String extractClientIp(HttpServletRequest request) {
+        String doConnectingIp = request.getHeader("DO-Connecting-IP");
+        if (doConnectingIp != null && !doConnectingIp.isBlank()) {
+            return doConnectingIp.trim();
+        }
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
-            int comma = forwarded.indexOf(',');
-            String first = comma > 0 ? forwarded.substring(0, comma) : forwarded;
-            if (!first.isBlank()) {
-                return first.trim();
+            String[] parts = forwarded.split(",");
+            for (int i = parts.length - 1; i >= 0; i--) {
+                String candidate = parts[i].trim();
+                if (!candidate.isEmpty()) {
+                    return candidate;
+                }
             }
         }
         return request.getRemoteAddr();

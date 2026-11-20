@@ -1,5 +1,8 @@
 package com.aeg.core.firmware.ota;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+
 import com.aeg.core.firmware.Firmware;
 import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.firmware.storage.FirmwareStorage;
@@ -66,7 +69,13 @@ public class OtaFirmwareServiceImpl implements OtaFirmwareService {
     // -------------------------------------------------------------------------
 
     private void validateToken(String token) {
-        if (token == null || token.isBlank() || !downloadToken.equals(token)) {
+        if (token == null || token.isBlank() || downloadToken == null || downloadToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
+        }
+        boolean matches = MessageDigest.isEqual(
+                downloadToken.getBytes(StandardCharsets.UTF_8),
+                token.getBytes(StandardCharsets.UTF_8));
+        if (!matches) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido");
         }
     }

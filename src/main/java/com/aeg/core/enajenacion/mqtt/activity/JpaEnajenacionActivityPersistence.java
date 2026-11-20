@@ -14,6 +14,8 @@ import jakarta.persistence.criteria.Predicate;
 @Component
 public class JpaEnajenacionActivityPersistence implements EnajenacionActivityPersistence {
 
+    private static final int MAX_PAGE_LIMIT = 200;
+
     private final MqttEnajenacionActivityLogRepository repository;
 
     public JpaEnajenacionActivityPersistence(MqttEnajenacionActivityLogRepository repository) {
@@ -27,7 +29,7 @@ public class JpaEnajenacionActivityPersistence implements EnajenacionActivityPer
 
     @Override
     public List<EnajenacionActivityEntry> find(EnajenacionActivityQuery query, int limit, int page) {
-        int effectiveLimit = Math.max(1, limit);
+        int effectiveLimit = Math.min(Math.max(1, limit), MAX_PAGE_LIMIT);
         int effectivePage = Math.max(0, page);
         Specification<MqttEnajenacionActivityLog> spec = buildSpec(query);
         return repository
