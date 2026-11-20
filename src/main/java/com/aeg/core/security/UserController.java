@@ -1,12 +1,17 @@
 package com.aeg.core.security;
 
+import com.aeg.core.mail.EmailDeliveryException;
+import com.aeg.core.mail.EmailSendResult;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchRepository;
@@ -15,15 +20,18 @@ import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
 
-import java.util.List;
 import java.net.URI;
+import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Slf4j
 public class UserController {
 
     private final UserRepository userRepository;
@@ -33,16 +41,22 @@ public class UserController {
     private final ModificationRequestRepository modificationRequestRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserRoleAssignmentService userRoleAssignmentService;
+    private final UserAccountLifecycleService userAccountLifecycleService;
+    private final UserActionTokenRepository userActionTokenRepository;
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@RequestBody UserRegistrationRequest request) {
         String name = normalizeName(request.getName());
         String email = normalizeEmail(request.getEmail());
-        if (name == null || email == null || request.getPassword() == null || request.getPassword().isBlank()) {
+        boolean sendInvite = Boolean.TRUE.equals(request.getSendInvite());
+        if (name == null || email == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (!sendInvite && (request.getPassword() == null || request.getPassword().isBlank())) {
             return ResponseEntity.badRequest().build();
         }
         if (userRepository.findByUsername(email).isPresent()) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
         UserRoleAssignmentService.RoleResolution roleResolution =
@@ -57,6 +71,34 @@ public class UserController {
             return ResponseEntity.status(profile.errorStatus()).build();
         }
 
+        if (sendInvite) {
+            User invitedUser = User.builder()
+                    .username(email)
+                    .name(name)
+                    .role(role)
+                    .branchId(profile.branchId())
+                    .branch(profile.branch())
+                    .distributorId(profile.distributorId())
+                    .distributor(profile.distributor())
+                    .nationalId(profile.nationalId())
+                    .build();
+
+            UserAccountLifecycleService.IssuedUserToken issued =
+                    userAccountLifecycleService.createInvitedUserWithToken(invitedUser);
+            String inviteUrl = userAccountLifecycleService.buildInvitationUrl(issued.rawToken());
+            String emailStatus;
+            try {
+                EmailSendResult sendResult =
+                        userAccountLifecycleService.sendInvitationEmail(issued.user(), issued.rawToken());
+                emailStatus = sendResult.name();
+            } catch (EmailDeliveryException e) {
+                log.error("Error enviando invitación por correo a {}", email, e);
+                emailStatus = "FAILED";
+            }
+            URI location = URI.create("/api/admin/users/" + issued.user().getId());
+            return ResponseEntity.created(location).body(toResponse(issued.user(), emailStatus, inviteUrl));
+        }
+
         User user = User.builder()
                 .username(email)
                 .name(name)
@@ -68,11 +110,64 @@ public class UserController {
                 .distributor(profile.distributor())
                 .nationalId(profile.nationalId())
                 .enabled(true)
+                .invitationPending(false)
                 .build();
 
         User saved = userRepository.save(user);
         URI location = URI.create("/api/admin/users/" + saved.getId());
         return ResponseEntity.created(location).body(toResponse(saved));
+    }
+
+    @PostMapping("/{id}/resend-invite")
+    public ResponseEntity<UserResponse> resendInvite(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado."));
+        if (!user.isInvitationPending()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El usuario ya activó su cuenta y no tiene una invitación pendiente."
+            );
+        }
+        UserAccountLifecycleService.IssuedUserToken issued =
+                userAccountLifecycleService.reissueInvitationToken(user);
+        String inviteUrl = userAccountLifecycleService.buildInvitationUrl(issued.rawToken());
+        String emailStatus;
+        try {
+            EmailSendResult result =
+                    userAccountLifecycleService.sendInvitationEmail(issued.user(), issued.rawToken());
+            emailStatus = result.name();
+        } catch (EmailDeliveryException e) {
+            log.error("Error reenviando invitación por correo a {}", issued.user().getUsername(), e);
+            emailStatus = "FAILED";
+        }
+        return ResponseEntity.ok(toResponse(issued.user(), emailStatus, inviteUrl));
+    }
+
+    @PostMapping("/{id}/send-password-reset")
+    public ResponseEntity<Map<String, String>> sendPasswordReset(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado."));
+        if (!user.isEnabled() || user.isInvitationPending()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Solo se puede enviar restablecimiento a cuentas activas."
+            );
+        }
+        String rawToken = userAccountLifecycleService.issuePasswordResetToken(user);
+        String resetUrl = userAccountLifecycleService.buildPasswordResetUrl(rawToken);
+        String emailStatus;
+        try {
+            EmailSendResult result = userAccountLifecycleService.sendPasswordResetEmail(user, rawToken);
+            emailStatus = result.name();
+        } catch (EmailDeliveryException e) {
+            log.error("Error enviando restablecimiento por correo a {}", user.getUsername(), e);
+            emailStatus = "FAILED";
+        }
+        return ResponseEntity.ok(Map.of(
+                "emailStatus", emailStatus,
+                "message", "Enlace de restablecimiento generado.",
+                "resetUrl", resetUrl
+        ));
     }
 
     @GetMapping
@@ -96,6 +191,8 @@ public class UserController {
         }
 
         User existing = maybe.get();
+        boolean emailChanged = false;
+        boolean passwordChanged = request.getPassword() != null && !request.getPassword().isBlank();
         if (request.getName() != null && !request.getName().isBlank()) {
             existing.setName(request.getName().trim());
         }
@@ -108,10 +205,17 @@ public class UserController {
             if (found.isPresent() && !found.get().getId().equals(existing.getId())) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT).build();
             }
+            emailChanged = !email.equals(existing.getUsername());
             existing.setUsername(email);
         }
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+        if (passwordChanged) {
             existing.setPassword(passwordEncoder.encode(request.getPassword()));
+            if (existing.isInvitationPending()) {
+                existing.setInvitationPending(false);
+                if (existing.getActivatedAt() == null) {
+                    existing.setActivatedAt(OffsetDateTime.now());
+                }
+            }
         }
         UserRoleAssignmentService.RoleResolution roleResolution =
                 userRoleAssignmentService.resolveForUpdate(request, existing);
@@ -136,7 +240,11 @@ public class UserController {
             existing.setEnabled(request.getEnabled());
         }
 
+        boolean wasInvitationPendingBeforeSave = existing.isInvitationPending();
         User saved = userRepository.save(existing);
+        if (passwordChanged || (emailChanged && wasInvitationPendingBeforeSave)) {
+            userAccountLifecycleService.invalidatePendingInvitations(saved.getId());
+        }
         return ResponseEntity.ok(toResponse(saved));
     }
 
@@ -144,6 +252,7 @@ public class UserController {
     @Transactional
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         return userRepository.findById(id).map(u -> {
+            userActionTokenRepository.deleteByUser_Id(id);
             modificationRequestRepository.deleteByRequestedBy_Id(id);
             userRepository.delete(u);
             return ResponseEntity.noContent().<Void>build();
@@ -291,6 +400,7 @@ public class UserController {
         private String name;
         private String email;
         private String password;
+        private Boolean sendInvite;
         private String role;
         private Long distributorId;
         private Long branchId;
@@ -319,9 +429,30 @@ public class UserController {
         private Long distributorId;
         private String nationalId;
         private Boolean enabled;
+        private Boolean invitationPending;
+        private OffsetDateTime invitedAt;
+        private OffsetDateTime activatedAt;
+        private String emailStatus;
+        private String inviteUrl;
 
         public UserResponse(Long id, String name, String email, Role role, Long branchId,
                 Long distributorId, String nationalId, Boolean enabled) {
+            this(id, name, email, role, branchId, distributorId, nationalId, enabled,
+                    false, null, null, null, null);
+        }
+
+        public UserResponse(Long id, String name, String email, Role role, Long branchId,
+                Long distributorId, String nationalId, Boolean enabled,
+                Boolean invitationPending, OffsetDateTime invitedAt, OffsetDateTime activatedAt,
+                String emailStatus) {
+            this(id, name, email, role, branchId, distributorId, nationalId, enabled,
+                    invitationPending, invitedAt, activatedAt, emailStatus, null);
+        }
+
+        public UserResponse(Long id, String name, String email, Role role, Long branchId,
+                Long distributorId, String nationalId, Boolean enabled,
+                Boolean invitationPending, OffsetDateTime invitedAt, OffsetDateTime activatedAt,
+                String emailStatus, String inviteUrl) {
             this.id = id;
             this.name = name;
             this.email = email;
@@ -330,10 +461,19 @@ public class UserController {
             this.distributorId = distributorId;
             this.nationalId = nationalId;
             this.enabled = enabled;
+            this.invitationPending = invitationPending;
+            this.invitedAt = invitedAt;
+            this.activatedAt = activatedAt;
+            this.emailStatus = emailStatus;
+            this.inviteUrl = inviteUrl;
         }
     }
 
     private UserResponse toResponse(User u) {
+        return toResponse(u, null, null);
+    }
+
+    private UserResponse toResponse(User u, String emailStatus, String inviteUrl) {
         return new UserResponse(
                 u.getId(),
                 u.getName(),
@@ -342,7 +482,12 @@ public class UserController {
                 u.getBranchId(),
                 u.getDistributorId(),
                 u.getNationalId(),
-                u.isEnabled());
+                u.isEnabled(),
+                u.isInvitationPending(),
+                u.getInvitedAt(),
+                u.getActivatedAt(),
+                emailStatus,
+                inviteUrl);
     }
 
     private String normalizeEmail(String rawEmail) {

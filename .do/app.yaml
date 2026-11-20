@@ -78,3 +78,10 @@ services:
         type: SECRET
       - key: FIRMWARE_SFTP_REMOTE_DIR
         value: "/var/www/firmware"
+      - key: RESEND_API_KEY
+        value: SET_IN_APP_PLATFORM
+        type: SECRET
+      - key: APP_MAIL_FROM
+        value: "AEG Core <no-reply@aeg-admin.tech>"
+      - key: APP_MAIL_ADMIN_PORTAL_URL
+        value: "https://aeg-admin.tech"

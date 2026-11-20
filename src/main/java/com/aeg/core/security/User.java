@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import com.aeg.core.branch.Branch;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -58,6 +59,16 @@ public class User implements UserDetails {
 
     @Builder.Default
     private boolean enabled = true;
+
+    @Builder.Default
+    @Column(name = "invitation_pending", nullable = false)
+    private boolean invitationPending = false;
+
+    @Column(name = "invited_at")
+    private OffsetDateTime invitedAt;
+
+    @Column(name = "activated_at")
+    private OffsetDateTime activatedAt;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

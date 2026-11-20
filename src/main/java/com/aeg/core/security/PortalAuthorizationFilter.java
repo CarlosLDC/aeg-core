@@ -47,6 +47,11 @@ public class PortalAuthorizationFilter extends OncePerRequestFilter {
 
     private boolean shouldSkip(String path) {
         return path.startsWith("/api/auth/login")
+                || path.startsWith("/api/auth/invitations/")
+                || path.equals("/api/auth/accept-invite")
+                || path.equals("/api/auth/forgot-password")
+                || path.startsWith("/api/auth/password-reset/")
+                || path.equals("/api/auth/reset-password")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/error")
                 || path.startsWith("/ws/mqtt")

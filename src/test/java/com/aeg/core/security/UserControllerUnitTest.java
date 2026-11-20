@@ -14,12 +14,18 @@ import com.aeg.core.branch.BranchOrganizationRole;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
+import com.aeg.core.mail.EmailDeliveryException;
+import com.aeg.core.mail.EmailSendResult;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
 import com.aeg.core.servicecenter.ServiceCenter;
 import com.aeg.core.servicecenter.ServiceCenterRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Map;
 import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserControllerUnitTest {
 
@@ -30,6 +36,8 @@ class UserControllerUnitTest {
     private ModificationRequestRepository modificationRequestRepository;
     private PasswordEncoder passwordEncoder;
     private UserRoleAssignmentService userRoleAssignmentService;
+    private UserAccountLifecycleService userAccountLifecycleService;
+    private UserActionTokenRepository userActionTokenRepository;
     private UserController controller;
 
     @BeforeEach
@@ -44,6 +52,8 @@ class UserControllerUnitTest {
                 distributorRepository,
                 branchRepository,
                 serviceCenterRepository);
+        userAccountLifecycleService = mock(UserAccountLifecycleService.class);
+        userActionTokenRepository = mock(UserActionTokenRepository.class);
         controller = new UserController(
                 userRepository,
                 distributorRepository,
@@ -51,7 +61,9 @@ class UserControllerUnitTest {
                 serviceCenterRepository,
                 modificationRequestRepository,
                 passwordEncoder,
-                userRoleAssignmentService);
+                userRoleAssignmentService,
+                userAccountLifecycleService,
+                userActionTokenRepository);
     }
 
     @Test
@@ -360,8 +372,139 @@ class UserControllerUnitTest {
         ResponseEntity<Void> resp = controller.deleteUser(3L);
 
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        verify(userActionTokenRepository).deleteByUser_Id(3L);
         verify(modificationRequestRepository).deleteByRequestedBy_Id(3L);
         verify(userRepository).delete(existing);
+    }
+
+    @Test
+    void createUser_withSendInvite_createsPendingUserAndSendsEmail() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Invitado");
+        req.setEmail("invite@aeg.local");
+        req.setRole("ADMIN");
+        req.setSendInvite(true);
+
+        when(userRepository.findByUsername("invite@aeg.local")).thenReturn(Optional.empty());
+        when(userAccountLifecycleService.createInvitedUserWithToken(ArgumentMatchers.any(User.class)))
+                .thenAnswer(invocation -> {
+                    User u = invocation.getArgument(0);
+                    u.setId(50L);
+                    u.setEnabled(false);
+                    u.setInvitationPending(true);
+                    return new UserAccountLifecycleService.IssuedUserToken(u, "raw-token-123");
+                });
+        when(userAccountLifecycleService.buildInvitationUrl("raw-token-123"))
+                .thenReturn("https://aeg-admin.tech/accept-invite?token=raw-token-123");
+        when(userAccountLifecycleService.sendInvitationEmail(ArgumentMatchers.any(User.class), eq("raw-token-123")))
+                .thenReturn(EmailSendResult.SENT);
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getEnabled()).isFalse();
+        assertThat(resp.getBody().getInvitationPending()).isTrue();
+        assertThat(resp.getBody().getEmailStatus()).isEqualTo("SENT");
+        assertThat(resp.getBody().getInviteUrl()).isEqualTo("https://aeg-admin.tech/accept-invite?token=raw-token-123");
+    }
+
+    @Test
+    void createUser_withSendInvite_whenEmailFails_returnsCreatedWithFailedStatus() {
+        UserController.UserRegistrationRequest req = new UserController.UserRegistrationRequest();
+        req.setName("Invitado");
+        req.setEmail("invite-fail@aeg.local");
+        req.setRole("SENIAT");
+        req.setSendInvite(true);
+
+        when(userRepository.findByUsername("invite-fail@aeg.local")).thenReturn(Optional.empty());
+        when(userAccountLifecycleService.createInvitedUserWithToken(ArgumentMatchers.any(User.class)))
+                .thenAnswer(invocation -> {
+                    User u = invocation.getArgument(0);
+                    u.setId(51L);
+                    u.setEnabled(false);
+                    u.setInvitationPending(true);
+                    return new UserAccountLifecycleService.IssuedUserToken(u, "raw-token-fail");
+                });
+        when(userAccountLifecycleService.sendInvitationEmail(ArgumentMatchers.any(User.class), eq("raw-token-fail")))
+                .thenThrow(new EmailDeliveryException("Resend 500"));
+
+        ResponseEntity<UserController.UserResponse> resp = controller.createUser(req);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getEmailStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void resendInvite_whenPending_succeedsAndReturnsStatus() {
+        User pending = User.builder()
+                .id(10L)
+                .username("pending@aeg.local")
+                .name("Pendiente")
+                .password("x")
+                .role(Role.ADMIN)
+                .enabled(false)
+                .invitationPending(true)
+                .build();
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(pending));
+        when(userAccountLifecycleService.reissueInvitationToken(pending))
+                .thenReturn(new UserAccountLifecycleService.IssuedUserToken(pending, "new-raw"));
+        when(userAccountLifecycleService.sendInvitationEmail(pending, "new-raw"))
+                .thenReturn(EmailSendResult.LOGGED_ONLY);
+
+        ResponseEntity<UserController.UserResponse> resp = controller.resendInvite(10L);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getEmailStatus()).isEqualTo("LOGGED_ONLY");
+    }
+
+    @Test
+    void resendInvite_whenAlreadyActive_returnsConflict() {
+        User active = User.builder()
+                .id(11L)
+                .username("active@aeg.local")
+                .name("Activo")
+                .password("x")
+                .role(Role.ADMIN)
+                .enabled(true)
+                .invitationPending(false)
+                .build();
+
+        when(userRepository.findById(11L)).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> controller.resendInvite(11L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
+    void sendPasswordReset_whenActive_succeeds() {
+        User active = User.builder()
+                .id(12L)
+                .username("active@aeg.local")
+                .name("Activo")
+                .password("x")
+                .role(Role.ADMIN)
+                .enabled(true)
+                .invitationPending(false)
+                .build();
+
+        when(userRepository.findById(12L)).thenReturn(Optional.of(active));
+        when(userAccountLifecycleService.issuePasswordResetToken(active)).thenReturn("reset-raw");
+        when(userAccountLifecycleService.buildPasswordResetUrl("reset-raw"))
+                .thenReturn("https://aeg-admin.tech/reset-password?token=reset-raw");
+        when(userAccountLifecycleService.sendPasswordResetEmail(active, "reset-raw"))
+                .thenReturn(EmailSendResult.SENT);
+
+        ResponseEntity<Map<String, String>> resp = controller.sendPasswordReset(12L);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).containsEntry("emailStatus", "SENT");
+        assertThat(resp.getBody()).containsEntry("resetUrl", "https://aeg-admin.tech/reset-password?token=reset-raw");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.aeg.core.security;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -13,11 +14,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.aeg.core.organization.OrgCapability;
 import com.aeg.core.organization.OrganizationCapabilityService;
 
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +34,8 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final OrganizationCapabilityService organizationCapability;
+    private final UserAccountLifecycleService userAccountLifecycleService;
+    private final AuthRateLimiter authRateLimiter;
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
@@ -40,24 +45,79 @@ public class AuthController {
                         request.getPassword()
                 )
         );
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
         User user = userRepository.findByUsernameWithRelations(request.getUsername()).orElseThrow();
-
-        String loginPortal = normalizeLoginPortal(request.getPortal());
-        if (user.getRole() == Role.SENIAT) {
-            loginPortal = Portal.FISCAL_BOOK;
-        }
-
-        Map<String, Object> extraClaims = new HashMap<>();
-        extraClaims.put("portal", loginPortal);
-        extraClaims.put("role", user.getRole().name());
-        extraClaims.put("branchId", user.getBranchId());
-        extraClaims.put("distributorId", user.getDistributorId());
-        extraClaims.put("nationalId", user.getNationalId());
-        extraClaims.put("userId", user.getId());
-
-        String token = jwtService.generateToken(extraClaims, userDetails);
+        String token = issueTokenForUser(user, request.getPortal());
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+    @GetMapping("/invitations/validate")
+    public ResponseEntity<InvitationValidationResponse> validateInvitation(
+            @RequestParam("token") String token,
+            HttpServletRequest httpRequest
+    ) {
+        authRateLimiter.checkTokenEndpoint(extractClientIp(httpRequest));
+        UserAccountLifecycleService.InvitationDetails details = userAccountLifecycleService.validateInvitation(token);
+        return ResponseEntity.ok(new InvitationValidationResponse(
+                true,
+                details.name(),
+                details.email(),
+                details.role(),
+                details.expiresAt()
+        ));
+    }
+
+    @PostMapping("/accept-invite")
+    public ResponseEntity<AcceptInviteResponse> acceptInvite(
+            @RequestBody AcceptInviteRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        authRateLimiter.checkTokenEndpoint(extractClientIp(httpRequest));
+        User user = userAccountLifecycleService.acceptInvitation(request.getToken(), request.getPassword());
+        String token = issueTokenForUser(user, request.getPortal());
+        return ResponseEntity.ok(new AcceptInviteResponse(
+                token,
+                user.getRole(),
+                user.getUsername(),
+                user.getName()
+        ));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponse> forgotPassword(
+            @RequestBody ForgotPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        userAccountLifecycleService.requestPasswordReset(request.getEmail(), extractClientIp(httpRequest));
+        return ResponseEntity.ok(new MessageResponse(
+                "Si el correo está asociado a una cuenta activa, recibirás instrucciones para restablecer tu contraseña."
+        ));
+    }
+
+    @GetMapping("/password-reset/validate")
+    public ResponseEntity<PasswordResetValidationResponse> validatePasswordReset(
+            @RequestParam("token") String token,
+            HttpServletRequest httpRequest
+    ) {
+        authRateLimiter.checkTokenEndpoint(extractClientIp(httpRequest));
+        UserAccountLifecycleService.PasswordResetDetails details =
+                userAccountLifecycleService.validatePasswordReset(token);
+        return ResponseEntity.ok(new PasswordResetValidationResponse(
+                true,
+                details.email(),
+                details.expiresAt()
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<MessageResponse> resetPassword(
+            @RequestBody ResetPasswordRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        authRateLimiter.checkTokenEndpoint(extractClientIp(httpRequest));
+        userAccountLifecycleService.resetPassword(request.getToken(), request.getPassword());
+        return ResponseEntity.ok(new MessageResponse(
+                "Contraseña actualizada correctamente. Ya puedes iniciar sesión."
+        ));
     }
 
     @GetMapping("/me")
@@ -80,6 +140,35 @@ public class AuthController {
         ));
     }
 
+    private String issueTokenForUser(User user, String requestedPortal) {
+        String loginPortal = normalizeLoginPortal(requestedPortal);
+        if (user.getRole() == Role.SENIAT) {
+            loginPortal = Portal.FISCAL_BOOK;
+        }
+
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("portal", loginPortal);
+        extraClaims.put("role", user.getRole().name());
+        extraClaims.put("branchId", user.getBranchId());
+        extraClaims.put("distributorId", user.getDistributorId());
+        extraClaims.put("nationalId", user.getNationalId());
+        extraClaims.put("userId", user.getId());
+
+        return jwtService.generateToken(extraClaims, user);
+    }
+
+    private static String extractClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            int comma = forwarded.indexOf(',');
+            String first = comma > 0 ? forwarded.substring(0, comma) : forwarded;
+            if (!first.isBlank()) {
+                return first.trim();
+            }
+        }
+        return request.getRemoteAddr();
+    }
+
     private static String normalizeLoginPortal(String portal) {
         if (portal == null || portal.isBlank()) {
             return Portal.CORE_ADMIN;
@@ -96,9 +185,60 @@ public class AuthController {
     }
 
     @Data
+    public static class AcceptInviteRequest {
+        private String token;
+        private String password;
+        private String portal;
+    }
+
+    @Data
+    public static class ForgotPasswordRequest {
+        private String email;
+    }
+
+    @Data
+    public static class ResetPasswordRequest {
+        private String token;
+        private String password;
+    }
+
+    @Data
     @RequiredArgsConstructor
     public static class AuthResponse {
         private final String token;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class AcceptInviteResponse {
+        private final String token;
+        private final Role role;
+        private final String email;
+        private final String name;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class InvitationValidationResponse {
+        private final boolean valid;
+        private final String name;
+        private final String email;
+        private final Role role;
+        private final OffsetDateTime expiresAt;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class PasswordResetValidationResponse {
+        private final boolean valid;
+        private final String email;
+        private final OffsetDateTime expiresAt;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class MessageResponse {
+        private final String message;
     }
 
     @Data

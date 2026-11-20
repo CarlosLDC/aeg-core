@@ -1,6 +1,7 @@
 package com.aeg.core.security;
 
 import com.aeg.core.enajenacion.mqtt.EnajenacionProtocolException;
+import com.aeg.core.mail.EmailDeliveryException;
 import com.aeg.core.printer.PrinterDeleteBlockedException;
 import com.aeg.core.tools.mqtt.ToolsMqttOperationException;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,6 +41,34 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException e) {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Autenticación fallida", "Usuario o contraseña incorrectos");
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabledAccount(DisabledException e) {
+        return buildResponse(
+                HttpStatus.FORBIDDEN,
+                "Cuenta inactiva",
+                "Tu cuenta está deshabilitada o pendiente de activar por invitación."
+        );
+    }
+
+    @ExceptionHandler(InvalidActionTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidActionToken(InvalidActionTokenException e) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Enlace inválido o expirado", e.getMessage());
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<Map<String, Object>> handleTooManyRequests(TooManyRequestsException e) {
+        return buildResponse(HttpStatus.TOO_MANY_REQUESTS, "Demasiados intentos", e.getMessage());
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailDelivery(EmailDeliveryException e) {
+        return buildResponse(
+                HttpStatus.BAD_GATEWAY,
+                "Error enviando correo",
+                "No se pudo enviar el correo electrónico. Verifica la configuración del servicio de correo e inténtalo de nuevo."
+        );
     }
 
     @ExceptionHandler(UsernameNotFoundException.class)
