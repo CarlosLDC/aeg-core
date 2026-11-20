@@ -29,6 +29,7 @@ import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.inspection.qr.AnnualInspectionQrLookupService;
 import com.aeg.core.fiscalbook.dto.FiscalBookLookupInspectionByQrResponse;
 import com.aeg.core.printer.Printer;
+import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.seal.Seal;
@@ -50,6 +51,7 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 	private static final Pattern RIF_PATTERN = Pattern.compile("^[VEJPG]-?[0-9]{7,9}$", Pattern.CASE_INSENSITIVE);
 
 	private final SecurityScopeService securityScope;
+	private final PrinterRepository printerRepository;
 	private final TechnicalServiceVisitRepository technicalServiceRepository;
 	private final AnnualInspectionRepository annualInspectionRepository;
 	private final SealRepository sealRepository;
@@ -57,11 +59,13 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 
 	public FiscalBookServiceImpl(
 			SecurityScopeService securityScope,
+			PrinterRepository printerRepository,
 			TechnicalServiceVisitRepository technicalServiceRepository,
 			AnnualInspectionRepository annualInspectionRepository,
 			SealRepository sealRepository,
 			AnnualInspectionQrLookupService qrLookupService) {
 		this.securityScope = securityScope;
+		this.printerRepository = printerRepository;
 		this.technicalServiceRepository = technicalServiceRepository;
 		this.annualInspectionRepository = annualInspectionRepository;
 		this.sealRepository = sealRepository;
@@ -112,11 +116,14 @@ public class FiscalBookServiceImpl implements FiscalBookService {
 
 	@Override
 	public FiscalBookDetailResponse findByPrinterId(Long printerId) {
-		Printer printer = securityScope.findVisiblePrinters().stream()
+		Printer printer = printerRepository.findById(printerId)
 				.filter(this::isFiscalBookListedPrinter)
-				.filter(p -> p.getId().equals(printerId))
-				.findFirst()
 				.orElseThrow(() -> new ResourceNotFoundException("Printer not found with id: " + printerId));
+		try {
+			securityScope.assertPrinterInScope(printer);
+		} catch (org.springframework.security.access.AccessDeniedException ex) {
+			throw new ResourceNotFoundException("Printer not found with id: " + printerId);
+		}
 
 		List<Seal> seals = sealRepository.findByPrinter_Id(printerId);
 		List<TechnicalServiceVisit> services = technicalServiceRepository

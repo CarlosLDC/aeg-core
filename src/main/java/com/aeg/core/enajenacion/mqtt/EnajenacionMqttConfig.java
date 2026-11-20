@@ -11,8 +11,9 @@ public class EnajenacionMqttConfig {
     @Bean(name = "enajenacionTaskScheduler")
     TaskScheduler enajenacionTaskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(2);
+        scheduler.setPoolSize(1);
         scheduler.setThreadNamePrefix("enajenacion-mqtt-");
+        scheduler.setRemoveOnCancelPolicy(true);
         scheduler.initialize();
         return scheduler;
     }

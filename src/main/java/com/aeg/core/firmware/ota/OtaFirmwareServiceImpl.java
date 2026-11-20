@@ -6,7 +6,7 @@ import com.aeg.core.firmware.storage.FirmwareStorage;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -44,17 +44,22 @@ public class OtaFirmwareServiceImpl implements OtaFirmwareService {
     public ResponseEntity<Resource> downloadLatest(String modelCode, String token) {
         validateToken(token);
         Firmware fw = findLatest(modelCode);
-        byte[] bytes = storage.download(fw.getFileName());
-        ByteArrayResource resource = new ByteArrayResource(bytes) {
+        FirmwareStorage.FirmwareDownload dl = FirmwareStorage.openDownloadOrFallback(storage, fw.getFileName());
+        InputStreamResource resource = new InputStreamResource(dl.stream()) {
             @Override
             public String getFilename() {
                 return fw.getFileName();
+            }
+
+            @Override
+            public long contentLength() {
+                return dl.contentLength();
             }
         };
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fw.getFileName() + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(bytes.length)
+                .contentLength(dl.contentLength())
                 .body(resource);
     }
 

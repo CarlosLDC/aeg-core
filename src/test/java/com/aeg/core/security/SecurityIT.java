@@ -40,6 +40,36 @@ class SecurityIT {
 		assertThat(response.statusCode()).isEqualTo(200);
 	}
 
+	@Test
+	void actuatorHealthIsPublicAndMetricsRequireAdmin() throws Exception {
+		var client = java.net.http.HttpClient.newHttpClient();
+
+		var healthRes = client.send(
+				java.net.http.HttpRequest.newBuilder()
+						.uri(java.net.URI.create("http://localhost:" + port + "/actuator/health"))
+						.GET()
+						.build(),
+				java.net.http.HttpResponse.BodyHandlers.ofString());
+		assertThat(healthRes.statusCode()).isEqualTo(200);
+
+		var unauthMetrics = client.send(
+				java.net.http.HttpRequest.newBuilder()
+						.uri(java.net.URI.create("http://localhost:" + port + "/actuator/metrics"))
+						.GET()
+						.build(),
+				java.net.http.HttpResponse.BodyHandlers.ofString());
+		assertThat(unauthMetrics.statusCode()).isEqualTo(401);
+
+		var adminMetrics = client.send(
+				java.net.http.HttpRequest.newBuilder()
+						.uri(java.net.URI.create("http://localhost:" + port + "/actuator/metrics"))
+						.header("Authorization", basicAuthHeader())
+						.GET()
+						.build(),
+				java.net.http.HttpResponse.BodyHandlers.ofString());
+		assertThat(adminMetrics.statusCode()).isEqualTo(200);
+	}
+
 	private String basicAuthHeader() {
 		String token = Base64.getEncoder().encodeToString("segar12345@gmail.com:aeg-r1".getBytes(StandardCharsets.UTF_8));
 		return "Basic " + token;

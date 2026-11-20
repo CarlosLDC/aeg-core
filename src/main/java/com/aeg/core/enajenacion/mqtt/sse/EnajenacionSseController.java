@@ -44,6 +44,7 @@ public class EnajenacionSseController {
         try {
             notifier.notifyConnected(compactMac);
         } catch (Exception ex) {
+            broadcaster.unsubscribe(compactMac, emitter);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
 

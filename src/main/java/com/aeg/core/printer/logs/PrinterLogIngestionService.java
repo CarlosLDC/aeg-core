@@ -26,11 +26,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PrinterLogIngestionService {
 
-    private static final int QUEUE_CAPACITY = 4_000;
-    private static final int MAX_BATCH_DRAIN = 500;
+    private static final int QUEUE_CAPACITY = 1_000;
+    private static final int MAX_BATCH_DRAIN = 300;
     private static final int MAX_BATCHES_PER_TICK = 8;
-    private static final int MAX_PAYLOAD_LENGTH = 8_192;
-    private static final int MAX_CACHE_ENTRIES = 2_000;
+    private static final int MAX_PAYLOAD_LENGTH = 4_096;
+    private static final int MAX_CACHE_ENTRIES = 500;
     private static final long NEGATIVE_CACHE_TTL_MS = 60_000L;
 
     private record CachedPrinterId(Long printerId, long resolvedAtMs) {}

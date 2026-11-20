@@ -253,4 +253,39 @@ class FirmwareServiceImplTest {
 		assertThat(service.findAll(3L)).isEmpty();
 		verify(repository).findByPrinterModel_IdOrderByCreatedAtDesc(3L);
 	}
+
+	@Test
+	void completeCreateDeletesTempFileOnSuccessAndUploadFailure() {
+		byte[] okPayload = "fw-temp-ok".getBytes(StandardCharsets.UTF_8);
+		MockMultipartFile okFile = new MockMultipartFile(
+				"file", "temp-ok.bin", "application/octet-stream", okPayload);
+		when(repository.existsByFileName("temp-ok.bin")).thenReturn(false);
+		when(repository.existsByVersionAndPrinterModelIsNull("5.0.0")).thenReturn(false);
+		when(repository.save(any(Firmware.class))).thenAnswer(invocation -> {
+			Firmware f = invocation.getArgument(0);
+			f.setId(50L);
+			return f;
+		});
+
+		PreparedFirmwareUpload okPrepared = service.prepareCreate(okFile, "5.0.0", null, null);
+		assertThat(okPrepared.tempFile()).exists();
+		service.completeCreate(okPrepared);
+		assertThat(okPrepared.tempFile()).doesNotExist();
+
+		byte[] failPayload = "fw-temp-fail".getBytes(StandardCharsets.UTF_8);
+		MockMultipartFile failFile = new MockMultipartFile(
+				"file", "temp-fail.bin", "application/octet-stream", failPayload);
+		when(repository.existsByFileName("temp-fail.bin")).thenReturn(false);
+		when(repository.existsByVersionAndPrinterModelIsNull("5.1.0")).thenReturn(false);
+		doThrow(new IllegalStateException("sftp upload down"))
+				.when(storage)
+				.upload(eq("temp-fail.bin"), any(InputStream.class), eq((long) failPayload.length));
+
+		PreparedFirmwareUpload failPrepared = service.prepareCreate(failFile, "5.1.0", null, null);
+		assertThat(failPrepared.tempFile()).exists();
+		assertThatThrownBy(() -> service.completeCreate(failPrepared))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("sftp upload down");
+		assertThat(failPrepared.tempFile()).doesNotExist();
+	}
 }

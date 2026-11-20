@@ -45,10 +45,11 @@ public class FiscalizacionSseController {
             return ResponseEntity.badRequest().build();
         }
 
-        SseEmitter emitter;
+        SseEmitter emitter = null;
+        String compactMac = null;
         try {
             if (hasMac) {
-                String compactMac = MacAddressNormalizer.toCompactForm(mac);
+                compactMac = MacAddressNormalizer.toCompactForm(mac);
                 emitter = broadcaster.subscribe(compactMac);
                 notifier.notifyConnected(compactMac);
             } else {
@@ -56,6 +57,13 @@ public class FiscalizacionSseController {
                 broadcaster.sendTo(emitter, FiscalizacionSseEvent.connected(null));
             }
         } catch (Exception ex) {
+            if (emitter != null) {
+                if (compactMac != null) {
+                    broadcaster.unsubscribeByMac(compactMac, emitter);
+                } else {
+                    broadcaster.unsubscribeByPtrReg(ptrReg, emitter);
+                }
+            }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
 

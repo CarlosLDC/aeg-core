@@ -161,6 +161,7 @@ public class SecurityConfig {
 				.requestMatchers("/error").permitAll()
 				.requestMatchers("/ws/mqtt", "/ws/mqtt/**").permitAll()
 				.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+				.requestMatchers("/actuator/**").hasRole("ADMIN")
 				.anyRequest().authenticated();
 			})
 			.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

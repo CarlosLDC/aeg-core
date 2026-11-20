@@ -772,10 +772,14 @@ public class PrinterServiceImpl implements PrinterService {
         if (inventoryBoxRepository == null) {
             return Map.of();
         }
+        List<Object[]> rows = inventoryBoxRepository.findAllIdAndBoxNumbers();
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
         Map<Long, Integer> map = new HashMap<>();
-        for (com.aeg.core.inventorybox.InventoryBox box : inventoryBoxRepository.findAll()) {
-            if (box.getId() != null && box.getBoxNumber() != null) {
-                map.put(box.getId(), box.getBoxNumber());
+        for (Object[] row : rows) {
+            if (row != null && row.length >= 2 && row[0] instanceof Number id && row[1] instanceof Number boxNumber) {
+                map.put(id.longValue(), boxNumber.intValue());
             }
         }
         return map;

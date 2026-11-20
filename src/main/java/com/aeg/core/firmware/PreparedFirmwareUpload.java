@@ -1,10 +1,13 @@
 package com.aeg.core.firmware;
 
+import java.nio.file.Path;
+
 /**
- * In-memory payload for an async firmware create after validation.
+ * Spool-backed payload for an async firmware create after validation.
  */
 public record PreparedFirmwareUpload(
-		byte[] bytes,
+		Path tempFile,
+		long sizeBytes,
 		String fileName,
 		String version,
 		Long printerModelId,

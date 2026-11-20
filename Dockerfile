@@ -15,17 +15,16 @@ COPY --from=build /app/target/core-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=60.0", \
-  "-XX:InitialRAMPercentage=30.0", \
-  "-XX:MinRAMPercentage=15.0", \
-  "-XX:+UseG1GC", \
-  "-XX:MaxGCPauseMillis=200", \
-  "-XX:G1HeapRegionSize=4m", \
-  "-XX:G1PeriodicGCInterval=30000", \
-  "-XX:G1PeriodicGCSystemLoadThreshold=0.5", \
+  "-XX:MaxRAMPercentage=42.0", \
+  "-XX:InitialRAMPercentage=20.0", \
+  "-XX:MinRAMPercentage=20.0", \
+  "-XX:+UseSerialGC", \
+  "-XX:MinHeapFreeRatio=10", \
+  "-XX:MaxHeapFreeRatio=25", \
   "-XX:MaxMetaspaceSize=128m", \
-  "-XX:CompressedClassSpaceSize=64m", \
-  "-XX:ReservedCodeCacheSize=64m", \
+  "-XX:CompressedClassSpaceSize=32m", \
+  "-XX:ReservedCodeCacheSize=32m", \
+  "-XX:MaxDirectMemorySize=32m", \
   "-XX:TieredStopAtLevel=1", \
   "-XX:+ExitOnOutOfMemoryError", \
   "-Xss256k", \

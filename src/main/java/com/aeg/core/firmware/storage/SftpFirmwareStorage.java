@@ -1,9 +1,11 @@
 package com.aeg.core.firmware.storage;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
@@ -65,6 +67,57 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 				return in.readAllBytes();
 			}
 		});
+	}
+
+	@Override
+	public FirmwareDownload openDownload(String fileName) {
+		ensureConfigured();
+		String remotePath = remotePath(fileName);
+		SshClient client = null;
+		ClientSession session = null;
+		SftpClient sftp = null;
+		InputStream raw = null;
+		try {
+			client = SshClient.setUpDefaultClient();
+			CoreModuleProperties.IO_CONNECT_TIMEOUT.set(client, CONNECT_TIMEOUT);
+			CoreModuleProperties.IDLE_TIMEOUT.set(client, IDLE_TIMEOUT);
+			client.start();
+
+			session = client.connect(username, host, port)
+					.verify(CONNECT_TIMEOUT)
+					.getSession();
+			session.addPasswordIdentity(password);
+			session.auth().verify(AUTH_TIMEOUT);
+
+			sftp = SftpClientFactory.instance().createSftpClient(session);
+			long size = sftp.stat(remotePath).getSize();
+			raw = sftp.read(remotePath);
+
+			final SshClient finalClient = client;
+			final ClientSession finalSession = session;
+			final SftpClient finalSftp = sftp;
+			final AtomicBoolean closed = new AtomicBoolean(false);
+			InputStream wrappedStream = new FilterInputStream(raw) {
+				@Override
+				public void close() throws IOException {
+					if (!closed.compareAndSet(false, true)) {
+						return;
+					}
+					try {
+						super.close();
+					} finally {
+						closeQuietly(finalSftp, finalSession, finalClient);
+					}
+				}
+			};
+			return new FirmwareDownload(wrappedStream, size);
+		} catch (IllegalStateException e) {
+			closeQuietly(raw, sftp, session, client);
+			throw e;
+		} catch (Exception e) {
+			closeQuietly(raw, sftp, session, client);
+			throw sftpOperationException(e);
+		}
 	}
 
 	@Override
@@ -132,21 +185,38 @@ public class SftpFirmwareStorage implements FirmwareStorage {
 		} catch (IllegalStateException e) {
 			throw e;
 		} catch (Exception e) {
-			log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
-			String hint;
-			if (port == 22) {
-				hint = " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222).";
-			} else if (messageLooksLikeConnectionRefused(e)) {
-				hint = " Nothing is accepting TCP " + port + " on " + host
-						+ ". On the droplet run scripts/setup-firmware-sftp-droplet.sh (sshd Port "
-						+ port + ") and open the firewall.";
-			} else if (messageLooksLikeTimeoutOrUnreachable(e)) {
-				hint = " Host " + host + ":" + port
-						+ " is unreachable from App Platform. Use the droplet public IP unless the app is attached to the same VPC.";
-			} else {
-				hint = "";
+			throw sftpOperationException(e);
+		}
+	}
+
+	private IllegalStateException sftpOperationException(Exception e) {
+		log.error("Firmware SFTP failed host={} port={} remoteDir={}: {}", host, port, remoteDir, e.getMessage());
+		String hint;
+		if (port == 22) {
+			hint = " DigitalOcean App Platform blocks outbound TCP 22; set sshd + FIRMWARE_SFTP_PORT to a non-default port (e.g. 2222).";
+		} else if (messageLooksLikeConnectionRefused(e)) {
+			hint = " Nothing is accepting TCP " + port + " on " + host
+					+ ". On the droplet run scripts/setup-firmware-sftp-droplet.sh (sshd Port "
+					+ port + ") and open the firewall.";
+		} else if (messageLooksLikeTimeoutOrUnreachable(e)) {
+			hint = " Host " + host + ":" + port
+					+ " is unreachable from App Platform. Use the droplet public IP unless the app is attached to the same VPC.";
+		} else {
+			hint = "";
+		}
+		return new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage() + hint, e);
+	}
+
+	private void closeQuietly(AutoCloseable... closeables) {
+		for (AutoCloseable closeable : closeables) {
+			if (closeable == null) {
+				continue;
 			}
-			throw new IllegalStateException("Firmware SFTP operation failed: " + e.getMessage() + hint, e);
+			try {
+				closeable.close();
+			} catch (Exception ex) {
+				log.debug("Failed closing SFTP download resource: {}", ex.getMessage());
+			}
 		}
 	}
 

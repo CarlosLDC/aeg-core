@@ -3,6 +3,7 @@ package com.aeg.core.mail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -24,17 +25,34 @@ public class ResendEmailSender implements EmailSender {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final MailProperties mailProperties;
-    private final HttpClient httpClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+    private volatile HttpClient httpClient;
 
     @Autowired
-    public ResendEmailSender(MailProperties mailProperties) {
-        this(mailProperties, HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+    public ResendEmailSender(
+            MailProperties mailProperties,
+            @Qualifier("mqttObjectMapper") ObjectMapper objectMapper) {
+        this.mailProperties = mailProperties;
+        this.objectMapper = objectMapper;
     }
 
     ResendEmailSender(MailProperties mailProperties, HttpClient httpClient) {
         this.mailProperties = mailProperties;
+        this.objectMapper = new ObjectMapper();
         this.httpClient = httpClient;
+    }
+
+    private HttpClient client() {
+        HttpClient existing = this.httpClient;
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (this) {
+            if (this.httpClient == null) {
+                this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+            }
+            return this.httpClient;
+        }
     }
 
     @Override
@@ -65,7 +83,7 @@ public class ResendEmailSender implements EmailSender {
                 .build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            HttpResponse<String> response = client().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             int status = response.statusCode();
             if (status < 200 || status >= 300) {
                 log.error("Resend devolvió HTTP {} al enviar correo a {}: {}", status, message.to(), response.body());

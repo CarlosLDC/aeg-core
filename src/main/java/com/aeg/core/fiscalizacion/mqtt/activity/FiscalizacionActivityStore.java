@@ -15,15 +15,35 @@ import com.aeg.core.fiscalizacion.mqtt.FiscalizacionSessionState;
 @Component
 public class FiscalizacionActivityStore {
 
-    private static final int MAX_ENTRIES = 2_000;
+    private static final int MAX_ENTRIES = 300;
+    private static final int MAX_PAYLOAD_LENGTH = 2_048;
 
     private final Deque<FiscalizacionActivityEntry> entries = new ArrayDeque<>();
 
     public synchronized void record(FiscalizacionActivityEntry entry) {
-        entries.addFirst(entry);
+        FiscalizacionActivityEntry sanitized = truncatePayload(entry);
+        entries.addFirst(sanitized);
         while (entries.size() > MAX_ENTRIES) {
             entries.removeLast();
         }
+    }
+
+    private static FiscalizacionActivityEntry truncatePayload(FiscalizacionActivityEntry entry) {
+        if (entry == null || entry.payload() == null || entry.payload().length() <= MAX_PAYLOAD_LENGTH) {
+            return entry;
+        }
+        return new FiscalizacionActivityEntry(
+                entry.id(),
+                entry.at(),
+                entry.mac(),
+                entry.printerId(),
+                entry.ptrReg(),
+                entry.direction(),
+                entry.topic(),
+                entry.payload().substring(0, MAX_PAYLOAD_LENGTH),
+                entry.result(),
+                entry.detail(),
+                entry.sessionState());
     }
 
     public void recordInbound(

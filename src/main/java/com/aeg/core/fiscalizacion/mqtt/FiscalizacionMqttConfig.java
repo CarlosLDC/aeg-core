@@ -11,8 +11,9 @@ public class FiscalizacionMqttConfig {
     @Bean(name = "fiscalizacionTaskScheduler")
     TaskScheduler fiscalizacionTaskScheduler() {
         ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
-        scheduler.setPoolSize(2);
+        scheduler.setPoolSize(1);
         scheduler.setThreadNamePrefix("fiscalizacion-mqtt-");
+        scheduler.setRemoveOnCancelPolicy(true);
         scheduler.initialize();
         return scheduler;
     }

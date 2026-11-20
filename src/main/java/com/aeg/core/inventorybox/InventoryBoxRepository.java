@@ -10,4 +10,7 @@ public interface InventoryBoxRepository extends JpaRepository<InventoryBox, Long
     boolean existsByBoxNumber(Integer boxNumber);
 
     boolean existsByBoxNumberAndIdNot(Integer boxNumber, Long id);
+
+    @org.springframework.data.jpa.repository.Query("SELECT b.id, b.boxNumber FROM InventoryBox b")
+    java.util.List<Object[]> findAllIdAndBoxNumbers();
 }

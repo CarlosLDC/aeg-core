@@ -83,7 +83,8 @@ public class EnajenacionSseBroadcaster {
         }
     }
 
-    private void unsubscribe(String mac, SseEmitter emitter) {
+    void unsubscribe(String compactMac, SseEmitter emitter) {
+        String mac = normalizeMac(compactMac);
         Set<SseEmitter> emitters = emittersByMac.get(mac);
         if (emitters == null) {
             return;

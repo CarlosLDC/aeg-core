@@ -1,6 +1,10 @@
 package com.aeg.core.firmware;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
@@ -8,7 +12,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -92,67 +96,100 @@ public class FirmwareServiceImpl implements FirmwareService {
 							"Printer model not found with id: " + printerModelId));
 		}
 
-		byte[] bytes;
+		Path tempFile = null;
+		long sizeBytes = 0L;
+		String sha256Hex;
+		String md5Hex;
 		try {
-			bytes = file.getBytes();
+			tempFile = Files.createTempFile("aeg-fw-upload-", ".bin");
+			MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+			MessageDigest md5 = MessageDigest.getInstance("MD5");
+			byte[] buffer = new byte[8192];
+			try (InputStream in = file.getInputStream(); OutputStream out = Files.newOutputStream(tempFile)) {
+				int read;
+				while ((read = in.read(buffer)) != -1) {
+					if (read > 0) {
+						out.write(buffer, 0, read);
+						sha256.update(buffer, 0, read);
+						md5.update(buffer, 0, read);
+						sizeBytes += read;
+					}
+				}
+			}
+			if (sizeBytes == 0L) {
+				deleteTempQuietly(tempFile);
+				throw new IllegalArgumentException("file is required");
+			}
+			sha256Hex = HexFormat.of().formatHex(sha256.digest());
+			md5Hex = HexFormat.of().formatHex(md5.digest());
 		} catch (IOException e) {
+			deleteTempQuietly(tempFile);
 			throw new IllegalArgumentException("Could not read uploaded file", e);
-		}
-		if (bytes.length == 0) {
-			throw new IllegalArgumentException("file is required");
+		} catch (NoSuchAlgorithmException e) {
+			deleteTempQuietly(tempFile);
+			throw new IllegalStateException("Checksum algorithm not available", e);
+		} catch (RuntimeException e) {
+			deleteTempQuietly(tempFile);
+			throw e;
 		}
 
 		return new PreparedFirmwareUpload(
-				bytes,
+				tempFile,
+				sizeBytes,
 				fileName,
 				normalizedVersion,
 				printerModelId,
 				StringUtils.hasText(notes) ? notes.trim() : null,
-				sha256Hex(bytes),
-				md5Hex(bytes));
+				sha256Hex,
+				md5Hex);
 	}
 
 	@Override
 	public FirmwareResponse completeCreate(PreparedFirmwareUpload prepared) {
-		PrinterModel model = null;
-		if (prepared.printerModelId() != null) {
-			model = printerModelRepository.findById(prepared.printerModelId())
-					.orElseThrow(() -> new ResourceNotFoundException(
-							"Printer model not found with id: " + prepared.printerModelId()));
-		}
-
-		// Re-check uniqueness in case of concurrent uploads.
-		if (repository.existsByFileName(prepared.fileName())) {
-			throw new IllegalArgumentException("Firmware file name already exists: " + prepared.fileName());
-		}
-		assertVersionAvailable(prepared.version(), prepared.printerModelId());
-
-		boolean uploaded = false;
 		try {
-			storage.upload(
-					prepared.fileName(),
-					new java.io.ByteArrayInputStream(prepared.bytes()),
-					prepared.bytes().length);
-			uploaded = true;
-
-			Firmware entity = new Firmware();
-			entity.setVersion(prepared.version());
-			entity.setFileName(prepared.fileName());
-			entity.setSizeBytes((long) prepared.bytes().length);
-			entity.setChecksumSha256(prepared.checksumSha256());
-			entity.setChecksumMd5(prepared.checksumMd5());
-			entity.setPrinterModel(model);
-			entity.setNotes(prepared.notes());
-			return toResponse(repository.save(entity));
-		} catch (RuntimeException e) {
-			if (uploaded) {
-				try {
-					storage.delete(prepared.fileName());
-				} catch (RuntimeException cleanup) {
-					log.warn("Failed to clean up remote firmware after DB error: {}", prepared.fileName(), cleanup);
-				}
+			PrinterModel model = null;
+			if (prepared.printerModelId() != null) {
+				model = printerModelRepository.findById(prepared.printerModelId())
+						.orElseThrow(() -> new ResourceNotFoundException(
+								"Printer model not found with id: " + prepared.printerModelId()));
 			}
-			throw e;
+
+			// Re-check uniqueness in case of concurrent uploads.
+			if (repository.existsByFileName(prepared.fileName())) {
+				throw new IllegalArgumentException("Firmware file name already exists: " + prepared.fileName());
+			}
+			assertVersionAvailable(prepared.version(), prepared.printerModelId());
+
+			boolean uploaded = false;
+			try {
+				try (InputStream in = Files.newInputStream(prepared.tempFile())) {
+					storage.upload(prepared.fileName(), in, prepared.sizeBytes());
+				}
+				uploaded = true;
+
+				Firmware entity = new Firmware();
+				entity.setVersion(prepared.version());
+				entity.setFileName(prepared.fileName());
+				entity.setSizeBytes(prepared.sizeBytes());
+				entity.setChecksumSha256(prepared.checksumSha256());
+				entity.setChecksumMd5(prepared.checksumMd5());
+				entity.setPrinterModel(model);
+				entity.setNotes(prepared.notes());
+				return toResponse(repository.save(entity));
+			} catch (IOException e) {
+				throw new IllegalStateException("Could not read staged firmware file", e);
+			} catch (RuntimeException e) {
+				if (uploaded) {
+					try {
+						storage.delete(prepared.fileName());
+					} catch (RuntimeException cleanup) {
+						log.warn("Failed to clean up remote firmware after DB error: {}", prepared.fileName(), cleanup);
+					}
+				}
+				throw e;
+			}
+		} finally {
+			deleteTempQuietly(prepared.tempFile());
 		}
 	}
 
@@ -199,17 +236,22 @@ public class FirmwareServiceImpl implements FirmwareService {
 	@Transactional(readOnly = true)
 	public ResponseEntity<Resource> download(Long id) {
 		Firmware entity = findEntityById(id);
-		byte[] bytes = storage.download(entity.getFileName());
-		ByteArrayResource resource = new ByteArrayResource(bytes) {
+		FirmwareStorage.FirmwareDownload dl = FirmwareStorage.openDownloadOrFallback(storage, entity.getFileName());
+		InputStreamResource resource = new InputStreamResource(dl.stream()) {
 			@Override
 			public String getFilename() {
 				return entity.getFileName();
+			}
+
+			@Override
+			public long contentLength() {
+				return dl.contentLength();
 			}
 		};
 		return ResponseEntity.ok()
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + entity.getFileName() + "\"")
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.contentLength(bytes.length)
+				.contentLength(dl.contentLength())
 				.body(resource);
 	}
 
@@ -240,8 +282,12 @@ public class FirmwareServiceImpl implements FirmwareService {
 		int updated = 0;
 		for (Firmware entity : pending) {
 			try {
-				byte[] bytes = storage.download(entity.getFileName());
-				entity.setChecksumMd5(md5Hex(bytes));
+				FirmwareStorage.FirmwareDownload dl = FirmwareStorage.openDownloadOrFallback(storage, entity.getFileName());
+				String md5;
+				try (InputStream in = dl.stream()) {
+					md5 = md5Hex(in);
+				}
+				entity.setChecksumMd5(md5);
 				repository.save(entity);
 				updated++;
 				log.info("Backfilled MD5 checksum for firmware id={} file={}", entity.getId(), entity.getFileName());
@@ -251,6 +297,17 @@ public class FirmwareServiceImpl implements FirmwareService {
 			}
 		}
 		return updated;
+	}
+
+	private static void deleteTempQuietly(Path tempFile) {
+		if (tempFile == null) {
+			return;
+		}
+		try {
+			Files.deleteIfExists(tempFile);
+		} catch (IOException e) {
+			log.debug("Could not delete temporary firmware file {}: {}", tempFile, e.getMessage());
+		}
 	}
 
 	private Firmware findEntityById(Long id) {
@@ -278,6 +335,22 @@ public class FirmwareServiceImpl implements FirmwareService {
 			return HexFormat.of().formatHex(digest.digest(bytes));
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("SHA-256 not available", e);
+		}
+	}
+
+	static String md5Hex(InputStream in) throws IOException {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("MD5");
+			byte[] buffer = new byte[8192];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				if (read > 0) {
+					digest.update(buffer, 0, read);
+				}
+			}
+			return HexFormat.of().formatHex(digest.digest());
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("MD5 not available", e);
 		}
 	}
 

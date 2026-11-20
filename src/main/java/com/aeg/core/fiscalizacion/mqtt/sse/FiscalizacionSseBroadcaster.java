@@ -67,13 +67,21 @@ public class FiscalizacionSseBroadcaster {
     }
 
     private SseEmitter subscribeKey(String key) {
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+        SseEmitter emitter = createEmitter();
         emittersByKey.computeIfAbsent(key, ignored -> new CopyOnWriteArraySet<>()).add(emitter);
         Runnable cleanup = () -> unsubscribe(key, emitter);
         emitter.onCompletion(cleanup);
         emitter.onTimeout(cleanup);
         emitter.onError(ex -> cleanup.run());
         return emitter;
+    }
+
+    SseEmitter createEmitter() {
+        return new SseEmitter(EMITTER_TIMEOUT_MS);
+    }
+
+    int activeEmitterCount() {
+        return emittersByKey.values().stream().mapToInt(Set::size).sum();
     }
 
     private SseEmitter.SseEventBuilder toBuilder(FiscalizacionSseEvent event) {
@@ -99,6 +107,31 @@ public class FiscalizacionSseBroadcaster {
                 unsubscribe(key, emitter);
             }
         }
+    }
+
+    public void sendHeartbeat() {
+        for (String key : emittersByKey.keySet()) {
+            Set<SseEmitter> emitters = emittersByKey.get(key);
+            if (emitters == null || emitters.isEmpty()) {
+                emittersByKey.remove(key, emitters);
+                continue;
+            }
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event().comment("heartbeat"));
+                } catch (IOException | IllegalStateException ex) {
+                    unsubscribe(key, emitter);
+                }
+            }
+        }
+    }
+
+    void unsubscribeByMac(String compactMac, SseEmitter emitter) {
+        unsubscribe(macKey(compactMac), emitter);
+    }
+
+    void unsubscribeByPtrReg(String ptrReg, SseEmitter emitter) {
+        unsubscribe(regKey(ptrReg), emitter);
     }
 
     private void unsubscribe(String key, SseEmitter emitter) {

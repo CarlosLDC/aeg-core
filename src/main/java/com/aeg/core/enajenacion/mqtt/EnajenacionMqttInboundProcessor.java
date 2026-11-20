@@ -1,5 +1,9 @@
 package com.aeg.core.enajenacion.mqtt;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -21,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 public class EnajenacionMqttInboundProcessor {
 
     private static final long DEDUPE_WINDOW_MS = 5_000L;
+    private static final int MAX_RECENT_ENTRIES = 500;
 
     private final EnajenacionMqttOrchestrator orchestrator;
     private final EnajenacionMqttSettings settings;
@@ -56,9 +61,28 @@ public class EnajenacionMqttInboundProcessor {
 
     private boolean isDuplicate(String topic, String payload) {
         long now = System.currentTimeMillis();
-        String key = topic + "\u0000" + payload;
+        String key = digestKey(topic, payload);
         Long previous = recentInbound.put(key, now);
         recentInbound.entrySet().removeIf(entry -> now - entry.getValue() > DEDUPE_WINDOW_MS);
+        if (recentInbound.size() > MAX_RECENT_ENTRIES) {
+            recentInbound.clear();
+        }
         return previous != null && now - previous < DEDUPE_WINDOW_MS;
+    }
+
+    private static String digestKey(String topic, String payload) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            if (topic != null) {
+                digest.update(topic.getBytes(StandardCharsets.UTF_8));
+            }
+            digest.update((byte) 0);
+            if (payload != null) {
+                digest.update(payload.getBytes(StandardCharsets.UTF_8));
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 algorithm not available", ex);
+        }
     }
 }
