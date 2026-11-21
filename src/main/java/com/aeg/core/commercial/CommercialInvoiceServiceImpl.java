@@ -20,7 +20,9 @@ import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.commercial.dto.CommercialInvoiceResponse;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
+import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -75,11 +77,16 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
     }
 
     @Override
-    public CommercialInvoiceResponse create(CommercialInvoiceRequest request) {
+    public FacturaComercial createEntity(CommercialInvoiceRequest request) {
         FacturaComercial invoice = new FacturaComercial();
         applyRequest(invoice, request);
         invoice.setCreatedAt(OffsetDateTime.now());
-        FacturaComercial saved = facturaRepository.save(invoice);
+        return facturaRepository.save(invoice);
+    }
+
+    @Override
+    public CommercialInvoiceResponse create(CommercialInvoiceRequest request) {
+        FacturaComercial saved = createEntity(request);
         return toResponse(saved, 0L, BigDecimal.ZERO, 0L);
     }
 
@@ -88,7 +95,42 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         FacturaComercial invoice = findEntityById(id);
         applyRequest(invoice, request);
         FacturaComercial saved = facturaRepository.save(invoice);
+        settleCreditPrintersIfPaid(saved);
         return buildSingleResponse(saved);
+    }
+
+    @Override
+    public CommercialInvoiceResponse markAsPaid(Long id) {
+        FacturaComercial invoice = findEntityById(id);
+        invoice.setEstadoCobro("PAGADO");
+        FacturaComercial saved = facturaRepository.save(invoice);
+        settleCreditPrintersIfPaid(saved);
+        return buildSingleResponse(saved);
+    }
+
+    @Override
+    public int settleCreditPrintersIfPaid(FacturaComercial invoice) {
+        return settleCreditPrinters(invoice, printerRepository);
+    }
+
+    static int settleCreditPrinters(FacturaComercial invoice, PrinterRepository printerRepository) {
+        if (invoice == null
+                || invoice.getId() == null
+                || printerRepository == null
+                || !"PAGADO".equalsIgnoreCase(invoice.getEstadoCobro())) {
+            return 0;
+        }
+        List<Printer> creditPrinters = printerRepository.findByFacturaComercial_IdAndStatus(
+                invoice.getId(), PrinterStatus.A_CREDITO);
+        if (creditPrinters == null || creditPrinters.isEmpty()) {
+            return 0;
+        }
+        for (Printer printer : creditPrinters) {
+            printer.setStatus(PrinterStatus.ENAJENADA);
+            printer.setPaid(true);
+        }
+        printerRepository.saveAll(creditPrinters);
+        return creditPrinters.size();
     }
 
     @Override
@@ -128,6 +170,7 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         printerRepository.clearFacturaComercialByFacturaId(invoice.getId());
         if (!distinctIds.isEmpty()) {
             printerRepository.assignFacturaComercialByPrinterIds(invoice, distinctIds);
+            settleCreditPrintersIfPaid(invoice);
         }
         return buildSingleResponse(invoice);
     }

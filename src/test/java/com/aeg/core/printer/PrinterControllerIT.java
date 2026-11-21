@@ -17,6 +17,9 @@ import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchRepository;
 import com.aeg.core.client.Client;
 import com.aeg.core.client.ClientRepository;
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.FacturaComercialRepository;
+import com.aeg.core.commercial.PagoComercialRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.company.ContributorType;
@@ -56,6 +59,12 @@ public class PrinterControllerIT {
 
     @Autowired
     DistributorRepository distributorRepository;
+
+    @Autowired
+    FacturaComercialRepository facturaComercialRepository;
+
+    @Autowired
+    PagoComercialRepository pagoComercialRepository;
 
     @Test
     void createAndGetPrinter() throws Exception {
@@ -216,38 +225,193 @@ public class PrinterControllerIT {
     void authorizeEnajenacionAllowsAdminForConsignmentPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+        FacturaComercial invoice = createCommercialInvoice(
+                client.getBranch().getCompany(),
+                "FAC-IT-" + SERIAL_SEQUENCE.incrementAndGet(),
+                "CONSIGNACION",
+                "PENDIENTE_PAGO");
 
         var httpClient = java.net.http.HttpClient.newHttpClient();
         var request = java.net.http.HttpRequest.newBuilder()
                 .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printer.getId() + "/autorizar-enajenacion"))
                 .header("Authorization", basicAuthHeader())
                 .header("Content-Type", "application/json")
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"creditInstallments\":6,\"finalSalePrice\":500.00}"))
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
+                        "{\"creditInstallments\":6,\"finalSalePrice\":500.00,\"facturaComercialId\":" + invoice.getId() + "}"))
                 .build();
         var res = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
 
         assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"facturaComercialId\":" + invoice.getId());
+        assertThat(res.body()).contains("\"facturaComercialNumero\":\"" + invoice.getNumeroFactura() + "\"");
+        assertThat(res.body()).contains("\"facturaComercialModalidad\":\"CONSIGNACION\"");
+        assertThat(res.body()).contains("\"facturaComercialEstadoCobro\":\"PENDIENTE_PAGO\"");
         Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(updated.getEnajenacionAutorizada()).isTrue();
         assertThat(updated.getCreditInstallments()).isEqualTo(6);
         assertThat(updated.getFinalSalePrice()).isEqualByComparingTo("500.00");
+        assertThat(updated.getFacturaComercialId()).isEqualTo(invoice.getId());
+        FacturaComercial unchangedInvoice = facturaComercialRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(unchangedInvoice.getModalidad()).isEqualTo("CONSIGNACION");
+        assertThat(unchangedInvoice.getEstadoCobro()).isEqualTo("PENDIENTE_PAGO");
+    }
+
+    @Test
+    void authorizeEnajenacionAllowsAdminCreatingNewCommercialInvoice() throws Exception {
+        Client client = createClient();
+        Company company = client.getBranch().getCompany();
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+        String invoiceNumber = "FAC-NEW-" + SERIAL_SEQUENCE.incrementAndGet();
+
+        String body = "{"
+                + "\"creditInstallments\":4,"
+                + "\"finalSalePrice\":450.00,"
+                + "\"newCommercialInvoice\":{"
+                + "\"numeroFactura\":\"" + invoiceNumber + "\","
+                + "\"empresaId\":" + company.getId() + ","
+                + "\"modalidad\":\"VENTA\","
+                + "\"estadoCobro\":\"PENDIENTE_PAGO\""
+                + "}"
+                + "}";
+
+        var res = postAuthorizeEnajenacion(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"facturaComercialNumero\":\"" + invoiceNumber + "\"");
+        Printer updated = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(updated.getEnajenacionAutorizada()).isTrue();
+        assertThat(updated.getFacturaComercialId()).isNotNull();
+        FacturaComercial createdInvoice = facturaComercialRepository.findById(updated.getFacturaComercialId()).orElseThrow();
+        assertThat(createdInvoice.getNumeroFactura()).isEqualTo(invoiceNumber);
+        assertThat(createdInvoice.getModalidad()).isEqualTo("VENTA");
+        assertThat(createdInvoice.getEstadoCobro()).isEqualTo("PENDIENTE_PAGO");
+    }
+
+    @Test
+    void authorizeEnajenacionRejectsMissingCommercialInvoice() throws Exception {
+        Client client = createClient();
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+
+        var res = postAuthorizeEnajenacion(printer.getId(), "{\"creditInstallments\":4}");
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        Printer unchanged = printerRepository.findById(printer.getId()).orElseThrow();
+        assertThat(unchanged.getEnajenacionAutorizada()).isFalse();
+        assertThat(unchanged.getFacturaComercialId()).isNull();
+    }
+
+    @Test
+    void authorizeEnajenacionRejectsBothExistingAndNewCommercialInvoice() throws Exception {
+        Client client = createClient();
+        Company company = client.getBranch().getCompany();
+        Printer printer = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+        FacturaComercial invoice = createCommercialInvoice(
+                company,
+                "FAC-BOTH-" + SERIAL_SEQUENCE.incrementAndGet(),
+                "VENTA",
+                "PENDIENTE_PAGO");
+
+        String body = "{"
+                + "\"creditInstallments\":4,"
+                + "\"facturaComercialId\":" + invoice.getId() + ","
+                + "\"newCommercialInvoice\":{"
+                + "\"numeroFactura\":\"FAC-DUP-" + SERIAL_SEQUENCE.incrementAndGet() + "\","
+                + "\"empresaId\":" + company.getId() + ","
+                + "\"modalidad\":\"VENTA\","
+                + "\"estadoCobro\":\"PENDIENTE_PAGO\""
+                + "}"
+                + "}";
+
+        var res = postAuthorizeEnajenacion(printer.getId(), body);
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(printerRepository.findById(printer.getId()).orElseThrow().getEnajenacionAutorizada()).isFalse();
     }
 
     @Test
     void authorizeEnajenacionRejectsNonConsignmentPrinter() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+        FacturaComercial invoice = createCommercialInvoice(
+                client.getBranch().getCompany(),
+                "FAC-NC-" + SERIAL_SEQUENCE.incrementAndGet(),
+                "VENTA",
+                "PENDIENTE_PAGO");
 
-        var httpClient = java.net.http.HttpClient.newHttpClient();
-        var request = java.net.http.HttpRequest.newBuilder()
-                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printer.getId() + "/autorizar-enajenacion"))
-                .header("Authorization", basicAuthHeader())
-                .header("Content-Type", "application/json")
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"creditInstallments\":4}"))
-                .build();
-        var res = httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+        var res = postAuthorizeEnajenacion(
+                printer.getId(),
+                "{\"creditInstallments\":4,\"facturaComercialId\":" + invoice.getId() + "}");
 
         assertThat(res.statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void markingCommercialInvoicePaidTransitionsCreditPrintersOnly() throws Exception {
+        Client client = createClient();
+        Company company = client.getBranch().getCompany();
+        FacturaComercial invoice = createCommercialInvoice(
+                company,
+                "FAC-SETTLE-" + SERIAL_SEQUENCE.incrementAndGet(),
+                "VENTA",
+                "PENDIENTE_PAGO");
+
+        Printer creditPrinter = createPrinter(client, PrinterStatus.A_CREDITO, false);
+        creditPrinter.setFacturaComercial(invoice);
+        creditPrinter = printerRepository.save(creditPrinter);
+
+        Printer consignmentPrinter = createPrinter(client, PrinterStatus.EN_CONSIGNACION, false);
+        consignmentPrinter.setFacturaComercial(invoice);
+        consignmentPrinter = printerRepository.save(consignmentPrinter);
+
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var markPaidReq = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/commercial-invoices/" + invoice.getId() + "/mark-paid"))
+                .header("Authorization", basicAuthHeader())
+                .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
+                .build();
+        var markPaidRes = httpClient.send(markPaidReq, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        assertThat(markPaidRes.statusCode()).isEqualTo(200);
+        assertThat(markPaidRes.body()).contains("\"estadoCobro\":\"PAGADO\"");
+        Printer settledCredit = printerRepository.findById(creditPrinter.getId()).orElseThrow();
+        assertThat(settledCredit.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(settledCredit.getPaid()).isTrue();
+        Printer untouchedConsignment = printerRepository.findById(consignmentPrinter.getId()).orElseThrow();
+        assertThat(untouchedConsignment.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(untouchedConsignment.getPaid()).isFalse();
+
+        // Also verify POST /api/commercial-payments with markInvoiceAsPaid = true
+        FacturaComercial secondInvoice = createCommercialInvoice(
+                company,
+                "FAC-PAY-SETTLE-" + SERIAL_SEQUENCE.incrementAndGet(),
+                "VENTA",
+                "PENDIENTE_PAGO");
+        Printer secondCreditPrinter = createPrinter(client, PrinterStatus.A_CREDITO, false);
+        secondCreditPrinter.setFacturaComercial(secondInvoice);
+        secondCreditPrinter = printerRepository.save(secondCreditPrinter);
+
+        String payBody = "{"
+                + "\"facturaComercialId\":" + secondInvoice.getId() + ","
+                + "\"metodoBanco\":\"ZELLE\","
+                + "\"monto\":450.00,"
+                + "\"referencia\":\"Z-IT-1\","
+                + "\"markInvoiceAsPaid\":true"
+                + "}";
+        var payReq = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/commercial-payments"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(payBody))
+                .build();
+        var payRes = httpClient.send(payReq, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+        assertThat(payRes.statusCode()).isEqualTo(201);
+        assertThat(pagoComercialRepository.countByFacturaComercial_Id(secondInvoice.getId())).isEqualTo(1L);
+        FacturaComercial updatedSecondInvoice = facturaComercialRepository.findById(secondInvoice.getId()).orElseThrow();
+        assertThat(updatedSecondInvoice.getEstadoCobro()).isEqualTo("PAGADO");
+        Printer settledSecond = printerRepository.findById(secondCreditPrinter.getId()).orElseThrow();
+        assertThat(settledSecond.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(settledSecond.getPaid()).isTrue();
     }
 
     @Test
@@ -682,6 +846,30 @@ public class PrinterControllerIT {
 
         Printer cleared = printerRepository.findById(printer.getId()).orElseThrow();
         assertThat(cleared.getSoftware()).isNull();
+    }
+
+    private java.net.http.HttpResponse<String> postAuthorizeEnajenacion(Long printerId, String body) throws Exception {
+        var httpClient = java.net.http.HttpClient.newHttpClient();
+        var request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/printers/" + printerId + "/autorizar-enajenacion"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        return httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+    }
+
+    private FacturaComercial createCommercialInvoice(
+            Company company,
+            String numeroFactura,
+            String modalidad,
+            String estadoCobro) {
+        FacturaComercial invoice = new FacturaComercial();
+        invoice.setCompany(company);
+        invoice.setNumeroFactura(numeroFactura);
+        invoice.setModalidad(modalidad);
+        invoice.setEstadoCobro(estadoCobro);
+        return facturaComercialRepository.save(invoice);
     }
 
     private java.net.http.HttpResponse<String> patchPrinterSoftware(Long printerId, String body) throws Exception {

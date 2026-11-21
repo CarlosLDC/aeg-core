@@ -52,6 +52,11 @@ public class CommercialInvoiceController {
         return service.update(id, request);
     }
 
+    @PostMapping("/{id}/mark-paid")
+    public CommercialInvoiceResponse markAsPaid(@PathVariable Long id) {
+        return service.markAsPaid(id);
+    }
+
     @PutMapping("/{id}/printers")
     public CommercialInvoiceResponse syncPrinters(
             @PathVariable Long id,

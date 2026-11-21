@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.aeg.core.commercial.FacturaComercial;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -94,6 +95,52 @@ class EnajenacionCompletionServiceTest {
         assertThat(printer.getPaid()).isFalse();
         assertThat(printer.getEncryptionKey()).isEqualTo("55a42534f4d2d8b9");
         assertThat(printer.getInstallationDate()).isNotNull();
+        verify(printerRepository).save(printer);
+    }
+
+    @Test
+    void markEnajenadaFromEnConsignacionWithPaidInvoiceMovesDirectlyToEnajenada() {
+        FacturaComercial invoice = new FacturaComercial();
+        invoice.setNumeroFactura("FAC-090");
+        invoice.setModalidad("VENTA");
+        invoice.setEstadoCobro("PAGADO");
+
+        Printer printer = new Printer();
+        printer.setId(5L);
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setPaid(false);
+        printer.setFiscalSerial("GRA0000020");
+        printer.setFacturaComercial(invoice);
+
+        when(printerRepository.findById(5L)).thenReturn(Optional.of(printer));
+
+        service.markEnajenada(5L, "55a42534f4d2d8b9");
+
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(printer.getPaid()).isTrue();
+        verify(printerRepository).save(printer);
+    }
+
+    @Test
+    void markEnajenadaFromEnConsignacionWithPendingInvoiceMovesToACredito() {
+        FacturaComercial invoice = new FacturaComercial();
+        invoice.setNumeroFactura("FAC-091");
+        invoice.setModalidad("VENTA");
+        invoice.setEstadoCobro("PENDIENTE_PAGO");
+
+        Printer printer = new Printer();
+        printer.setId(6L);
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setPaid(false);
+        printer.setFiscalSerial("GRA0000021");
+        printer.setFacturaComercial(invoice);
+
+        when(printerRepository.findById(6L)).thenReturn(Optional.of(printer));
+
+        service.markEnajenada(6L, "55a42534f4d2d8b9");
+
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.A_CREDITO);
+        assertThat(printer.getPaid()).isFalse();
         verify(printerRepository).save(printer);
     }
 }

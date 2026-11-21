@@ -16,6 +16,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.PagoComercial;
+import com.aeg.core.commercial.PagoComercialRepository;
+import com.aeg.core.company.Company;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.printer.PrinterStatus;
@@ -123,5 +127,53 @@ class PrinterCreditServiceImplTest {
                         null,
                         false)))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void getCreditSummaryUsesCommercialPaymentsWhenFacturaComercialIsLinked() throws Exception {
+        PagoComercialRepository pagoComercialRepository = mock(PagoComercialRepository.class);
+        PrinterCreditServiceImpl unifiedService = new PrinterCreditServiceImpl(
+                printerRepository, paymentRepository, securityScope, pagoComercialRepository);
+
+        Company company = new Company();
+        company.setId(7L);
+        company.setBusinessName("Comercial Demo C.A.");
+
+        FacturaComercial invoice = new FacturaComercial();
+        var invoiceIdField = FacturaComercial.class.getDeclaredField("id");
+        invoiceIdField.setAccessible(true);
+        invoiceIdField.set(invoice, 77L);
+        invoice.setNumeroFactura("FAC-077");
+        invoice.setModalidad("VENTA");
+        invoice.setEstadoCobro("PAGO_PARCIAL");
+        invoice.setCompany(company);
+        printer.setFacturaComercial(invoice);
+
+        PagoComercial commercialPayment = new PagoComercial();
+        var paymentIdField = PagoComercial.class.getDeclaredField("id");
+        paymentIdField.setAccessible(true);
+        paymentIdField.set(commercialPayment, 88L);
+        commercialPayment.setFacturaComercial(invoice);
+        commercialPayment.setMetodoBanco("ZELLE");
+        commercialPayment.setMonto(new BigDecimal("150.00"));
+        commercialPayment.setReferencia("Z-001");
+
+        when(paymentRepository.findByPrinter_IdOrderByPaymentDateDescIdDesc(20L)).thenReturn(List.of());
+        when(pagoComercialRepository.findByFacturaComercial_IdOrderByCreatedAtDesc(77L))
+                .thenReturn(List.of(commercialPayment));
+        when(printerRepository.countByFacturaComercial_Id(77L)).thenReturn(2L);
+
+        var summary = unifiedService.getCreditSummary(20L);
+
+        assertThat(summary.facturaComercialId()).isEqualTo(77L);
+        assertThat(summary.facturaComercialNumero()).isEqualTo("FAC-077");
+        assertThat(summary.facturaComercialModalidad()).isEqualTo("VENTA");
+        assertThat(summary.facturaComercialEstadoCobro()).isEqualTo("PAGO_PARCIAL");
+        assertThat(summary.facturaComercialPrinterCount()).isEqualTo(2L);
+        assertThat(summary.totalPaid()).isEqualByComparingTo("150.00");
+        assertThat(summary.remainingBalance()).isEqualByComparingTo("250.00");
+        assertThat(summary.paymentCount()).isEqualTo(1);
+        assertThat(summary.commercialPayments()).hasSize(1);
+        assertThat(summary.commercialPayments().get(0).getMetodoBanco()).isEqualTo("ZELLE");
     }
 }

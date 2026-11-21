@@ -30,4 +30,6 @@ public class CommercialPaymentRequest {
 
     @Size(max = 100)
     private String cuentaDestino;
+
+    private Boolean markInvoiceAsPaid;
 }

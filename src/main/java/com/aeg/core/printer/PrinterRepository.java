@@ -74,15 +74,17 @@ public interface PrinterRepository extends JpaRepository<Printer, Long> {
 
     List<Printer> findByFacturaComercial_IdOrderByFiscalSerialAsc(Long facturaComercialId);
 
+    List<Printer> findByFacturaComercial_IdAndStatus(Long facturaComercialId, PrinterStatus status);
+
     @Query("""
-            SELECT p.id, f.id, f.numeroFactura
+            SELECT p.id, f.id, f.numeroFactura, f.modalidad, f.estadoCobro
             FROM Printer p
             JOIN p.facturaComercial f
             """)
     List<Object[]> findAllPrinterCommercialInvoiceRefs();
 
     @Query("""
-            SELECT f.id, f.numeroFactura
+            SELECT f.id, f.numeroFactura, f.modalidad, f.estadoCobro
             FROM Printer p
             JOIN p.facturaComercial f
             WHERE p.id = :printerId

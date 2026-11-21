@@ -2,6 +2,9 @@ package com.aeg.core.printer.dto;
 
 import java.math.BigDecimal;
 
+import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +14,12 @@ public record PrinterEnajenacionAuthorizeRequest(
         @Min(value = 1, message = "creditInstallments must be at least 1")
         Integer creditInstallments,
         @DecimalMin(value = "0.00", message = "finalSalePrice cannot be negative")
-        BigDecimal finalSalePrice
+        BigDecimal finalSalePrice,
+        Long facturaComercialId,
+        @Valid
+        CommercialInvoiceRequest newCommercialInvoice
 ) {
+    public PrinterEnajenacionAuthorizeRequest(Integer creditInstallments, BigDecimal finalSalePrice) {
+        this(creditInstallments, finalSalePrice, null, null);
+    }
 }

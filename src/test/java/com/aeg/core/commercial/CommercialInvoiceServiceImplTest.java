@@ -22,6 +22,7 @@ import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
 import com.aeg.core.printer.Printer;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.printer.PrinterStatus;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 class CommercialInvoiceServiceImplTest {
@@ -159,5 +160,118 @@ class CommercialInvoiceServiceImplTest {
 
         assertThat(response.getPrinterCount()).isEqualTo(1L);
         verify(printerRepository).clearFacturaComercialByFacturaIdAndPrinterId(invoice.getId(), 10L);
+    }
+
+    @Test
+    void update_toPagado_transitionsLinkedCreditPrintersToEnajenada() {
+        FacturaComercial invoice = invoiceWithId(5L, "PENDIENTE_PAGO");
+        Printer creditPrinter = new Printer();
+        creditPrinter.setId(21L);
+        creditPrinter.setStatus(PrinterStatus.A_CREDITO);
+        creditPrinter.setPaid(false);
+
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(invoice));
+        when(printerRepository.findByFacturaComercial_IdAndStatus(5L, PrinterStatus.A_CREDITO))
+                .thenReturn(List.of(creditPrinter));
+        when(pagoRepository.countByFacturaComercial_Id(5L)).thenReturn(0L);
+        when(pagoRepository.findByFacturaComercial_Id(5L)).thenReturn(List.of());
+        when(printerRepository.countByFacturaComercial_Id(5L)).thenReturn(1L);
+
+        CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-005")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PAGADO")
+                .build();
+
+        CommercialInvoiceResponse response = service.update(5L, request);
+
+        assertThat(response.getEstadoCobro()).isEqualTo("PAGADO");
+        assertThat(creditPrinter.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(creditPrinter.getPaid()).isTrue();
+        verify(printerRepository).saveAll(List.of(creditPrinter));
+    }
+
+    @Test
+    void update_toNonPagado_doesNotSettlePrinters() {
+        FacturaComercial invoice = invoiceWithId(5L, "PENDIENTE_PAGO");
+
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(invoice));
+        when(pagoRepository.countByFacturaComercial_Id(5L)).thenReturn(0L);
+        when(pagoRepository.findByFacturaComercial_Id(5L)).thenReturn(List.of());
+        when(printerRepository.countByFacturaComercial_Id(5L)).thenReturn(1L);
+
+        CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-005")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PAGO_PARCIAL")
+                .build();
+
+        service.update(5L, request);
+
+        verify(printerRepository, never()).findByFacturaComercial_IdAndStatus(any(), any());
+        verify(printerRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void markAsPaid_setsEstadoCobroPagadoAndSettlesCreditPrinters() {
+        FacturaComercial invoice = invoiceWithId(8L, "PAGO_PARCIAL");
+        Printer creditPrinter = new Printer();
+        creditPrinter.setId(31L);
+        creditPrinter.setStatus(PrinterStatus.A_CREDITO);
+        creditPrinter.setPaid(false);
+
+        when(facturaRepository.findById(8L)).thenReturn(Optional.of(invoice));
+        when(printerRepository.findByFacturaComercial_IdAndStatus(8L, PrinterStatus.A_CREDITO))
+                .thenReturn(List.of(creditPrinter));
+        when(pagoRepository.countByFacturaComercial_Id(8L)).thenReturn(1L);
+        when(pagoRepository.findByFacturaComercial_Id(8L)).thenReturn(List.of());
+        when(printerRepository.countByFacturaComercial_Id(8L)).thenReturn(1L);
+
+        CommercialInvoiceResponse response = service.markAsPaid(8L);
+
+        assertThat(response.getEstadoCobro()).isEqualTo("PAGADO");
+        assertThat(creditPrinter.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(creditPrinter.getPaid()).isTrue();
+        verify(printerRepository).saveAll(List.of(creditPrinter));
+    }
+
+    @Test
+    void syncPrinters_onPagadoInvoice_settlesNewlyLinkedCreditPrinters() {
+        FacturaComercial invoice = invoiceWithId(9L, "PAGADO");
+        Printer creditPrinter = new Printer();
+        creditPrinter.setId(40L);
+        creditPrinter.setStatus(PrinterStatus.A_CREDITO);
+        creditPrinter.setPaid(false);
+
+        when(facturaRepository.findById(9L)).thenReturn(Optional.of(invoice));
+        when(printerRepository.findAllById(Set.of(40L))).thenReturn(List.of(creditPrinter));
+        when(printerRepository.findByFacturaComercial_IdAndStatus(9L, PrinterStatus.A_CREDITO))
+                .thenReturn(List.of(creditPrinter));
+        when(pagoRepository.countByFacturaComercial_Id(9L)).thenReturn(0L);
+        when(pagoRepository.findByFacturaComercial_Id(9L)).thenReturn(List.of());
+        when(printerRepository.countByFacturaComercial_Id(9L)).thenReturn(1L);
+
+        service.syncPrinters(9L, List.of(40L));
+
+        assertThat(creditPrinter.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
+        assertThat(creditPrinter.getPaid()).isTrue();
+        verify(printerRepository).saveAll(List.of(creditPrinter));
+    }
+
+    private static FacturaComercial invoiceWithId(Long id, String estadoCobro) {
+        FacturaComercial invoice = new FacturaComercial();
+        try {
+            var idField = FacturaComercial.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(invoice, id);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+        invoice.setNumeroFactura("FAC-" + id);
+        invoice.setModalidad("VENTA");
+        invoice.setEstadoCobro(estadoCobro);
+        return invoice;
     }
 }

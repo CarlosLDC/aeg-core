@@ -29,6 +29,11 @@ import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 import com.aeg.core.branch.Branch;
 import com.aeg.core.client.Client;
+import com.aeg.core.commercial.CommercialInvoiceService;
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.FacturaComercialRepository;
+import com.aeg.core.commercial.PagoComercial;
+import com.aeg.core.commercial.PagoComercialRepository;
 import com.aeg.core.company.Company;
 import com.aeg.core.enajenacion.mqtt.EnajenacionTicketExtractor;
 import com.aeg.core.enajenacion.mqtt.MacAddressNormalizer;
@@ -60,6 +65,9 @@ public class PrinterServiceImpl implements PrinterService {
     private final ModificationRequestRepository modificationRequestRepository;
     private final PrinterCreditPaymentRepository creditPaymentRepository;
     private final com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository;
+    private final FacturaComercialRepository facturaComercialRepository;
+    private final CommercialInvoiceService commercialInvoiceService;
+    private final PagoComercialRepository pagoComercialRepository;
     /**
      * Si es true, el listado omite header/trailer (JSON pesado) y expone solo hasTicketConfig.
      * Poner printers.list.slim-ticket=false para revertir sin tocar código.
@@ -80,7 +88,7 @@ public class PrinterServiceImpl implements PrinterService {
                               OrganizationCapabilityService organizationCapability) {
         this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
                 clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
-                securityScope, organizationCapability, null, null, null);
+                securityScope, organizationCapability, null, null, null, null, null, null);
     }
 
     public PrinterServiceImpl(PrinterRepository repository,
@@ -98,7 +106,28 @@ public class PrinterServiceImpl implements PrinterService {
                               PrinterCreditPaymentRepository creditPaymentRepository) {
         this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
                 clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
-                securityScope, organizationCapability, modificationRequestRepository, creditPaymentRepository, null);
+                securityScope, organizationCapability, modificationRequestRepository, creditPaymentRepository,
+                null, null, null, null);
+    }
+
+    public PrinterServiceImpl(PrinterRepository repository,
+                              com.aeg.core.printermodel.PrinterModelRepository modelRepository,
+                              com.aeg.core.software.SoftwareRepository softwareRepository,
+                              com.aeg.core.firmware.FirmwareRepository firmwareRepository,
+                              com.aeg.core.distributor.DistributorRepository distributorRepository,
+                              com.aeg.core.client.ClientRepository clientRepository,
+                              SealRepository sealRepository,
+                              AnnualInspectionRepository annualInspectionRepository,
+                              TechnicalServiceVisitRepository technicalServiceVisitRepository,
+                              SecurityScopeService securityScope,
+                              OrganizationCapabilityService organizationCapability,
+                              ModificationRequestRepository modificationRequestRepository,
+                              PrinterCreditPaymentRepository creditPaymentRepository,
+                              com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository) {
+        this(repository, modelRepository, softwareRepository, firmwareRepository, distributorRepository,
+                clientRepository, sealRepository, annualInspectionRepository, technicalServiceVisitRepository,
+                securityScope, organizationCapability, modificationRequestRepository, creditPaymentRepository,
+                inventoryBoxRepository, null, null, null);
     }
 
     @Autowired
@@ -115,7 +144,10 @@ public class PrinterServiceImpl implements PrinterService {
                               OrganizationCapabilityService organizationCapability,
                               ModificationRequestRepository modificationRequestRepository,
                               PrinterCreditPaymentRepository creditPaymentRepository,
-                              com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository) {
+                              com.aeg.core.inventorybox.InventoryBoxRepository inventoryBoxRepository,
+                              FacturaComercialRepository facturaComercialRepository,
+                              CommercialInvoiceService commercialInvoiceService,
+                              PagoComercialRepository pagoComercialRepository) {
         this.repository = repository;
         this.modelRepository = modelRepository;
         this.softwareRepository = softwareRepository;
@@ -130,6 +162,9 @@ public class PrinterServiceImpl implements PrinterService {
         this.modificationRequestRepository = modificationRequestRepository;
         this.creditPaymentRepository = creditPaymentRepository;
         this.inventoryBoxRepository = inventoryBoxRepository;
+        this.facturaComercialRepository = facturaComercialRepository;
+        this.commercialInvoiceService = commercialInvoiceService;
+        this.pagoComercialRepository = pagoComercialRepository;
     }
 
     @Override
@@ -140,9 +175,9 @@ public class PrinterServiceImpl implements PrinterService {
             return List.of();
         }
         Map<Long, Long> pendingRequestsByPrinter = loadPendingEnajenacionRequestMap();
-        Map<Long, CreditTotals> creditTotalsByPrinter = loadCreditTotalsMap(printers);
         Map<Long, Integer> boxNumbersById = loadBoxNumberMap();
         Map<Long, CommercialInvoiceRef> invoiceRefsByPrinter = loadCommercialInvoiceRefMap();
+        Map<Long, CreditTotals> creditTotalsByPrinter = loadCreditTotalsMap(printers, invoiceRefsByPrinter);
         return printers.stream()
                 .map(p -> toResponse(
                         p,
@@ -636,8 +671,32 @@ public class PrinterServiceImpl implements PrinterService {
             throw new IllegalArgumentException(
                     "Esta impresora ya tiene permiso aprobado para enajenarse.");
         }
+        if (request.facturaComercialId() != null && request.newCommercialInvoice() != null) {
+            throw new IllegalArgumentException(
+                    "Debes seleccionar una factura comercial existente o crear una nueva, no ambas opciones.");
+        }
+        if (request.facturaComercialId() == null && request.newCommercialInvoice() == null) {
+            throw new IllegalArgumentException(
+                    "Debes asociar una factura comercial existente o crear una nueva para dar permiso de enajenación.");
+        }
+
+        FacturaComercial invoice;
+        if (request.facturaComercialId() != null) {
+            if (facturaComercialRepository == null) {
+                throw new IllegalStateException("FacturaComercialRepository not available");
+            }
+            invoice = facturaComercialRepository.findById(request.facturaComercialId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Commercial invoice not found with id: " + request.facturaComercialId()));
+        } else {
+            if (commercialInvoiceService == null) {
+                throw new IllegalStateException("CommercialInvoiceService not available");
+            }
+            invoice = commercialInvoiceService.createEntity(request.newCommercialInvoice());
+        }
 
         java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        printer.setFacturaComercial(invoice);
         printer.setEnajenacionAutorizada(true);
         printer.setEnajenacionAutorizadaAt(now);
         printer.setEnajenacionAutorizadaBy(admin.getId());
@@ -657,6 +716,12 @@ public class PrinterServiceImpl implements PrinterService {
                         Map<String, Object> data = new java.util.LinkedHashMap<>(
                                 req.getProposedData() != null ? req.getProposedData() : Map.of());
                         data.put("approvedInstallments", request.creditInstallments());
+                        if (invoice.getId() != null) {
+                            data.put("facturaComercialId", invoice.getId());
+                        }
+                        if (invoice.getNumeroFactura() != null) {
+                            data.put("facturaComercialNumero", invoice.getNumeroFactura());
+                        }
                         data.put("reviewedAt", now.toString());
                         data.put("reviewedByName", admin.getName());
                         req.setProposedData(data);
@@ -700,16 +765,15 @@ public class PrinterServiceImpl implements PrinterService {
                         .map(mr -> mr.getId())
                         .orElse(null)
                 : null;
-        CreditTotals totals = p.getId() != null
-                ? loadCreditTotalsMap(List.of(p)).get(p.getId())
-                : null;
+        CommercialInvoiceRef invoiceRef = resolveSingleCommercialInvoiceRef(p);
+        CreditTotals totals = resolveSingleCreditTotals(p, invoiceRef);
         return toResponse(
                 p,
                 true,
                 pendingRequestId,
                 totals,
                 resolveSingleBoxNumber(p),
-                resolveSingleCommercialInvoiceRef(p));
+                invoiceRef);
     }
 
     private PrinterResponse toResponse(
@@ -721,6 +785,8 @@ public class PrinterServiceImpl implements PrinterService {
             CommercialInvoiceRef commercialInvoiceRef) {
         Long invoiceId = commercialInvoiceRef != null ? commercialInvoiceRef.id() : p.getFacturaComercialId();
         String invoiceNumber = commercialInvoiceRef != null ? commercialInvoiceRef.numeroFactura() : null;
+        String invoiceModalidad = commercialInvoiceRef != null ? commercialInvoiceRef.modalidad() : null;
+        String invoiceEstadoCobro = commercialInvoiceRef != null ? commercialInvoiceRef.estadoCobro() : null;
         return new PrinterResponse(
                 p.getId(),
                 p.getModelId(),
@@ -751,7 +817,9 @@ public class PrinterServiceImpl implements PrinterService {
                 p.getBoxId(),
                 boxNumber,
                 invoiceId,
-                invoiceNumber
+                invoiceNumber,
+                invoiceModalidad,
+                invoiceEstadoCobro
         );
     }
 
@@ -822,26 +890,98 @@ public class PrinterServiceImpl implements PrinterService {
         return map;
     }
 
-    private Map<Long, CreditTotals> loadCreditTotalsMap(List<Printer> printers) {
-        if (creditPaymentRepository == null || printers.isEmpty()) {
-            return Map.of();
-        }
-        List<Long> ids = printers.stream()
-                .map(Printer::getId)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-        if (ids.isEmpty()) {
+    private Map<Long, CreditTotals> loadCreditTotalsMap(
+            List<Printer> printers,
+            Map<Long, CommercialInvoiceRef> invoiceRefsByPrinter) {
+        if (printers.isEmpty()) {
             return Map.of();
         }
         Map<Long, CreditTotals> map = new HashMap<>();
-        for (Object[] row : creditPaymentRepository.summarizeByPrinterIds(ids)) {
-            if (row != null && row.length >= 3 && row[0] instanceof Number printerId) {
-                long count = row[1] instanceof Number n ? n.longValue() : 0L;
-                BigDecimal total = row[2] instanceof BigDecimal b ? b : BigDecimal.ZERO;
-                map.put(printerId.longValue(), new CreditTotals(count, total));
+        List<Long> legacyPrinterIds = new ArrayList<>();
+        Map<Long, CreditTotals> invoiceTotalsByInvoiceId = null;
+
+        for (Printer p : printers) {
+            if (p.getId() == null) {
+                continue;
+            }
+            CommercialInvoiceRef invoiceRef = invoiceRefsByPrinter.get(p.getId());
+            if (invoiceRef != null && invoiceRef.id() != null && pagoComercialRepository != null) {
+                if (invoiceTotalsByInvoiceId == null) {
+                    invoiceTotalsByInvoiceId = loadCommercialPaymentTotalsByInvoiceId();
+                }
+                CreditTotals invoiceTotals = invoiceTotalsByInvoiceId.get(invoiceRef.id());
+                if (invoiceTotals != null) {
+                    map.put(p.getId(), invoiceTotals);
+                }
+            } else {
+                legacyPrinterIds.add(p.getId());
+            }
+        }
+
+        if (creditPaymentRepository != null && !legacyPrinterIds.isEmpty()) {
+            for (Object[] row : creditPaymentRepository.summarizeByPrinterIds(legacyPrinterIds)) {
+                if (row != null && row.length >= 3 && row[0] instanceof Number printerId) {
+                    long count = row[1] instanceof Number n ? n.longValue() : 0L;
+                    BigDecimal total = toBigDecimal(row[2]);
+                    map.put(printerId.longValue(), new CreditTotals(count, total));
+                }
             }
         }
         return map;
+    }
+
+    private CreditTotals resolveSingleCreditTotals(Printer p, CommercialInvoiceRef invoiceRef) {
+        if (p == null || p.getId() == null) {
+            return null;
+        }
+        if (invoiceRef != null && invoiceRef.id() != null && pagoComercialRepository != null) {
+            List<PagoComercial> payments = pagoComercialRepository.findByFacturaComercial_Id(invoiceRef.id());
+            if (payments == null || payments.isEmpty()) {
+                return new CreditTotals(0L, BigDecimal.ZERO);
+            }
+            BigDecimal total = payments.stream()
+                    .map(PagoComercial::getMonto)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            return new CreditTotals(payments.size(), total);
+        }
+        if (creditPaymentRepository == null) {
+            return null;
+        }
+        for (Object[] row : creditPaymentRepository.summarizeByPrinterIds(List.of(p.getId()))) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number) {
+                long count = row[1] instanceof Number n ? n.longValue() : 0L;
+                BigDecimal total = toBigDecimal(row[2]);
+                return new CreditTotals(count, total);
+            }
+        }
+        return null;
+    }
+
+    private Map<Long, CreditTotals> loadCommercialPaymentTotalsByInvoiceId() {
+        List<Object[]> rows = pagoComercialRepository.summarizePaymentsByFacturaComercialId();
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, CreditTotals> totals = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row != null && row.length >= 3 && row[0] instanceof Number invoiceId) {
+                long count = row[1] instanceof Number n ? n.longValue() : 0L;
+                BigDecimal total = toBigDecimal(row[2]);
+                totals.put(invoiceId.longValue(), new CreditTotals(count, total));
+            }
+        }
+        return totals;
+    }
+
+    private static BigDecimal toBigDecimal(Object raw) {
+        if (raw instanceof BigDecimal bd) {
+            return bd;
+        }
+        if (raw instanceof Number num) {
+            return BigDecimal.valueOf(num.doubleValue());
+        }
+        return BigDecimal.ZERO;
     }
 
     private static String normalizeFiscalSerialForModel(
@@ -867,7 +1007,10 @@ public class PrinterServiceImpl implements PrinterService {
         for (Object[] row : rows) {
             if (row != null && row.length >= 3 && row[0] instanceof Number printerId && row[1] instanceof Number invoiceId) {
                 String numeroFactura = row[2] != null ? row[2].toString() : null;
-                map.put(printerId.longValue(), new CommercialInvoiceRef(invoiceId.longValue(), numeroFactura));
+                String modalidad = row.length >= 4 && row[3] != null ? row[3].toString() : null;
+                String estadoCobro = row.length >= 5 && row[4] != null ? row[4].toString() : null;
+                map.put(printerId.longValue(), new CommercialInvoiceRef(
+                        invoiceId.longValue(), numeroFactura, modalidad, estadoCobro));
             }
         }
         return map;
@@ -878,9 +1021,12 @@ public class PrinterServiceImpl implements PrinterService {
             return null;
         }
         if (p.getFacturaComercial() != null) {
+            FacturaComercial fc = p.getFacturaComercial();
             return new CommercialInvoiceRef(
-                    p.getFacturaComercial().getId(),
-                    p.getFacturaComercial().getNumeroFactura());
+                    fc.getId(),
+                    fc.getNumeroFactura(),
+                    fc.getModalidad(),
+                    fc.getEstadoCobro());
         }
         if (p.getId() == null) {
             return null;
@@ -892,12 +1038,14 @@ public class PrinterServiceImpl implements PrinterService {
         Object[] row = rows.get(0);
         if (row != null && row.length >= 2 && row[0] instanceof Number invoiceId) {
             String numeroFactura = row[1] != null ? row[1].toString() : null;
-            return new CommercialInvoiceRef(invoiceId.longValue(), numeroFactura);
+            String modalidad = row.length >= 3 && row[2] != null ? row[2].toString() : null;
+            String estadoCobro = row.length >= 4 && row[3] != null ? row[3].toString() : null;
+            return new CommercialInvoiceRef(invoiceId.longValue(), numeroFactura, modalidad, estadoCobro);
         }
         return null;
     }
 
     private record CreditTotals(long paymentCount, BigDecimal totalPaid) {}
 
-    private record CommercialInvoiceRef(Long id, String numeroFactura) {}
+    private record CommercialInvoiceRef(Long id, String numeroFactura, String modalidad, String estadoCobro) {}
 }

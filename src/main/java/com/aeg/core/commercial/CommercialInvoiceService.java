@@ -11,9 +11,15 @@ public interface CommercialInvoiceService {
 
     CommercialInvoiceResponse findById(Long id);
 
+    FacturaComercial createEntity(CommercialInvoiceRequest request);
+
     CommercialInvoiceResponse create(CommercialInvoiceRequest request);
 
     CommercialInvoiceResponse update(Long id, CommercialInvoiceRequest request);
+
+    CommercialInvoiceResponse markAsPaid(Long id);
+
+    int settleCreditPrintersIfPaid(FacturaComercial invoice);
 
     void delete(Long id);
 

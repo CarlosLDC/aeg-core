@@ -44,8 +44,15 @@ public class EnajenacionCompletionService {
             throw new EnajenacionProtocolException("Cannot complete enajenacion from status " + printer.getStatus());
         }
         if (printer.getStatus() == PrinterStatus.EN_CONSIGNACION) {
-            printer.setStatus(PrinterStatus.A_CREDITO);
-            printer.setPaid(false);
+            boolean invoicePaid = printer.getFacturaComercial() != null
+                    && "PAGADO".equalsIgnoreCase(printer.getFacturaComercial().getEstadoCobro());
+            if (invoicePaid) {
+                printer.setStatus(PrinterStatus.ENAJENADA);
+                printer.setPaid(true);
+            } else {
+                printer.setStatus(PrinterStatus.A_CREDITO);
+                printer.setPaid(false);
+            }
         } else {
             printer.setStatus(PrinterStatus.ENAJENADA);
             printer.setPaid(true);

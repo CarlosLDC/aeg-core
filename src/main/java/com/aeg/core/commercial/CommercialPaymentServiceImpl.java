@@ -1,10 +1,12 @@
 package com.aeg.core.commercial;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.aeg.core.commercial.dto.CommercialPaymentRequest;
 import com.aeg.core.commercial.dto.CommercialPaymentResponse;
+import com.aeg.core.printer.PrinterRepository;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -23,12 +26,22 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
 
     private final PagoComercialRepository pagoRepository;
     private final FacturaComercialRepository facturaRepository;
+    private final PrinterRepository printerRepository;
 
     public CommercialPaymentServiceImpl(
             PagoComercialRepository pagoRepository,
             FacturaComercialRepository facturaRepository) {
+        this(pagoRepository, facturaRepository, null);
+    }
+
+    @Autowired
+    public CommercialPaymentServiceImpl(
+            PagoComercialRepository pagoRepository,
+            FacturaComercialRepository facturaRepository,
+            PrinterRepository printerRepository) {
         this.pagoRepository = pagoRepository;
         this.facturaRepository = facturaRepository;
+        this.printerRepository = printerRepository;
     }
 
     @Override
@@ -55,6 +68,7 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
         applyRequest(payment, request);
         payment.setCreatedAt(OffsetDateTime.now());
         PagoComercial saved = pagoRepository.save(payment);
+        reconcileInvoiceCollectionStatus(saved.getFacturaComercial(), request, true);
         return toResponse(saved);
     }
 
@@ -63,6 +77,7 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
         PagoComercial payment = findEntityById(id);
         applyRequest(payment, request);
         PagoComercial saved = pagoRepository.save(payment);
+        reconcileInvoiceCollectionStatus(saved.getFacturaComercial(), request, false);
         return toResponse(saved);
     }
 
@@ -70,6 +85,28 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
     public void delete(Long id) {
         PagoComercial payment = findEntityById(id);
         pagoRepository.delete(payment);
+    }
+
+    private void reconcileInvoiceCollectionStatus(
+            FacturaComercial factura,
+            CommercialPaymentRequest request,
+            boolean isCreate) {
+        if (factura == null) {
+            return;
+        }
+        if (Boolean.TRUE.equals(request.getMarkInvoiceAsPaid())) {
+            factura.setEstadoCobro("PAGADO");
+            FacturaComercial savedFactura = facturaRepository.save(factura);
+            CommercialInvoiceServiceImpl.settleCreditPrinters(savedFactura, printerRepository);
+            return;
+        }
+        if (isCreate
+                && "PENDIENTE_PAGO".equalsIgnoreCase(factura.getEstadoCobro())
+                && request.getMonto() != null
+                && request.getMonto().compareTo(BigDecimal.ZERO) > 0) {
+            factura.setEstadoCobro("PAGO_PARCIAL");
+            facturaRepository.save(factura);
+        }
     }
 
     private PagoComercial findEntityById(Long id) {
@@ -114,7 +151,7 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private static CommercialPaymentResponse toResponse(PagoComercial payment) {
+    public static CommercialPaymentResponse toResponse(PagoComercial payment) {
         FacturaComercial factura = payment.getFacturaComercial();
         ClienteComercial cliente = factura != null ? factura.getClienteComercial() : null;
         return CommercialPaymentResponse.builder()

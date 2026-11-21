@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +16,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.aeg.core.client.ClientRepository;
+import com.aeg.core.commercial.CommercialInvoiceService;
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.FacturaComercialRepository;
+import com.aeg.core.commercial.PagoComercialRepository;
+import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
+import com.aeg.core.company.Company;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.organization.OrganizationCapabilityService;
+import com.aeg.core.printer.dto.PrinterEnajenacionAuthorizeRequest;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
 import com.aeg.core.printermodel.PrinterModelRepository;
@@ -166,5 +175,193 @@ class PrinterServiceImplTest {
         assertThatThrownBy(() -> adminService.create(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("ya tiene el límite máximo de 8 impresoras");
+    }
+
+    @Test
+    void authorizeEnajenacion_withExistingInvoice_linksWithoutMutatingInvoice() throws Exception {
+        User adminUser = adminUser();
+        when(securityScope.currentUser()).thenReturn(adminUser);
+
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setEnajenacionAutorizada(false);
+
+        FacturaComercial existing = invoiceWithId(44L, "FAC-044", "CONSIGNACION", "PENDIENTE_PAGO");
+        FacturaComercialRepository facturaRepo = mock(FacturaComercialRepository.class);
+        CommercialInvoiceService invoiceService = mock(CommercialInvoiceService.class);
+        PagoComercialRepository pagoRepo = mock(PagoComercialRepository.class);
+        when(facturaRepo.findById(44L)).thenReturn(Optional.of(existing));
+
+        PrinterServiceImpl adminService = adminPrinterService(facturaRepo, invoiceService, pagoRepo);
+
+        PrinterResponse response = adminService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(4, new BigDecimal("480.00"), 44L, null));
+
+        assertThat(printer.getEnajenacionAutorizada()).isTrue();
+        assertThat(printer.getFacturaComercial()).isSameAs(existing);
+        assertThat(existing.getModalidad()).isEqualTo("CONSIGNACION");
+        assertThat(existing.getEstadoCobro()).isEqualTo("PENDIENTE_PAGO");
+        assertThat(response.facturaComercialId()).isEqualTo(44L);
+        assertThat(response.facturaComercialNumero()).isEqualTo("FAC-044");
+        assertThat(response.facturaComercialModalidad()).isEqualTo("CONSIGNACION");
+        assertThat(response.facturaComercialEstadoCobro()).isEqualTo("PENDIENTE_PAGO");
+        verify(invoiceService, never()).createEntity(any());
+    }
+
+    @Test
+    void authorizeEnajenacion_withNewCommercialInvoice_createsAndLinksInvoice() throws Exception {
+        User adminUser = adminUser();
+        when(securityScope.currentUser()).thenReturn(adminUser);
+
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setEnajenacionAutorizada(false);
+
+        CommercialInvoiceRequest newInvReq = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-900")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PENDIENTE_PAGO")
+                .build();
+        FacturaComercial created = invoiceWithId(90L, "FAC-900", "VENTA", "PENDIENTE_PAGO");
+
+        FacturaComercialRepository facturaRepo = mock(FacturaComercialRepository.class);
+        CommercialInvoiceService invoiceService = mock(CommercialInvoiceService.class);
+        PagoComercialRepository pagoRepo = mock(PagoComercialRepository.class);
+        when(invoiceService.createEntity(newInvReq)).thenReturn(created);
+
+        PrinterServiceImpl adminService = adminPrinterService(facturaRepo, invoiceService, pagoRepo);
+
+        PrinterResponse response = adminService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(6, new BigDecimal("600.00"), null, newInvReq));
+
+        assertThat(printer.getFacturaComercial()).isSameAs(created);
+        assertThat(response.facturaComercialId()).isEqualTo(90L);
+        assertThat(response.facturaComercialNumero()).isEqualTo("FAC-900");
+        verify(invoiceService).createEntity(newInvReq);
+    }
+
+    @Test
+    void authorizeEnajenacion_rejectsMissingInvoice() {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setEnajenacionAutorizada(false);
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        assertThatThrownBy(() -> adminService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(3, null, null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain("ya "));
+    }
+
+    @Test
+    void authorizeEnajenacion_rejectsBothExistingAndNewInvoice() {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setEnajenacionAutorizada(false);
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        CommercialInvoiceRequest newInvReq = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-901")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PENDIENTE_PAGO")
+                .build();
+
+        assertThatThrownBy(() -> adminService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(3, null, 44L, newInvReq)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain("ya "));
+    }
+
+    @Test
+    void authorizeEnajenacion_rejectsNonAdmin() {
+        when(securityScope.currentUser()).thenReturn(distributorUser);
+        PrinterServiceImpl distService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        assertThatThrownBy(() -> distService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(3, null, 44L, null)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void authorizeEnajenacion_rejectsNonConsignmentPrinter() {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        printer.setStatus(PrinterStatus.ASIGNADA);
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        assertThatThrownBy(() -> adminService.authorizeEnajenacion(
+                1L,
+                new PrinterEnajenacionAuthorizeRequest(3, null, 44L, null)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private PrinterServiceImpl adminPrinterService(
+            FacturaComercialRepository facturaRepo,
+            CommercialInvoiceService invoiceService,
+            PagoComercialRepository pagoRepo) {
+        return new PrinterServiceImpl(
+                repository,
+                modelRepository,
+                softwareRepository,
+                firmwareRepository,
+                distributorRepository,
+                clientRepository,
+                sealRepository,
+                annualInspectionRepository,
+                technicalServiceVisitRepository,
+                securityScope,
+                organizationCapability,
+                null,
+                null,
+                null,
+                facturaRepo,
+                invoiceService,
+                pagoRepo);
+    }
+
+    private static User adminUser() {
+        User admin = new User();
+        admin.setId(1L);
+        admin.setName("Admin");
+        admin.setRole(Role.ADMIN);
+        return admin;
+    }
+
+    private static FacturaComercial invoiceWithId(
+            Long id,
+            String numeroFactura,
+            String modalidad,
+            String estadoCobro) throws Exception {
+        Company company = new Company();
+        company.setId(7L);
+        company.setBusinessName("Demo C.A.");
+        FacturaComercial invoice = new FacturaComercial();
+        var idField = FacturaComercial.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(invoice, id);
+        invoice.setCompany(company);
+        invoice.setNumeroFactura(numeroFactura);
+        invoice.setModalidad(modalidad);
+        invoice.setEstadoCobro(estadoCobro);
+        return invoice;
     }
 }
