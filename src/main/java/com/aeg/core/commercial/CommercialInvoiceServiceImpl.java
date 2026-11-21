@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -133,9 +134,21 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         return creditPrinters.size();
     }
 
+    static boolean isProtectedCreditPrinter(Printer printer) {
+        return printer != null && (printer.getStatus() == PrinterStatus.A_CREDITO
+                || (printer.getStatus() == PrinterStatus.EN_CONSIGNACION
+                && Boolean.TRUE.equals(printer.getEnajenacionAutorizada())));
+    }
+
     @Override
     public void delete(Long id) {
         FacturaComercial invoice = findEntityById(id);
+        List<Printer> linkedPrinters = printerRepository.findByFacturaComercial_IdOrderByFiscalSerialAsc(invoice.getId());
+        if (linkedPrinters != null && linkedPrinters.stream().anyMatch(CommercialInvoiceServiceImpl::isProtectedCreditPrinter)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se puede eliminar la factura porque tiene impresoras en crédito o con permiso de enajenación vinculadas. Reasígnalas primero a otra factura.");
+        }
         printerRepository.clearFacturaComercialByFacturaId(invoice.getId());
         facturaRepository.delete(invoice);
     }
@@ -167,6 +180,18 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
             }
         }
 
+        List<Printer> currentlyLinked = printerRepository.findByFacturaComercial_IdOrderByFiscalSerialAsc(invoice.getId());
+        if (currentlyLinked != null) {
+            for (Printer linked : currentlyLinked) {
+                if (!distinctIds.contains(linked.getId()) && isProtectedCreditPrinter(linked)) {
+                    throw new ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "No se puede desvincular la impresora " + linked.getFiscalSerial()
+                                    + " porque está en estatus A crédito o tiene permiso de enajenación aprobado. Reasígnala desde otra factura comercial.");
+                }
+            }
+        }
+
         printerRepository.clearFacturaComercialByFacturaId(invoice.getId());
         if (!distinctIds.isEmpty()) {
             printerRepository.assignFacturaComercialByPrinterIds(invoice, distinctIds);
@@ -181,6 +206,16 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         if (printerId == null || printerId <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de impresora inválido.");
         }
+        printerRepository.findById(printerId).ifPresent(printer -> {
+            Long linkedInvoiceId = printer.getFacturaComercial() != null
+                    ? printer.getFacturaComercial().getId()
+                    : null;
+            if (Objects.equals(linkedInvoiceId, invoice.getId()) && isProtectedCreditPrinter(printer)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "No se puede desvincular una impresora en estatus A crédito o con permiso de enajenación aprobado. Reasígnala desde otra factura comercial.");
+            }
+        });
         printerRepository.clearFacturaComercialByFacturaIdAndPrinterId(invoice.getId(), printerId);
         return buildSingleResponse(invoice);
     }
@@ -195,9 +230,20 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         if (numeroFactura == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El número de factura es obligatorio.");
         }
+        boolean duplicate = target.getId() == null
+                ? facturaRepository.existsByNumeroFacturaIgnoreCase(numeroFactura)
+                : facturaRepository.existsByNumeroFacturaIgnoreCaseAndIdNot(numeroFactura, target.getId());
+        if (duplicate) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Ya existe una factura comercial con el número " + numeroFactura + ".");
+        }
         Long empresaId = request.getEmpresaId();
         if (empresaId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La empresa es obligatoria.");
+        }
+        if (request.getMontoTotal() != null && request.getMontoTotal().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El monto total no puede ser negativo.");
         }
         String modalidad = normalizeRequiredEnum(request.getModalidad(), ALLOWED_MODALIDADES, "modalidad");
         String estadoCobro = normalizeRequiredEnum(request.getEstadoCobro(), ALLOWED_ESTADOS_COBRO, "estadoCobro");
@@ -212,6 +258,7 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         target.setNumeroFactura(numeroFactura);
         target.setModalidad(modalidad);
         target.setEstadoCobro(estadoCobro);
+        target.setMontoTotal(request.getMontoTotal());
     }
 
     private CommercialInvoiceResponse buildSingleResponse(FacturaComercial invoice) {
@@ -327,6 +374,11 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
         String companyName = company != null ? resolveCompanyDisplayName(company) : null;
         String companyRif = company != null ? trimToNull(company.getRif()) : null;
         String recipientName = resolveRecipientDisplayName(invoice);
+        BigDecimal safePaid = paidAmountTotal != null ? paidAmountTotal : BigDecimal.ZERO;
+        BigDecimal montoTotal = invoice.getMontoTotal();
+        BigDecimal remainingBalance = montoTotal != null
+                ? montoTotal.subtract(safePaid).max(BigDecimal.ZERO)
+                : null;
         return CommercialInvoiceResponse.builder()
                 .id(invoice.getId())
                 .numeroFactura(invoice.getNumeroFactura())
@@ -337,9 +389,11 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
                 .clienteComercialNombre(recipientName)
                 .modalidad(invoice.getModalidad())
                 .estadoCobro(invoice.getEstadoCobro())
+                .montoTotal(montoTotal)
+                .remainingBalance(remainingBalance)
                 .createdAt(invoice.getCreatedAt())
                 .paymentCount(paymentCount)
-                .paidAmountTotal(paidAmountTotal != null ? paidAmountTotal : BigDecimal.ZERO)
+                .paidAmountTotal(safePaid)
                 .printerCount(printerCount)
                 .build();
     }

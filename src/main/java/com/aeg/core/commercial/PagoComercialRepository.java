@@ -14,9 +14,20 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
             "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
-            "facturaComercial.clienteComercial"
+            "facturaComercial.clienteComercial",
+            "registeredBy"
     })
     List<PagoComercial> findAllByOrderByCreatedAtDesc();
+
+    @EntityGraph(attributePaths = {
+            "facturaComercial",
+            "facturaComercial.company",
+            "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
+            "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
+            "facturaComercial.clienteComercial",
+            "registeredBy"
+    })
+    List<PagoComercial> findAllByOrderByFechaPagoDescIdDesc();
 
     @Override
     @EntityGraph(attributePaths = {
@@ -24,7 +35,8 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
             "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
-            "facturaComercial.clienteComercial"
+            "facturaComercial.clienteComercial",
+            "registeredBy"
     })
     Optional<PagoComercial> findById(Long id);
 
@@ -35,9 +47,20 @@ public interface PagoComercialRepository extends JpaRepository<PagoComercial, Lo
             "facturaComercial.company",
             "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
             "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
-            "facturaComercial.clienteComercial"
+            "facturaComercial.clienteComercial",
+            "registeredBy"
     })
     List<PagoComercial> findByFacturaComercial_IdOrderByCreatedAtDesc(Long facturaComercialId);
+
+    @EntityGraph(attributePaths = {
+            "facturaComercial",
+            "facturaComercial.company",
+            "facturaComercial.distributor", "facturaComercial.distributor.branch", "facturaComercial.distributor.branch.company",
+            "facturaComercial.client", "facturaComercial.client.branch", "facturaComercial.client.branch.company",
+            "facturaComercial.clienteComercial",
+            "registeredBy"
+    })
+    List<PagoComercial> findByFacturaComercial_IdOrderByFechaPagoDescIdDesc(Long facturaComercialId);
 
     long countByFacturaComercial_Id(Long facturaComercialId);
 

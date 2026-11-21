@@ -14,6 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.aeg.core.commercial.CommercialInvoiceService;
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.FacturaComercialRepository;
+import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.modificationrequest.ModificationActionType;
 import com.aeg.core.modificationrequest.ModificationRequest;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
@@ -137,5 +141,72 @@ class PrinterEnajenacionRequestServiceImplTest {
         assertThat(res.status()).isEqualTo(ModificationRequestStatus.REJECTED);
         assertThat(res.reviewNote()).isEqualTo("Saldo vencido");
         assertThat(printer.getEnajenacionAutorizada()).isFalse();
+    }
+
+    @Test
+    void approveWithCommercialDependenciesRequiresAndLinksCommercialInvoice() throws Exception {
+        FacturaComercialRepository facturaRepo = mock(FacturaComercialRepository.class);
+        CommercialInvoiceService invoiceService = mock(CommercialInvoiceService.class);
+        PrinterEnajenacionRequestServiceImpl unifiedService = new PrinterEnajenacionRequestServiceImpl(
+                repository, printerRepository, securityScope, facturaRepo, invoiceService);
+
+        when(securityScope.currentUser()).thenReturn(adminUser);
+        ModificationRequest mr = new ModificationRequest();
+        mr.setId(99L);
+        mr.setTargetType(ModificationTargetType.PRINTER_ENAJENACION);
+        mr.setTargetId(10L);
+        mr.setActionType(ModificationActionType.UPDATE);
+        mr.setStatus(ModificationRequestStatus.PENDING);
+        mr.setRequestedBy(distributorUser);
+        when(repository.findById(99L)).thenReturn(Optional.of(mr));
+
+        // Missing invoice rejects
+        assertThatThrownBy(() -> unifiedService.approve(
+                99L,
+                new PrinterEnajenacionApproveRequest(4, new BigDecimal("400.00"), null, null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("factura comercial");
+
+        // Existing invoice links
+        FacturaComercial existing = new FacturaComercial();
+        var idField = FacturaComercial.class.getDeclaredField("id");
+        idField.setAccessible(true);
+        idField.set(existing, 77L);
+        existing.setNumeroFactura("FAC-077");
+        when(facturaRepo.findById(77L)).thenReturn(Optional.of(existing));
+
+        var resExisting = unifiedService.approve(
+                99L,
+                new PrinterEnajenacionApproveRequest(4, new BigDecimal("400.00"), "OK", 77L, null));
+        assertThat(resExisting.status()).isEqualTo(ModificationRequestStatus.APPROVED);
+        assertThat(printer.getFacturaComercial()).isSameAs(existing);
+        assertThat(mr.getProposedData()).containsEntry("facturaComercialId", 77L);
+        assertThat(mr.getProposedData()).containsEntry("facturaComercialNumero", "FAC-077");
+
+        // New invoice creates and links
+        mr.setStatus(ModificationRequestStatus.PENDING);
+        printer.setFacturaComercial(null);
+        CommercialInvoiceRequest newReq = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-999")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PENDIENTE_PAGO")
+                .build();
+        FacturaComercial created = new FacturaComercial();
+        idField.set(created, 88L);
+        created.setNumeroFactura("FAC-999");
+        when(invoiceService.createEntity(newReq)).thenReturn(created);
+
+        unifiedService.approve(
+                99L,
+                new PrinterEnajenacionApproveRequest(3, new BigDecimal("350.00"), null, null, newReq));
+        assertThat(printer.getFacturaComercial()).isSameAs(created);
+
+        // Both rejects
+        mr.setStatus(ModificationRequestStatus.PENDING);
+        assertThatThrownBy(() -> unifiedService.approve(
+                99L,
+                new PrinterEnajenacionApproveRequest(3, null, null, 77L, newReq)))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

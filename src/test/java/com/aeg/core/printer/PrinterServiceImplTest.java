@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,13 +23,16 @@ import com.aeg.core.commercial.FacturaComercialRepository;
 import com.aeg.core.commercial.PagoComercialRepository;
 import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
 import com.aeg.core.company.Company;
+import com.aeg.core.distributor.Distributor;
 import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.organization.OrganizationCapabilityService;
+import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterEnajenacionAuthorizeRequest;
 import com.aeg.core.printer.dto.PrinterRequest;
 import com.aeg.core.printer.dto.PrinterResponse;
+import com.aeg.core.printermodel.PrinterModel;
 import com.aeg.core.printermodel.PrinterModelRepository;
 import com.aeg.core.seal.SealRepository;
 import com.aeg.core.security.Role;
@@ -312,6 +316,104 @@ class PrinterServiceImplTest {
                 1L,
                 new PrinterEnajenacionAuthorizeRequest(3, null, 44L, null)))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void update_rollbackToSinAsignarClearsFacturaComercial() throws Exception {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        PrinterModel model = new PrinterModel();
+        model.setId(1L);
+        model.setSerialPrefix("ABC");
+        when(modelRepository.findById(1L)).thenReturn(Optional.of(model));
+
+        FacturaComercial existingInvoice = invoiceWithId(44L, "FAC-044", "CONSIGNACION", "PENDIENTE_PAGO");
+        printer.setStatus(PrinterStatus.EN_CONSIGNACION);
+        printer.setEnajenacionAutorizada(true);
+        printer.setCreditInstallments(4);
+        printer.setFacturaComercial(existingInvoice);
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        PrinterRequest rollbackReq = new PrinterRequest(
+                1L, null, null, null, "ABC1234567", null, false, null, null, null,
+                null, PrinterStatus.SIN_ASIGNAR, null, null, null, null);
+
+        PrinterResponse response = adminService.update(1L, rollbackReq);
+
+        assertThat(printer.getFacturaComercial()).isNull();
+        assertThat(printer.getEnajenacionAutorizada()).isFalse();
+        assertThat(printer.getCreditInstallments()).isNull();
+        assertThat(response.facturaComercialId()).isNull();
+    }
+
+    @Test
+    void update_withExplicitFacturaLinksInvoice_andNullPreservesExistingFactura() throws Exception {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        PrinterModel model = new PrinterModel();
+        model.setId(1L);
+        model.setSerialPrefix("ABC");
+        when(modelRepository.findById(1L)).thenReturn(Optional.of(model));
+
+        Distributor distributor = new Distributor();
+        distributor.setId(5L);
+        when(distributorRepository.findById(5L)).thenReturn(Optional.of(distributor));
+
+        FacturaComercial invoice = invoiceWithId(44L, "FAC-044", "VENTA", "PENDIENTE_PAGO");
+        FacturaComercialRepository facturaRepo = mock(FacturaComercialRepository.class);
+        when(facturaRepo.findById(44L)).thenReturn(Optional.of(invoice));
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                facturaRepo,
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        printer.setStatus(PrinterStatus.SIN_ASIGNAR);
+        PrinterRequest assignReq = new PrinterRequest(
+                1L, null, null, 5L, "ABC1234567", null, false, null, null, null,
+                null, PrinterStatus.EN_CONSIGNACION, null, null, null, 44L);
+        PrinterResponse assigned = adminService.update(1L, assignReq);
+
+        assertThat(printer.getFacturaComercial()).isSameAs(invoice);
+        assertThat(assigned.facturaComercialId()).isEqualTo(44L);
+
+        // Editing without specifying facturaComercialId (null) preserves existing invoice
+        PrinterRequest editWithoutInvoice = new PrinterRequest(
+                1L, null, null, 5L, "ABC1234567", null, false, null, null, null,
+                null, PrinterStatus.EN_CONSIGNACION, null, null, null, null);
+        PrinterResponse edited = adminService.update(1L, editWithoutInvoice);
+
+        assertThat(printer.getFacturaComercial()).isSameAs(invoice);
+        assertThat(edited.facturaComercialId()).isEqualTo(44L);
+    }
+
+    @Test
+    void deleteImpact_includesNonBlockingCommercialInvoiceDependency() throws Exception {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        FacturaComercial invoice = invoiceWithId(44L, "FAC-044", "VENTA", "PAGADO");
+        printer.setFacturaComercial(invoice);
+        when(sealRepository.findByPrinter_Id(1L)).thenReturn(List.of());
+        when(technicalServiceVisitRepository.findByPrinter_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+        when(annualInspectionRepository.findByPrinter_IdOrderByCreatedAtAsc(1L)).thenReturn(List.of());
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                mock(CommercialInvoiceService.class),
+                mock(PagoComercialRepository.class));
+
+        PrinterDeleteImpactResponse impact = adminService.deleteImpact(1L);
+
+        assertThat(impact.requiresForce()).isFalse();
+        assertThat(impact.dependencies())
+                .anySatisfy(dep -> {
+                    assertThat(dep.type()).isEqualTo("commercialInvoice");
+                    assertThat(dep.id()).isEqualTo(44L);
+                    assertThat(dep.label()).contains("FAC-044");
+                });
+        assertThat(impact.consequences())
+                .anyMatch(c -> c.contains("factura comercial vinculada NO se eliminará"));
     }
 
     private PrinterServiceImpl adminPrinterService(

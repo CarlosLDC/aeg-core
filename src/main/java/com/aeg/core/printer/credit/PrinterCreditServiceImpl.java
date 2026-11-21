@@ -84,6 +84,10 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
     public PrinterCreditSummaryResponse registerPayment(Long printerId, PrinterCreditPaymentRequest request) {
         User admin = assertAdmin();
         Printer printer = findPrinter(printerId);
+        if (printer.getFacturaComercial() != null) {
+            throw new IllegalArgumentException(
+                    "Esta impresora tiene una factura comercial vinculada. Registra los pagos en Pagos comerciales.");
+        }
         if (printer.getStatus() != PrinterStatus.A_CREDITO
                 && printer.getStatus() != PrinterStatus.ENAJENADA) {
             throw new IllegalArgumentException(
@@ -112,6 +116,10 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
     public PrinterCreditSummaryResponse deletePayment(Long printerId, Long paymentId) {
         assertAdmin();
         Printer printer = findPrinter(printerId);
+        if (printer.getFacturaComercial() != null) {
+            throw new IllegalArgumentException(
+                    "Esta impresora tiene una factura comercial vinculada. Gestiona sus pagos desde Pagos comerciales.");
+        }
         PrinterCreditPayment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Credit payment not found with id: " + paymentId));
         if (payment.getPrinter() == null || !printer.getId().equals(payment.getPrinter().getId())) {
@@ -141,7 +149,7 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
         FacturaComercial factura = printer.getFacturaComercial();
         if (factura != null && pagoComercialRepository != null) {
             List<PagoComercial> commercialEntities = pagoComercialRepository
-                    .findByFacturaComercial_IdOrderByCreatedAtDesc(factura.getId());
+                    .findByFacturaComercial_IdOrderByFechaPagoDescIdDesc(factura.getId());
             List<CommercialPaymentResponse> commercialPayments = commercialEntities.stream()
                     .map(CommercialPaymentServiceImpl::toResponse)
                     .toList();
@@ -149,10 +157,21 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
                     .map(PagoComercial::getMonto)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal remaining = printer.getFinalSalePrice() != null
-                    ? printer.getFinalSalePrice().subtract(totalPaid).max(BigDecimal.ZERO)
-                    : null;
             long invoicePrinterCount = printerRepository.countByFacturaComercial_Id(factura.getId());
+            BigDecimal invoiceMontoTotal = factura.getMontoTotal();
+            BigDecimal invoiceRemaining = invoiceMontoTotal != null
+                    ? invoiceMontoTotal.subtract(totalPaid).max(BigDecimal.ZERO)
+                    : null;
+            BigDecimal remaining;
+            if (invoicePrinterCount > 1) {
+                remaining = invoiceRemaining;
+            } else if (invoiceMontoTotal != null) {
+                remaining = invoiceRemaining;
+            } else {
+                remaining = printer.getFinalSalePrice() != null
+                        ? printer.getFinalSalePrice().subtract(totalPaid).max(BigDecimal.ZERO)
+                        : null;
+            }
 
             return new PrinterCreditSummaryResponse(
                     printer.getId(),
@@ -170,7 +189,9 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
                     factura.getModalidad(),
                     factura.getEstadoCobro(),
                     invoicePrinterCount,
-                    commercialPayments);
+                    commercialPayments,
+                    invoiceMontoTotal,
+                    invoiceRemaining);
         }
 
         BigDecimal totalPaid = legacyPayments.stream()
@@ -182,6 +203,11 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
         if (printer.getFinalSalePrice() != null) {
             remaining = printer.getFinalSalePrice().subtract(totalPaid).max(BigDecimal.ZERO);
         }
+
+        BigDecimal invoiceMontoTotal = factura != null ? factura.getMontoTotal() : null;
+        BigDecimal invoiceRemaining = invoiceMontoTotal != null
+                ? invoiceMontoTotal.subtract(totalPaid).max(BigDecimal.ZERO)
+                : null;
 
         return new PrinterCreditSummaryResponse(
                 printer.getId(),
@@ -199,7 +225,9 @@ public class PrinterCreditServiceImpl implements PrinterCreditService {
                 factura != null ? factura.getModalidad() : null,
                 factura != null ? factura.getEstadoCobro() : null,
                 factura != null ? printerRepository.countByFacturaComercial_Id(factura.getId()) : 0L,
-                List.of());
+                List.of(),
+                invoiceMontoTotal,
+                invoiceRemaining);
     }
 
     private Printer findPrinter(Long printerId) {

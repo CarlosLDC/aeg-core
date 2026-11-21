@@ -8,12 +8,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
@@ -258,6 +260,129 @@ class CommercialInvoiceServiceImplTest {
         assertThat(creditPrinter.getStatus()).isEqualTo(PrinterStatus.ENAJENADA);
         assertThat(creditPrinter.getPaid()).isTrue();
         verify(printerRepository).saveAll(List.of(creditPrinter));
+    }
+
+    @Test
+    void create_andFindById_computesMontoTotalAndRemainingBalance() {
+        CommercialInvoiceRequest request = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-MNT-1")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PAGO_PARCIAL")
+                .montoTotal(new BigDecimal("900.00"))
+                .build();
+
+        CommercialInvoiceResponse created = service.create(request);
+        assertThat(created.getMontoTotal()).isEqualByComparingTo("900.00");
+        assertThat(created.getRemainingBalance()).isEqualByComparingTo("900.00");
+
+        FacturaComercial savedEntity = invoiceWithId(12L, "PAGO_PARCIAL");
+        savedEntity.setMontoTotal(new BigDecimal("900.00"));
+        PagoComercial payment = new PagoComercial();
+        payment.setMonto(new BigDecimal("350.00"));
+        when(facturaRepository.findById(12L)).thenReturn(Optional.of(savedEntity));
+        when(pagoRepository.countByFacturaComercial_Id(12L)).thenReturn(1L);
+        when(pagoRepository.findByFacturaComercial_Id(12L)).thenReturn(List.of(payment));
+        when(printerRepository.countByFacturaComercial_Id(12L)).thenReturn(2L);
+
+        CommercialInvoiceResponse found = service.findById(12L);
+        assertThat(found.getMontoTotal()).isEqualByComparingTo("900.00");
+        assertThat(found.getPaidAmountTotal()).isEqualByComparingTo("350.00");
+        assertThat(found.getRemainingBalance()).isEqualByComparingTo("550.00");
+    }
+
+    @Test
+    void createAndUpdate_rejectDuplicateNumeroFacturaWithConflict() {
+        when(facturaRepository.existsByNumeroFacturaIgnoreCase("FAC-DUP")).thenReturn(true);
+
+        CommercialInvoiceRequest createReq = CommercialInvoiceRequest.builder()
+                .numeroFactura("FAC-DUP")
+                .empresaId(7L)
+                .modalidad("VENTA")
+                .estadoCobro("PAGADO")
+                .build();
+
+        assertThatThrownBy(() -> service.create(createReq))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+
+        FacturaComercial existing = invoiceWithId(5L, "PENDIENTE_PAGO");
+        when(facturaRepository.findById(5L)).thenReturn(Optional.of(existing));
+        when(facturaRepository.existsByNumeroFacturaIgnoreCaseAndIdNot("FAC-DUP", 5L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.update(5L, createReq))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
+    void deleteAndUnlink_rejectProtectedCreditOrAuthorizedPrintersWithConflict() {
+        FacturaComercial invoice = invoiceWithId(15L, "PENDIENTE_PAGO");
+        when(facturaRepository.findById(15L)).thenReturn(Optional.of(invoice));
+
+        Printer creditPrinter = new Printer();
+        creditPrinter.setId(50L);
+        creditPrinter.setFiscalSerial("GRA0000050");
+        creditPrinter.setStatus(PrinterStatus.A_CREDITO);
+        creditPrinter.setFacturaComercial(invoice);
+
+        Printer authorizedConsignment = new Printer();
+        authorizedConsignment.setId(51L);
+        authorizedConsignment.setFiscalSerial("GRA0000051");
+        authorizedConsignment.setStatus(PrinterStatus.EN_CONSIGNACION);
+        authorizedConsignment.setEnajenacionAutorizada(true);
+        authorizedConsignment.setFacturaComercial(invoice);
+
+        when(printerRepository.findByFacturaComercial_IdOrderByFiscalSerialAsc(15L))
+                .thenReturn(List.of(creditPrinter));
+        when(printerRepository.findById(50L)).thenReturn(Optional.of(creditPrinter));
+        when(printerRepository.findById(51L)).thenReturn(Optional.of(authorizedConsignment));
+
+        assertThatThrownBy(() -> service.delete(15L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+        verify(facturaRepository, never()).delete(any());
+
+        assertThatThrownBy(() -> service.unlinkPrinter(15L, 50L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+
+        assertThatThrownBy(() -> service.unlinkPrinter(15L, 51L))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+
+        assertThatThrownBy(() -> service.syncPrinters(15L, List.of()))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode())
+                        .isEqualTo(HttpStatus.CONFLICT));
+    }
+
+    @Test
+    void syncPrinters_allowsReassigningProtectedPrinterFromAnotherInvoice() {
+        FacturaComercial targetInvoice = invoiceWithId(20L, "PENDIENTE_PAGO");
+        FacturaComercial sourceInvoice = invoiceWithId(21L, "PENDIENTE_PAGO");
+        Printer protectedPrinter = new Printer();
+        protectedPrinter.setId(60L);
+        protectedPrinter.setFiscalSerial("GRA0000060");
+        protectedPrinter.setStatus(PrinterStatus.A_CREDITO);
+        protectedPrinter.setFacturaComercial(sourceInvoice);
+
+        when(facturaRepository.findById(20L)).thenReturn(Optional.of(targetInvoice));
+        when(printerRepository.findAllById(Set.of(60L))).thenReturn(List.of(protectedPrinter));
+        when(printerRepository.findByFacturaComercial_IdOrderByFiscalSerialAsc(20L)).thenReturn(List.of());
+        when(pagoRepository.countByFacturaComercial_Id(20L)).thenReturn(0L);
+        when(pagoRepository.findByFacturaComercial_Id(20L)).thenReturn(List.of());
+        when(printerRepository.countByFacturaComercial_Id(20L)).thenReturn(1L);
+
+        CommercialInvoiceResponse res = service.syncPrinters(20L, List.of(60L));
+
+        assertThat(res.getPrinterCount()).isEqualTo(1L);
+        verify(printerRepository).assignFacturaComercialByPrinterIds(targetInvoice, Set.of(60L));
     }
 
     private static FacturaComercial invoiceWithId(Long id, String estadoCobro) {

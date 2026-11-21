@@ -233,6 +233,11 @@ public class PrinterServiceImpl implements PrinterService {
         p.setStatus(request.status());
         p.setCreationBatchId(request.creationBatchId());
         applyBox(p, request.boxId());
+        if (request.facturaComercialId() != null
+                && request.status() != PrinterStatus.SIN_ASIGNAR
+                && request.status() != PrinterStatus.DE_FABRICA) {
+            applyCommercialInvoiceForRequest(p, request.facturaComercialId());
+        }
         String encryptionKey = request.encryptionKey();
         if ((encryptionKey == null || encryptionKey.isBlank()) && normalizedMac != null && request.fiscalSerial() != null) {
             encryptionKey = PrinterEncryptionKeyGenerator.generateKey(request.fiscalSerial(), normalizedMac);
@@ -290,6 +295,7 @@ public class PrinterServiceImpl implements PrinterService {
             p.setEnajenacionAutorizadaAt(null);
             p.setEnajenacionAutorizadaBy(null);
             p.setCreditInstallments(null);
+            p.setFacturaComercial(null);
         } else if (!request.status().isDisposed()) {
             if (p.getStatus().isDisposed() || p.getClient() == null) {
                 p.setHeader(null);
@@ -303,6 +309,11 @@ public class PrinterServiceImpl implements PrinterService {
             }
         } else if (request.installationDate() != null) {
             p.setInstallationDate(request.installationDate());
+        }
+        if (request.facturaComercialId() != null
+                && request.status() != PrinterStatus.SIN_ASIGNAR
+                && request.status() != PrinterStatus.DE_FABRICA) {
+            applyCommercialInvoiceForRequest(p, request.facturaComercialId());
         }
         String normalizedSerial = normalizeFiscalSerialForModel(request.fiscalSerial(), p.getModel());
         p.setFiscalSerial(normalizedSerial);
@@ -321,6 +332,12 @@ public class PrinterServiceImpl implements PrinterService {
             }
         }
         reconcileDistributorPaymentStatus(p, previousStatus, request.paid());
+        if (p.getStatus() == PrinterStatus.A_CREDITO
+                && p.getFacturaComercial() != null
+                && "PAGADO".equalsIgnoreCase(p.getFacturaComercial().getEstadoCobro())) {
+            p.setStatus(PrinterStatus.ENAJENADA);
+            p.setPaid(true);
+        }
         return toResponse(repository.save(p));
     }
 
@@ -415,7 +432,8 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     private static boolean hasBlockingDependencies(List<PrinterDependencyRef> dependencies) {
-        return dependencies.stream().anyMatch(d -> !"client".equals(d.type()));
+        return dependencies.stream()
+                .anyMatch(d -> !"client".equals(d.type()) && !"commercialInvoice".equals(d.type()));
     }
 
     private void detachAndRemoveDependencies(Long printerId) {
@@ -460,6 +478,17 @@ public class PrinterServiceImpl implements PrinterService {
                     "Cliente #" + client.getId() + " (no se elimina; solo se desvincula)"));
         }
 
+        if (printer.getFacturaComercial() != null && printer.getFacturaComercial().getId() != null) {
+            FacturaComercial fc = printer.getFacturaComercial();
+            String label = fc.getNumeroFactura() != null && !fc.getNumeroFactura().isBlank()
+                    ? fc.getNumeroFactura().trim()
+                    : "#" + fc.getId();
+            deps.add(new PrinterDependencyRef(
+                    "commercialInvoice",
+                    fc.getId(),
+                    "Factura comercial " + label + " (no se elimina; solo se desvincula)"));
+        }
+
         for (Seal seal : sealRepository.findByPrinter_Id(printerId)) {
             deps.add(new PrinterDependencyRef(
                     "seal",
@@ -487,6 +516,7 @@ public class PrinterServiceImpl implements PrinterService {
     private static List<String> buildDeleteConsequences(List<PrinterDependencyRef> dependencies) {
         List<String> consequences = new ArrayList<>();
         boolean hasClient = dependencies.stream().anyMatch(d -> "client".equals(d.type()));
+        boolean hasCommercialInvoice = dependencies.stream().anyMatch(d -> "commercialInvoice".equals(d.type()));
         boolean hasSeal = dependencies.stream().anyMatch(d -> "seal".equals(d.type()));
         boolean hasService = dependencies.stream().anyMatch(d -> "technicalService".equals(d.type()));
         boolean hasInspection = dependencies.stream().anyMatch(d -> "annualInspection".equals(d.type()));
@@ -494,6 +524,9 @@ public class PrinterServiceImpl implements PrinterService {
         consequences.add("La impresora desaparecerá del catálogo y de Tools/Remoto.");
         if (hasClient) {
             consequences.add("El cliente vinculado NO se eliminará; solo perderá esta impresora.");
+        }
+        if (hasCommercialInvoice) {
+            consequences.add("La factura comercial vinculada NO se eliminará; solo se desvinculará esta impresora.");
         }
         if (hasSeal) {
             consequences.add("Los precintos instalados se desvincularán y quedarán disponibles.");
@@ -504,7 +537,7 @@ public class PrinterServiceImpl implements PrinterService {
         if (hasInspection) {
             consequences.add("Las inspecciones anuales de esta impresora se borrarán de forma permanente.");
         }
-        if (!hasClient && !hasSeal && !hasService && !hasInspection) {
+        if (!hasClient && !hasCommercialInvoice && !hasSeal && !hasService && !hasInspection) {
             consequences.add("No hay registros vinculados adicionales.");
         }
         return consequences;
@@ -824,6 +857,19 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     private static final int MAX_PRINTERS_PER_BOX = 8;
+
+    private void applyCommercialInvoiceForRequest(Printer printer, Long facturaComercialId) {
+        if (facturaComercialId == null) {
+            return;
+        }
+        if (facturaComercialRepository == null) {
+            throw new IllegalStateException("FacturaComercialRepository not available");
+        }
+        FacturaComercial invoice = facturaComercialRepository.findById(facturaComercialId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Commercial invoice not found with id: " + facturaComercialId));
+        printer.setFacturaComercial(invoice);
+    }
 
     private void applyBox(Printer printer, Long boxId) {
         if (boxId == null) {

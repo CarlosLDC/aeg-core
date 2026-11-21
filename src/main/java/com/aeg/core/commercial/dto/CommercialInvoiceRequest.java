@@ -1,5 +1,8 @@
 package com.aeg.core.commercial.dto;
 
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -30,4 +33,7 @@ public class CommercialInvoiceRequest {
     @NotBlank(message = "El estado de cobro es obligatorio.")
     @Size(max = 30, message = "El estado de cobro no puede superar los 30 caracteres.")
     private String estadoCobro;
+
+    @DecimalMin(value = "0.00", message = "El monto total no puede ser negativo.")
+    private BigDecimal montoTotal;
 }

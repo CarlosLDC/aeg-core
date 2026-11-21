@@ -1,9 +1,11 @@
 package com.aeg.core.commercial;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.aeg.core.commercial.dto.CommercialPaymentRequest;
 import com.aeg.core.commercial.dto.CommercialPaymentResponse;
 import com.aeg.core.printer.PrinterRepository;
+import com.aeg.core.security.SecurityScopeService;
+import com.aeg.core.security.User;
 import com.aeg.core.servicecenter.ResourceNotFoundException;
 
 @Service
@@ -27,29 +31,39 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
     private final PagoComercialRepository pagoRepository;
     private final FacturaComercialRepository facturaRepository;
     private final PrinterRepository printerRepository;
+    private final SecurityScopeService securityScope;
 
     public CommercialPaymentServiceImpl(
             PagoComercialRepository pagoRepository,
             FacturaComercialRepository facturaRepository) {
-        this(pagoRepository, facturaRepository, null);
+        this(pagoRepository, facturaRepository, null, null);
+    }
+
+    public CommercialPaymentServiceImpl(
+            PagoComercialRepository pagoRepository,
+            FacturaComercialRepository facturaRepository,
+            PrinterRepository printerRepository) {
+        this(pagoRepository, facturaRepository, printerRepository, null);
     }
 
     @Autowired
     public CommercialPaymentServiceImpl(
             PagoComercialRepository pagoRepository,
             FacturaComercialRepository facturaRepository,
-            PrinterRepository printerRepository) {
+            PrinterRepository printerRepository,
+            SecurityScopeService securityScope) {
         this.pagoRepository = pagoRepository;
         this.facturaRepository = facturaRepository;
         this.printerRepository = printerRepository;
+        this.securityScope = securityScope;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<CommercialPaymentResponse> findAll(Long facturaComercialId) {
         List<PagoComercial> payments = facturaComercialId != null
-                ? pagoRepository.findByFacturaComercial_IdOrderByCreatedAtDesc(facturaComercialId)
-                : pagoRepository.findAllByOrderByCreatedAtDesc();
+                ? pagoRepository.findByFacturaComercial_IdOrderByFechaPagoDescIdDesc(facturaComercialId)
+                : pagoRepository.findAllByOrderByFechaPagoDescIdDesc();
         return payments.stream()
                 .map(CommercialPaymentServiceImpl::toResponse)
                 .toList();
@@ -66,6 +80,7 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
     public CommercialPaymentResponse create(CommercialPaymentRequest request) {
         PagoComercial payment = new PagoComercial();
         applyRequest(payment, request);
+        payment.setRegisteredBy(resolveCurrentUserOrNull());
         payment.setCreatedAt(OffsetDateTime.now());
         PagoComercial saved = pagoRepository.save(payment);
         reconcileInvoiceCollectionStatus(saved.getFacturaComercial(), request, true);
@@ -75,22 +90,44 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
     @Override
     public CommercialPaymentResponse update(Long id, CommercialPaymentRequest request) {
         PagoComercial payment = findEntityById(id);
+        FacturaComercial previousFactura = payment.getFacturaComercial();
         applyRequest(payment, request);
         PagoComercial saved = pagoRepository.save(payment);
-        reconcileInvoiceCollectionStatus(saved.getFacturaComercial(), request, false);
+        boolean movedInvoice = previousFactura != null
+                && saved.getFacturaComercial() != null
+                && !Objects.equals(previousFactura.getId(), saved.getFacturaComercial().getId());
+        if (movedInvoice) {
+            pagoRepository.flush();
+            revertPartialStatusIfNoPaymentsRemain(previousFactura);
+        }
+        reconcileInvoiceCollectionStatus(saved.getFacturaComercial(), request, movedInvoice);
         return toResponse(saved);
     }
 
     @Override
     public void delete(Long id) {
         PagoComercial payment = findEntityById(id);
+        FacturaComercial factura = payment.getFacturaComercial();
         pagoRepository.delete(payment);
+        pagoRepository.flush();
+        revertPartialStatusIfNoPaymentsRemain(factura);
+    }
+
+    private void revertPartialStatusIfNoPaymentsRemain(FacturaComercial factura) {
+        if (factura == null || factura.getId() == null) {
+            return;
+        }
+        if ("PAGO_PARCIAL".equalsIgnoreCase(factura.getEstadoCobro())
+                && pagoRepository.countByFacturaComercial_Id(factura.getId()) == 0) {
+            factura.setEstadoCobro("PENDIENTE_PAGO");
+            facturaRepository.save(factura);
+        }
     }
 
     private void reconcileInvoiceCollectionStatus(
             FacturaComercial factura,
             CommercialPaymentRequest request,
-            boolean isCreate) {
+            boolean shouldPromotePending) {
         if (factura == null) {
             return;
         }
@@ -100,12 +137,23 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
             CommercialInvoiceServiceImpl.settleCreditPrinters(savedFactura, printerRepository);
             return;
         }
-        if (isCreate
+        if (shouldPromotePending
                 && "PENDIENTE_PAGO".equalsIgnoreCase(factura.getEstadoCobro())
                 && request.getMonto() != null
                 && request.getMonto().compareTo(BigDecimal.ZERO) > 0) {
             factura.setEstadoCobro("PAGO_PARCIAL");
             facturaRepository.save(factura);
+        }
+    }
+
+    private User resolveCurrentUserOrNull() {
+        if (securityScope == null) {
+            return null;
+        }
+        try {
+            return securityScope.currentUser();
+        } catch (RuntimeException ignored) {
+            return null;
         }
     }
 
@@ -128,6 +176,11 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
         target.setReferencia(trimToNull(request.getReferencia()));
         target.setMonto(request.getMonto());
         target.setCuentaDestino(trimToNull(request.getCuentaDestino()));
+        LocalDate effectiveDate = request.getFechaPago() != null
+                ? request.getFechaPago()
+                : (target.getFechaPago() != null ? target.getFechaPago() : LocalDate.now());
+        target.setFechaPago(effectiveDate);
+        target.setNotas(trimToNull(request.getNotas()));
     }
 
     private static String normalizeMetodoBanco(String value) {
@@ -154,16 +207,22 @@ public class CommercialPaymentServiceImpl implements CommercialPaymentService {
     public static CommercialPaymentResponse toResponse(PagoComercial payment) {
         FacturaComercial factura = payment.getFacturaComercial();
         ClienteComercial cliente = factura != null ? factura.getClienteComercial() : null;
+        User registeredBy = payment.getRegisteredBy();
         return CommercialPaymentResponse.builder()
                 .id(payment.getId())
                 .facturaComercialId(factura != null ? factura.getId() : null)
                 .numeroFactura(factura != null ? factura.getNumeroFactura() : null)
+                .empresaId(factura != null && factura.getCompany() != null ? factura.getCompany().getId() : null)
                 .clienteComercialId(cliente != null ? cliente.getId() : null)
                 .clienteComercialNombre(CommercialInvoiceServiceImpl.resolveRecipientDisplayName(factura))
                 .metodoBanco(payment.getMetodoBanco())
                 .referencia(payment.getReferencia())
                 .monto(payment.getMonto())
                 .cuentaDestino(payment.getCuentaDestino())
+                .fechaPago(payment.getFechaPago())
+                .notas(payment.getNotas())
+                .registeredById(registeredBy != null ? registeredBy.getId() : null)
+                .registeredByName(registeredBy != null ? registeredBy.getName() : null)
                 .createdAt(payment.getCreatedAt())
                 .build();
     }

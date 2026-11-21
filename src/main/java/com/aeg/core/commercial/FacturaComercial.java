@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -45,6 +46,9 @@ public class FacturaComercial {
 
     @Column(name = "estado_cobro", nullable = false, length = 30)
     private String estadoCobro = "PAGADO";
+
+    @Column(name = "monto_total", precision = 12, scale = 2)
+    private BigDecimal montoTotal;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -120,6 +124,14 @@ public class FacturaComercial {
 
     public void setEstadoCobro(String estadoCobro) {
         this.estadoCobro = estadoCobro;
+    }
+
+    public BigDecimal getMontoTotal() {
+        return montoTotal;
+    }
+
+    public void setMontoTotal(BigDecimal montoTotal) {
+        this.montoTotal = montoTotal;
     }
 
     public OffsetDateTime getCreatedAt() {

@@ -6,10 +6,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.aeg.core.commercial.CommercialInvoiceService;
+import com.aeg.core.commercial.FacturaComercial;
+import com.aeg.core.commercial.FacturaComercialRepository;
 import com.aeg.core.modificationrequest.ModificationActionType;
 import com.aeg.core.modificationrequest.ModificationRequest;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
@@ -35,14 +39,28 @@ public class PrinterEnajenacionRequestServiceImpl implements PrinterEnajenacionR
     private final ModificationRequestRepository repository;
     private final PrinterRepository printerRepository;
     private final SecurityScopeService securityScope;
+    private final FacturaComercialRepository facturaComercialRepository;
+    private final CommercialInvoiceService commercialInvoiceService;
 
     public PrinterEnajenacionRequestServiceImpl(
             ModificationRequestRepository repository,
             PrinterRepository printerRepository,
             SecurityScopeService securityScope) {
+        this(repository, printerRepository, securityScope, null, null);
+    }
+
+    @Autowired
+    public PrinterEnajenacionRequestServiceImpl(
+            ModificationRequestRepository repository,
+            PrinterRepository printerRepository,
+            SecurityScopeService securityScope,
+            FacturaComercialRepository facturaComercialRepository,
+            CommercialInvoiceService commercialInvoiceService) {
         this.repository = repository;
         this.printerRepository = printerRepository;
         this.securityScope = securityScope;
+        this.facturaComercialRepository = facturaComercialRepository;
+        this.commercialInvoiceService = commercialInvoiceService;
     }
 
     @Override
@@ -182,6 +200,26 @@ public class PrinterEnajenacionRequestServiceImpl implements PrinterEnajenacionR
                     "Solo se puede autorizar la enajenación si la impresora sigue en consignación (estatus actual: "
                             + printer.getStatus().getValue() + ").");
         }
+        if (request.facturaComercialId() != null && request.newCommercialInvoice() != null) {
+            throw new IllegalArgumentException(
+                    "Debes seleccionar una factura comercial existente o crear una nueva, no ambas opciones.");
+        }
+
+        FacturaComercial invoice = printer.getFacturaComercial();
+        if (facturaComercialRepository != null && commercialInvoiceService != null) {
+            if (request.facturaComercialId() != null) {
+                invoice = facturaComercialRepository.findById(request.facturaComercialId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Commercial invoice not found with id: " + request.facturaComercialId()));
+                printer.setFacturaComercial(invoice);
+            } else if (request.newCommercialInvoice() != null) {
+                invoice = commercialInvoiceService.createEntity(request.newCommercialInvoice());
+                printer.setFacturaComercial(invoice);
+            } else if (invoice == null) {
+                throw new IllegalArgumentException(
+                        "Debes asociar una factura comercial existente o crear una nueva para aprobar el permiso de enajenación.");
+            }
+        }
 
         OffsetDateTime now = OffsetDateTime.now();
         printer.setEnajenacionAutorizada(true);
@@ -196,6 +234,14 @@ public class PrinterEnajenacionRequestServiceImpl implements PrinterEnajenacionR
         Map<String, Object> data = new LinkedHashMap<>(
                 req.getProposedData() != null ? req.getProposedData() : Map.of());
         data.put("approvedInstallments", request.creditInstallments());
+        if (invoice != null) {
+            if (invoice.getId() != null) {
+                data.put("facturaComercialId", invoice.getId());
+            }
+            if (invoice.getNumeroFactura() != null) {
+                data.put("facturaComercialNumero", invoice.getNumeroFactura());
+            }
+        }
         if (request.reviewNote() != null && !request.reviewNote().isBlank()) {
             data.put("reviewNote", request.reviewNote().trim());
         }

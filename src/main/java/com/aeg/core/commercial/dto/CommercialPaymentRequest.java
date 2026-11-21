@@ -1,6 +1,7 @@
 package com.aeg.core.commercial.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -30,6 +31,11 @@ public class CommercialPaymentRequest {
 
     @Size(max = 100)
     private String cuentaDestino;
+
+    private LocalDate fechaPago;
+
+    @Size(max = 500)
+    private String notas;
 
     private Boolean markInvoiceAsPaid;
 }

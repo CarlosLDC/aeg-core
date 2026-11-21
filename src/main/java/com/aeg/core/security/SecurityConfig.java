@@ -128,8 +128,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.DELETE, "/api/inventory-boxes/**").hasRole("ADMIN")
 				.requestMatchers(
 						"/api/commercial-invoices/**",
-						"/api/commercial-payments/**",
-						"/api/commercial-clients/**"
+						"/api/commercial-payments/**"
 				).hasRole("ADMIN")
 				.requestMatchers("/api/distributor-contracts/**", "/api/service-center-contracts/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.GET, "/api/printers/*/credit-payments").hasAnyRole("ADMIN", "DISTRIBUTOR")

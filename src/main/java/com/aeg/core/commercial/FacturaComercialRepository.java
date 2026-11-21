@@ -27,6 +27,10 @@ public interface FacturaComercialRepository extends JpaRepository<FacturaComerci
 
     List<FacturaComercial> findByNumeroFactura(String numeroFactura);
 
+    boolean existsByNumeroFacturaIgnoreCase(String numeroFactura);
+
+    boolean existsByNumeroFacturaIgnoreCaseAndIdNot(String numeroFactura, Long id);
+
     List<FacturaComercial> findByModalidad(String modalidad);
 
     List<FacturaComercial> findByEstadoCobro(String estadoCobro);

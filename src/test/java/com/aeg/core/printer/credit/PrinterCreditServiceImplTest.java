@@ -159,7 +159,7 @@ class PrinterCreditServiceImplTest {
         commercialPayment.setReferencia("Z-001");
 
         when(paymentRepository.findByPrinter_IdOrderByPaymentDateDescIdDesc(20L)).thenReturn(List.of());
-        when(pagoComercialRepository.findByFacturaComercial_IdOrderByCreatedAtDesc(77L))
+        when(pagoComercialRepository.findByFacturaComercial_IdOrderByFechaPagoDescIdDesc(77L))
                 .thenReturn(List.of(commercialPayment));
         when(printerRepository.countByFacturaComercial_Id(77L)).thenReturn(2L);
 
@@ -171,9 +171,72 @@ class PrinterCreditServiceImplTest {
         assertThat(summary.facturaComercialEstadoCobro()).isEqualTo("PAGO_PARCIAL");
         assertThat(summary.facturaComercialPrinterCount()).isEqualTo(2L);
         assertThat(summary.totalPaid()).isEqualByComparingTo("150.00");
-        assertThat(summary.remainingBalance()).isEqualByComparingTo("250.00");
+        // Factura compartida sin montoTotal en factura: no restar pagos globales contra precio individual
+        assertThat(summary.remainingBalance()).isNull();
+        assertThat(summary.facturaComercialMontoTotal()).isNull();
+        assertThat(summary.facturaComercialRemainingBalance()).isNull();
         assertThat(summary.paymentCount()).isEqualTo(1);
         assertThat(summary.commercialPayments()).hasSize(1);
         assertThat(summary.commercialPayments().get(0).getMetodoBanco()).isEqualTo("ZELLE");
+    }
+
+    @Test
+    void getCreditSummary_sharedInvoiceWithMontoTotal_usesInvoiceBalance() throws Exception {
+        PagoComercialRepository pagoComercialRepository = mock(PagoComercialRepository.class);
+        PrinterCreditServiceImpl unifiedService = new PrinterCreditServiceImpl(
+                printerRepository, paymentRepository, securityScope, pagoComercialRepository);
+
+        FacturaComercial invoice = new FacturaComercial();
+        var invoiceIdField = FacturaComercial.class.getDeclaredField("id");
+        invoiceIdField.setAccessible(true);
+        invoiceIdField.set(invoice, 78L);
+        invoice.setNumeroFactura("FAC-078");
+        invoice.setModalidad("VENTA");
+        invoice.setEstadoCobro("PAGO_PARCIAL");
+        invoice.setMontoTotal(new BigDecimal("900.00"));
+        printer.setFacturaComercial(invoice);
+        printer.setFinalSalePrice(new BigDecimal("450.00"));
+
+        PagoComercial commercialPayment = new PagoComercial();
+        commercialPayment.setFacturaComercial(invoice);
+        commercialPayment.setMetodoBanco("ZELLE");
+        commercialPayment.setMonto(new BigDecimal("450.00"));
+
+        when(paymentRepository.findByPrinter_IdOrderByPaymentDateDescIdDesc(20L)).thenReturn(List.of());
+        when(pagoComercialRepository.findByFacturaComercial_IdOrderByFechaPagoDescIdDesc(78L))
+                .thenReturn(List.of(commercialPayment));
+        when(printerRepository.countByFacturaComercial_Id(78L)).thenReturn(2L);
+
+        var summary = unifiedService.getCreditSummary(20L);
+
+        assertThat(summary.totalPaid()).isEqualByComparingTo("450.00");
+        assertThat(summary.facturaComercialMontoTotal()).isEqualByComparingTo("900.00");
+        assertThat(summary.facturaComercialRemainingBalance()).isEqualByComparingTo("450.00");
+        assertThat(summary.remainingBalance()).isEqualByComparingTo("450.00");
+    }
+
+    @Test
+    void legacyPaymentWritesRejectPrinterWithLinkedFacturaComercial() {
+        when(securityScope.currentUser()).thenReturn(adminUser);
+        FacturaComercial invoice = new FacturaComercial();
+        invoice.setNumeroFactura("FAC-099");
+        printer.setFacturaComercial(invoice);
+
+        assertThatThrownBy(() -> service.registerPayment(
+                20L,
+                new PrinterCreditPaymentRequest(
+                        new BigDecimal("100.00"),
+                        LocalDate.of(2026, 11, 20),
+                        null,
+                        null,
+                        false)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Pagos comerciales")
+                .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain("ya "));
+
+        assertThatThrownBy(() -> service.deletePayment(20L, 50L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Pagos comerciales")
+                .satisfies(ex -> assertThat(ex.getMessage()).doesNotContain("ya "));
     }
 }

@@ -26,8 +26,30 @@ public record PrinterRequest(
         @NotNull PrinterStatus status,
         UUID creationBatchId,
         String encryptionKey,
-        Long boxId
+        Long boxId,
+        Long facturaComercialId
 ) {
+    public PrinterRequest(
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            Long distributorId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            Long firmwareId,
+            String versionFirmware,
+            String macAddress,
+            PrinterStatus status,
+            UUID creationBatchId,
+            String encryptionKey,
+            Long boxId) {
+        this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
+                paid, installationDate, firmwareId, versionFirmware, macAddress, status,
+                creationBatchId, encryptionKey, boxId, null);
+    }
+
     public PrinterRequest(
             Long modelId,
             Long softwareId,

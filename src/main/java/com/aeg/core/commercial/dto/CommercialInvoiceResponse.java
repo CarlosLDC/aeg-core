@@ -23,6 +23,8 @@ public class CommercialInvoiceResponse {
     private String clienteComercialNombre;
     private String modalidad;
     private String estadoCobro;
+    private BigDecimal montoTotal;
+    private BigDecimal remainingBalance;
     private OffsetDateTime createdAt;
     private long paymentCount;
     private BigDecimal paidAmountTotal;

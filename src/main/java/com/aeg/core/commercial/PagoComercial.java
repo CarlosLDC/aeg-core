@@ -12,7 +12,10 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+
+import com.aeg.core.security.User;
 
 @Entity
 @Table(name = "pagos_comerciales")
@@ -38,6 +41,16 @@ public class PagoComercial {
     @Column(name = "cuenta_destino", length = 100)
     private String cuentaDestino;
 
+    @Column(name = "fecha_pago", nullable = false)
+    private LocalDate fechaPago;
+
+    @Column(name = "notas")
+    private String notas;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registered_by")
+    private User registeredBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -45,6 +58,9 @@ public class PagoComercial {
     void onCreate() {
         if (createdAt == null) {
             createdAt = OffsetDateTime.now();
+        }
+        if (fechaPago == null) {
+            fechaPago = LocalDate.now();
         }
     }
 
@@ -94,6 +110,30 @@ public class PagoComercial {
 
     public void setCuentaDestino(String cuentaDestino) {
         this.cuentaDestino = cuentaDestino;
+    }
+
+    public LocalDate getFechaPago() {
+        return fechaPago;
+    }
+
+    public void setFechaPago(LocalDate fechaPago) {
+        this.fechaPago = fechaPago;
+    }
+
+    public String getNotas() {
+        return notas;
+    }
+
+    public void setNotas(String notas) {
+        this.notas = notas;
+    }
+
+    public User getRegisteredBy() {
+        return registeredBy;
+    }
+
+    public void setRegisteredBy(User registeredBy) {
+        this.registeredBy = registeredBy;
     }
 
     public OffsetDateTime getCreatedAt() {
