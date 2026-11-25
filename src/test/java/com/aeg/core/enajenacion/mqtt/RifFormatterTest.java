@@ -18,12 +18,14 @@ class RifFormatterTest {
 
     @Test
     void isValidFiscalRifRequiresNineDigits() {
-        assertThat(RifFormatter.isValidFiscalRif("J-508266251")).isTrue();
-        assertThat(RifFormatter.isValidFiscalRif("J508266251")).isTrue();
-        assertThat(RifFormatter.isValidFiscalRif("V-123456789")).isTrue();
+        assertThat(RifFormatter.isValidFiscalRif("J-508266250")).isTrue();
+        assertThat(RifFormatter.isValidFiscalRif("J508266250")).isTrue();
+        assertThat(RifFormatter.isValidFiscalRif("J-50826625-0")).isTrue();
+        assertThat(RifFormatter.toFiscalForm("J-50826625-0")).isEqualTo("J-508266250");
+        assertThat(RifFormatter.isValidFiscalRif("V-005551234")).isTrue();
         assertThat(RifFormatter.isValidFiscalRif("J-50826625")).isFalse();
         assertThat(RifFormatter.isValidFiscalRif("J50826625")).isFalse();
-        assertThat(RifFormatter.isValidFiscalRif("J-0000001")).isFalse();
+        assertThat(RifFormatter.isValidFiscalRif("V-5551234")).isFalse();
         assertThat(RifFormatter.isValidFiscalRif("INVALID")).isFalse();
         assertThat(RifFormatter.isValidFiscalRif(null)).isFalse();
     }

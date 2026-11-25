@@ -5,9 +5,9 @@ import java.util.regex.Pattern;
 
 public final class RifFormatter {
 
-    public static final String FISCAL_RIF_PATTERN = "^[VEJPG]-?[0-9]{9}$";
+    public static final String FISCAL_RIF_PATTERN = "^(?i)[VEJPG]-?[0-9]{8}-?[0-9]$";
     public static final String FISCAL_RIF_ERROR_MESSAGE =
-            "El RIF debe tener formato V, E, J, P o G seguido de 9 dígitos (ej. J-123456789).";
+            "El RIF debe tener formato V, E, J, P o G seguido de 9 dígitos (ej. J-123456789). Si tiene menos dígitos, completa con ceros a la izquierda.";
 
     private static final Pattern RIF_WITHOUT_HYPHEN = Pattern.compile("^[VEJPG][0-9]{7,9}$", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRICT_FISCAL_RIF = Pattern.compile("^[VEJPG]-[0-9]{9}$");
@@ -27,13 +27,10 @@ public final class RifFormatter {
         if (rif == null || rif.isBlank()) {
             return rif;
         }
-        String trimmed = rif.trim().toUpperCase(Locale.ROOT);
-        if (trimmed.contains("-")) {
-            return trimmed;
+        String clean = rif.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (RIF_WITHOUT_HYPHEN.matcher(clean).matches()) {
+            return clean.charAt(0) + "-" + clean.substring(1);
         }
-        if (RIF_WITHOUT_HYPHEN.matcher(trimmed).matches()) {
-            return trimmed.charAt(0) + "-" + trimmed.substring(1);
-        }
-        return trimmed;
+        return rif.trim().toUpperCase(Locale.ROOT);
     }
 }

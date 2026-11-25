@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
+import com.aeg.core.enajenacion.mqtt.RifFormatter;
 import com.aeg.core.software.dto.SoftwareDistributorResponse;
 import com.aeg.core.software.dto.SoftwareRequest;
 import com.aeg.core.software.dto.SoftwareResponse;
@@ -92,6 +93,9 @@ public class SoftwareServiceImpl implements SoftwareService {
     private void applyDeveloper(Software s, SoftwareRequest request) {
         String devName = request.developerName() == null ? null : request.developerName().trim();
         String devRif = request.developerRif() == null ? null : request.developerRif().trim();
+        if (devRif != null && !devRif.isEmpty() && !RifFormatter.isValidFiscalRif(devRif)) {
+            throw new IllegalArgumentException(RifFormatter.FISCAL_RIF_ERROR_MESSAGE);
+        }
         s.setDeveloperName(devName == null || devName.isEmpty() ? null : devName);
         s.setDeveloperRif(devRif == null || devRif.isEmpty() ? null : Company.toStandardRif(devRif));
         s.setExternal(Boolean.TRUE.equals(request.external()));

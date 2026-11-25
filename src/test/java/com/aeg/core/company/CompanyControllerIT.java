@@ -45,6 +45,23 @@ public class CompanyControllerIT {
     }
 
     @Test
+    void createCompanyAcceptsSecondHyphenBeforeCheckDigit() throws Exception {
+        String body = "{\"businessName\":\"DON BURROS 2026 C.A.\",\"rif\":\"J-50826625-0\",\"contributorType\":\"Ordinario\"}";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/companies"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+        assertThat(res.statusCode()).isEqualTo(201);
+        assertThat(res.body()).contains("J-508266250");
+    }
+
+    @Test
     void createCompanyRejectsIncompleteEightDigitRif() throws Exception {
         String body = "{\"businessName\":\"DON BURROS 2026 C.A.\",\"rif\":\"J-50826625\",\"contributorType\":\"Ordinario\"}";
 

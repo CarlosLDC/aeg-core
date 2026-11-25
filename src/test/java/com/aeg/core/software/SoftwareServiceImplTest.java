@@ -75,6 +75,24 @@ class SoftwareServiceImplTest {
     }
 
     @Test
+    void createSoftwareRejectsIncompleteDeveloperRif() {
+        SoftwareRequest request = new SoftwareRequest(
+                "Saint Enterprise",
+                "1.0",
+                List.of("C#"),
+                List.of("Windows"),
+                "Software Developer C.A.",
+                "J-50826625",
+                true,
+                List.of()
+        );
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ceros a la izquierda");
+    }
+
+    @Test
     void addDistributorSuccessfully() {
         Software software = new Software();
         software.setId(1L);
