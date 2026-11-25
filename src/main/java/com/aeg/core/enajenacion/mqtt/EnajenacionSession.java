@@ -2,9 +2,12 @@ package com.aeg.core.enajenacion.mqtt;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.concurrent.ScheduledFuture;
 
 public final class EnajenacionSession {
+
+    private static final ZoneId VENEZUELA_ZONE = ZoneId.of("America/Caracas");
 
     private final String compactMac;
     private final Long printerId;
@@ -18,7 +21,7 @@ public final class EnajenacionSession {
     private volatile ScheduledFuture<?> timeoutTask;
     private volatile String lastError;
     private volatile int invoiceNumber = 1;
-    private volatile LocalDate invoiceDate = LocalDate.now();
+    private volatile LocalDate invoiceDate = LocalDate.now(VENEZUELA_ZONE);
     private volatile String encryptionKey;
 
     public EnajenacionSession(String compactMac, Long printerId, EnajenacionContext context) {

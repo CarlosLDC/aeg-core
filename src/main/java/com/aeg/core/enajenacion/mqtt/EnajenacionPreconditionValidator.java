@@ -62,6 +62,10 @@ public class EnajenacionPreconditionValidator {
         if (company.getRif() == null || company.getRif().isBlank()) {
             throw new EnajenacionProtocolException("Company RIF is required");
         }
+        if (!RifFormatter.isValidFiscalRif(company.getRif())) {
+            throw new EnajenacionProtocolException(
+                    "El RIF de la empresa (" + company.getRif() + ") debe tener 9 dígitos (ej. J-123456789). Corrige el RIF antes de enajenar.");
+        }
         if (company.getBusinessName() == null || company.getBusinessName().isBlank()) {
             throw new EnajenacionProtocolException("Company business name is required");
         }

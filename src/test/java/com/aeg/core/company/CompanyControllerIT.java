@@ -20,7 +20,7 @@ public class CompanyControllerIT {
 
     @Test
     void createAndListCompany() throws Exception {
-        String body = "{\"businessName\":\"ACME SA\",\"rif\":\"V12345678\",\"contributorType\":\"Ordinario\"}";
+        String body = "{\"businessName\":\"ACME SA\",\"rif\":\"V123456789\",\"contributorType\":\"Ordinario\"}";
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest req = HttpRequest.newBuilder()
@@ -32,7 +32,7 @@ public class CompanyControllerIT {
 
         HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
         assertThat(res.statusCode()).isEqualTo(201);
-        assertThat(res.body()).contains("V12345678");
+        assertThat(res.body()).contains("V-123456789");
 
         HttpRequest listReq = HttpRequest.newBuilder()
                 .uri(java.net.URI.create("http://localhost:" + port + "/api/companies"))
@@ -41,7 +41,23 @@ public class CompanyControllerIT {
                 .build();
         HttpResponse<String> listRes = client.send(listReq, HttpResponse.BodyHandlers.ofString());
         assertThat(listRes.statusCode()).isEqualTo(200);
-        assertThat(listRes.body()).contains("V12345678");
+        assertThat(listRes.body()).contains("V-123456789");
+    }
+
+    @Test
+    void createCompanyRejectsIncompleteEightDigitRif() throws Exception {
+        String body = "{\"businessName\":\"DON BURROS 2026 C.A.\",\"rif\":\"J-50826625\",\"contributorType\":\"Ordinario\"}";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:" + port + "/api/companies"))
+                .header("Authorization", basicAuthHeader())
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
+        assertThat(res.statusCode()).isEqualTo(400);
     }
 
     private String basicAuthHeader() {

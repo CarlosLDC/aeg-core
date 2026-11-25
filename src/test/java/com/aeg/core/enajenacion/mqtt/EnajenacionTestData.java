@@ -92,6 +92,13 @@ final class EnajenacionTestData {
 
     private static String rifFromFiscalSerial(String fiscalSerial) {
         String digits = fiscalSerial.length() > 3 ? fiscalSerial.substring(3) : fiscalSerial;
-        return "J" + digits;
+        String numeric = digits.replaceAll("[^0-9]", "");
+        if (numeric.isEmpty()) {
+            return "J500662998";
+        }
+        if (numeric.length() >= 9) {
+            return "J" + numeric.substring(0, 9);
+        }
+        return "J" + "0".repeat(9 - numeric.length()) + numeric;
     }
 }

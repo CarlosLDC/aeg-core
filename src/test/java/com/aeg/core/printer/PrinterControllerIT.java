@@ -557,6 +557,20 @@ public class PrinterControllerIT {
     }
 
     @Test
+    void disposeRejectsCompanyWithIncompleteRif() throws Exception {
+        Client client = createClient();
+        Company company = client.getBranch().getCompany();
+        company.setRif("J-50826625");
+        companyRepository.save(company);
+        Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
+
+        var res = postDispose(printer.getId(), sampleDispositionBody(client.getId()));
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(res.body()).contains("9 dígitos");
+    }
+
+    @Test
     void disposeRejectsMissingClientId() throws Exception {
         Client client = createClient();
         Printer printer = createPrinter(client, PrinterStatus.ASIGNADA, true);
@@ -701,7 +715,7 @@ public class PrinterControllerIT {
     private Client createClient() {
         Company company = new Company();
         company.setBusinessName("Disposition IT Co " + SERIAL_SEQUENCE.incrementAndGet());
-        company.setRif("V" + SERIAL_SEQUENCE.get());
+        company.setRif("V" + String.format("%09d", SERIAL_SEQUENCE.get()));
         company.setContributorType(ContributorType.ORDINARIO);
         company = companyRepository.save(company);
 
@@ -893,7 +907,7 @@ public class PrinterControllerIT {
     private Distributor createDistributor() {
         Company company = new Company();
         company.setBusinessName("Distributor IT Co " + SERIAL_SEQUENCE.incrementAndGet());
-        company.setRif("V" + SERIAL_SEQUENCE.get());
+        company.setRif("V" + String.format("%09d", SERIAL_SEQUENCE.get()));
         company.setContributorType(ContributorType.ORDINARIO);
         company = companyRepository.save(company);
 

@@ -107,6 +107,28 @@ class ClientModificationRequestServiceImplTest {
 	}
 
 	@Test
+	void requestUpdate_rejectsIncompleteEightDigitRif() {
+		Client client = client(25L);
+		when(clientRepository.findById(25L)).thenReturn(Optional.of(client));
+
+		ClientModificationProposedData proposed = new ClientModificationProposedData(
+				"DON BURROS 2026 C.A.",
+				"J-50826625",
+				ContributorType.ORDINARIO,
+				"Caracas",
+				"Distrito Capital",
+				"Av. Principal",
+				"Ana Pérez",
+				"02121234567",
+				"cliente@test.com",
+				15L);
+
+		assertThatThrownBy(() -> service.requestUpdate(25L, proposed))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("9 dígitos");
+	}
+
+	@Test
 	void approveDelete_withLinkedPrinters_throwsConflict() {
 		Client client = client(31L);
 		client.setReviewStatus(ClientReviewStatus.PENDING_REVIEW);

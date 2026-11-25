@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -147,7 +148,7 @@ public class EnajenacionPayloadBuilder {
         return buildAnnualInspectionTestCreditNotePayload(
                 numeroFacturaPrueba,
                 registroImpresora,
-                LocalDate.now(),
+                LocalDate.now(ZoneId.of("America/Caracas")),
                 productDescription);
     }
 

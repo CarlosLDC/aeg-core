@@ -15,6 +15,7 @@ import com.aeg.core.client.ClientRepository;
 import com.aeg.core.client.ClientReviewStatus;
 import com.aeg.core.company.Company;
 import com.aeg.core.company.CompanyRepository;
+import com.aeg.core.enajenacion.mqtt.RifFormatter;
 import com.aeg.core.modificationrequest.ModificationActionType;
 import com.aeg.core.modificationrequest.ModificationRequest;
 import com.aeg.core.modificationrequest.ModificationRequestRepository;
@@ -69,6 +70,9 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 		Client client = findClient(clientId);
 		securityScope.assertClientInScope(client);
 		assertClientNotPending(client);
+		if (!RifFormatter.isValidFiscalRif(proposedData.rif())) {
+			throw new IllegalArgumentException(RifFormatter.FISCAL_RIF_ERROR_MESSAGE);
+		}
 
 		User requestedBy = securityScope.currentUser();
 		client.setReviewStatus(ClientReviewStatus.PENDING_REVIEW);
@@ -221,6 +225,9 @@ public class ClientModificationRequestServiceImpl implements ClientModificationR
 		}
 
 		String rif = proposed.rif() == null ? "" : Company.toStandardRif(proposed.rif().trim());
+		if (!RifFormatter.isValidFiscalRif(rif)) {
+			throw new IllegalArgumentException(RifFormatter.FISCAL_RIF_ERROR_MESSAGE);
+		}
 		if (!rif.equalsIgnoreCase(company.getRif()) && (companyRepository.existsByRif(rif) || companyRepository.findByNormalizedRif(normalizeRif(rif)).isPresent())) {
 			throw new IllegalArgumentException("rif already exists: " + rif);
 		}

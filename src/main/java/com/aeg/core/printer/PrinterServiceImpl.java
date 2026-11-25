@@ -676,6 +676,12 @@ public class PrinterServiceImpl implements PrinterService {
         var client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found with id: " + request.clientId()));
         securityScope.assertClientInScope(client);
+        var branch = client.getBranch();
+        var company = branch != null ? branch.getCompany() : null;
+        if (company != null && !com.aeg.core.enajenacion.mqtt.RifFormatter.isValidFiscalRif(company.getRif())) {
+            throw new IllegalArgumentException(
+                    "El RIF de la empresa (" + company.getRif() + ") debe tener 9 dígitos (ej. J-123456789). Corrige el RIF antes de enajenar.");
+        }
         printer.setClient(client);
         printer.setHeader(PrinterTicketValidator.normalizeHeader(request.header()));
         printer.setTrailer(PrinterTicketValidator.normalizeTrailer(request.trailer()));

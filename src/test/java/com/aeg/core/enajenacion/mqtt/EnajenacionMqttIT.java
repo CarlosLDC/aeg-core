@@ -99,7 +99,7 @@ class EnajenacionMqttIT {
         List<String> payloads = payloadCaptor.getAllValues();
         assertThat(topics).containsOnly(fixture.comandoTopic());
         assertThat(payloads.get(0)).contains("\"cmd\":\"aperDNF\"");
-        assertThat(payloads.get(1)).contains("\"cmd\":\"fiscalAEG\"").contains("J-0000001");
+        assertThat(payloads.get(1)).contains("\"cmd\":\"fiscalAEG\"").contains("J-000000001");
         assertThat(payloads.get(2)).contains("paramFacSPIFF.json").contains("CONTRIBUYENTE ORDINARIO");
         assertThat(payloads.get(3)).contains("configSPIFFS.json");
         assertThat(payloads.get(4)).contains("\"cmd\":\"StaInf\"").contains("NroRegMa");
@@ -178,6 +178,29 @@ class EnajenacionMqttIT {
         sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
 
         verifyNoInteractions(mqttService);
+    }
+
+    @Test
+    void ptrEnajenarRejectedWhenCompanyRifHasLessThanNineDigits() {
+        var fixture = EnajenacionTestData.seedAssignedPrinter(
+                companyRepository,
+                branchRepository,
+                clientRepository,
+                modelRepository,
+                softwareRepository,
+                printerRepository,
+                "GRA0000735",
+                "3C:DC:75:77:FC:D0",
+                PrinterStatus.ASIGNADA);
+        var company = fixture.printer().getClient().getBranch().getCompany();
+        company.setRif("J-50826625");
+        companyRepository.save(company);
+
+        sendPtrEnajenar(fixture.compactMac(), EnajenacionMqttResponses.ptrEnajenar(fixture.fiscalSerial(), fixture.colonMac()));
+
+        verifyNoInteractions(mqttService);
+        assertThat(printerRepository.findById(fixture.printer().getId()).orElseThrow().getStatus())
+                .isEqualTo(PrinterStatus.ASIGNADA);
     }
 
     @Test
