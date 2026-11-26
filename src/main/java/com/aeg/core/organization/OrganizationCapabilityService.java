@@ -2,6 +2,7 @@ package com.aeg.core.organization;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.aeg.core.branch.Branch;
 import com.aeg.core.branch.BranchOrganizationRole;
@@ -14,6 +15,7 @@ import com.aeg.core.security.SecurityScopeService;
 import com.aeg.core.security.User;
 
 @Service
+@Transactional(readOnly = true)
 public class OrganizationCapabilityService {
 
 	private final SecurityScopeService securityScope;
