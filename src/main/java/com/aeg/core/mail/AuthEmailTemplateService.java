@@ -163,6 +163,7 @@ public class AuthEmailTemplateService {
             case DISTRIBUTOR -> "Distribuidor";
             case TECHNICIAN, SERVICE_CENTER -> "Técnico de centro de servicio";
             case SENIAT -> "Auditor SENIAT";
+            case FINANCE -> "Finanzas";
         };
     }
 

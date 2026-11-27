@@ -227,16 +227,15 @@ public class CommercialInvoiceServiceImpl implements CommercialInvoiceService {
 
     private void applyRequest(FacturaComercial target, CommercialInvoiceRequest request) {
         String numeroFactura = trimToNull(request.getNumeroFactura());
-        if (numeroFactura == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El número de factura es obligatorio.");
-        }
-        boolean duplicate = target.getId() == null
-                ? facturaRepository.existsByNumeroFacturaIgnoreCase(numeroFactura)
-                : facturaRepository.existsByNumeroFacturaIgnoreCaseAndIdNot(numeroFactura, target.getId());
-        if (duplicate) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Ya existe una factura comercial con el número " + numeroFactura + ".");
+        if (numeroFactura != null) {
+            boolean duplicate = target.getId() == null
+                    ? facturaRepository.existsByNumeroFacturaIgnoreCase(numeroFactura)
+                    : facturaRepository.existsByNumeroFacturaIgnoreCaseAndIdNot(numeroFactura, target.getId());
+            if (duplicate) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Ya existe una orden con el número " + numeroFactura + ".");
+            }
         }
         Long empresaId = request.getEmpresaId();
         if (empresaId == null) {

@@ -1,10 +1,14 @@
 package com.aeg.core.printer;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -16,6 +20,8 @@ import com.aeg.core.modificationrequest.ModificationRequestStatus;
 import com.aeg.core.modificationrequest.ModificationTargetType;
 import com.aeg.core.printer.credit.PrinterCreditPaymentRepository;
 
+import com.aeg.core.commercial.dto.CommercialInvoiceRequest;
+import com.aeg.core.printer.dto.AssignmentPaymentRequest;
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterDependencyRef;
 import com.aeg.core.printer.dto.PrinterDispositionRequest;
@@ -244,6 +250,7 @@ public class PrinterServiceImpl implements PrinterService {
         }
         p.setEncryptionKey(encryptionKey);
         reconcileDistributorPaymentStatus(p, null, request.paid());
+        ensureAssignmentOrder(p, null, null, request);
         return toResponse(repository.save(p));
     }
 
@@ -338,6 +345,7 @@ public class PrinterServiceImpl implements PrinterService {
             p.setStatus(PrinterStatus.ENAJENADA);
             p.setPaid(true);
         }
+        ensureAssignmentOrder(p, previousStatus, previousDistributorId, request);
         return toResponse(repository.save(p));
     }
 
@@ -863,6 +871,114 @@ public class PrinterServiceImpl implements PrinterService {
     }
 
     private static final int MAX_PRINTERS_PER_BOX = 8;
+
+    private static final Set<String> ASSIGNMENT_PAYMENT_METHODS = Set.of(
+            "BNC", "BINANCE", "ZELLE", "DOLARES_EFECTIVO", "BCV", "OTRO");
+
+    /**
+     * Al asignar una impresora sin orden, crea la orden (sin número ni monto) y,
+     * si el administrador envió abonos, los registra en la misma transacción.
+     */
+    private void ensureAssignmentOrder(
+            Printer printer,
+            PrinterStatus previousStatus,
+            Long previousDistributorId,
+            PrinterRequest request) {
+        List<AssignmentPaymentRequest> payments = request.assignmentPayments() == null
+                ? List.of()
+                : request.assignmentPayments();
+        boolean hasPayments = !payments.isEmpty();
+        boolean assigning = printer.getDistributor() != null
+                && (printer.getStatus() == PrinterStatus.ASIGNADA
+                    || printer.getStatus() == PrinterStatus.EN_CONSIGNACION)
+                && (previousDistributorId == null
+                    || previousStatus == null
+                    || previousStatus == PrinterStatus.SIN_ASIGNAR
+                    || previousStatus == PrinterStatus.DE_FABRICA);
+        if (!assigning) {
+            if (hasPayments) {
+                throw new IllegalArgumentException(
+                        "Los pagos solo se registran al asignar una impresora sin orden.");
+            }
+            return;
+        }
+        if (printer.getFacturaComercial() != null) {
+            if (hasPayments) {
+                throw new IllegalArgumentException(
+                        "La impresora ya tiene una orden. Registra los pagos desde esa orden.");
+            }
+            return;
+        }
+        if (hasPayments && currentUser().getRole() != Role.ADMIN) {
+            throw new AccessDeniedException("Solo un administrador puede registrar pagos al asignar.");
+        }
+        if (commercialInvoiceService == null) {
+            throw new IllegalStateException("CommercialInvoiceService not available");
+        }
+        var branch = printer.getDistributor().getBranch();
+        var company = branch != null ? branch.getCompany() : null;
+        if (company == null || company.getId() == null) {
+            throw new IllegalArgumentException(
+                    "La distribuidora no tiene una empresa asociada para crear la orden.");
+        }
+        boolean paid = Boolean.TRUE.equals(printer.getPaid());
+        String modalidad = paid || hasPayments ? "VENTA" : "CONSIGNACION";
+        String estadoCobro = paid
+                ? "PAGADO"
+                : (hasPayments ? "PAGO_PARCIAL" : "PENDIENTE_PAGO");
+        FacturaComercial invoice = commercialInvoiceService.createEntity(
+                CommercialInvoiceRequest.builder()
+                        .empresaId(company.getId())
+                        .modalidad(modalidad)
+                        .estadoCobro(estadoCobro)
+                        .build());
+        printer.setFacturaComercial(invoice);
+        if (!hasPayments) {
+            return;
+        }
+        if (pagoComercialRepository == null) {
+            throw new IllegalStateException("PagoComercialRepository not available");
+        }
+        User registrar = currentUser();
+        for (AssignmentPaymentRequest payment : payments) {
+            pagoComercialRepository.save(toAssignmentPayment(invoice, payment, registrar));
+        }
+    }
+
+    private PagoComercial toAssignmentPayment(
+            FacturaComercial invoice,
+            AssignmentPaymentRequest draft,
+            User registrar) {
+        if (draft == null || draft.metodoBanco() == null || draft.metodoBanco().isBlank()) {
+            throw new IllegalArgumentException("El método de pago es obligatorio.");
+        }
+        String method = draft.metodoBanco().trim().toUpperCase(Locale.ROOT);
+        if (!ASSIGNMENT_PAYMENT_METHODS.contains(method)) {
+            throw new IllegalArgumentException("Método de pago no válido.");
+        }
+        if (draft.monto() != null && draft.monto().signum() < 0) {
+            throw new IllegalArgumentException("El monto del pago no puede ser negativo.");
+        }
+        PagoComercial payment = new PagoComercial();
+        payment.setFacturaComercial(invoice);
+        payment.setMetodoBanco(method);
+        payment.setReferencia(trimToNull(draft.referencia()));
+        payment.setMonto(draft.monto());
+        payment.setCuentaDestino(trimToNull(draft.cuentaDestino()));
+        payment.setFechaPago(draft.fechaPago() != null ? draft.fechaPago() : LocalDate.now());
+        payment.setNotas(trimToNull(draft.notas()));
+        payment.setRegisteredBy(registrar);
+        payment.setCreatedAt(OffsetDateTime.now());
+        return payment;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
 
     private void applyCommercialInvoiceForRequest(Printer printer, Long facturaComercialId) {
         if (facturaComercialId == null) {

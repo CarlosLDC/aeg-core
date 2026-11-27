@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.aeg.core.branch.Branch;
 import com.aeg.core.client.ClientRepository;
 import com.aeg.core.commercial.CommercialInvoiceService;
 import com.aeg.core.commercial.FacturaComercial;
@@ -28,6 +31,7 @@ import com.aeg.core.distributor.DistributorRepository;
 import com.aeg.core.firmware.FirmwareRepository;
 import com.aeg.core.inspection.AnnualInspectionRepository;
 import com.aeg.core.organization.OrganizationCapabilityService;
+import com.aeg.core.printer.dto.AssignmentPaymentRequest;
 import com.aeg.core.printer.dto.PrinterDeleteImpactResponse;
 import com.aeg.core.printer.dto.PrinterEnajenacionAuthorizeRequest;
 import com.aeg.core.printer.dto.PrinterRequest;
@@ -387,6 +391,96 @@ class PrinterServiceImplTest {
 
         assertThat(printer.getFacturaComercial()).isSameAs(invoice);
         assertThat(edited.facturaComercialId()).isEqualTo(44L);
+    }
+
+    @Test
+    void update_assignmentCreatesOrderForPaidUnpaidAndCredit() throws Exception {
+        when(securityScope.currentUser()).thenReturn(adminUser());
+        PrinterModel model = new PrinterModel();
+        model.setId(1L);
+        model.setSerialPrefix("ABC");
+        when(modelRepository.findById(1L)).thenReturn(Optional.of(model));
+
+        Company company = new Company();
+        company.setId(9L);
+        Branch branch = new Branch();
+        branch.setCompany(company);
+        Distributor distributor = new Distributor();
+        distributor.setId(5L);
+        distributor.setBranch(branch);
+        when(distributorRepository.findById(5L)).thenReturn(Optional.of(distributor));
+
+        CommercialInvoiceService invoiceService = mock(CommercialInvoiceService.class);
+        PagoComercialRepository pagoRepo = mock(PagoComercialRepository.class);
+        when(invoiceService.createEntity(any())).thenAnswer(invocation -> {
+            CommercialInvoiceRequest request = invocation.getArgument(0);
+            FacturaComercial created = new FacturaComercial();
+            created.setModalidad(request.getModalidad());
+            created.setEstadoCobro(request.getEstadoCobro());
+            created.setNumeroFactura(request.getNumeroFactura());
+            created.setCompany(company);
+            return created;
+        });
+        when(pagoRepo.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PrinterServiceImpl adminService = adminPrinterService(
+                mock(FacturaComercialRepository.class),
+                invoiceService,
+                pagoRepo);
+
+        printer.setStatus(PrinterStatus.SIN_ASIGNAR);
+        adminService.update(1L, assignmentRequest(true, List.of()));
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.ASIGNADA);
+        assertThat(printer.getFacturaComercial().getNumeroFactura()).isNull();
+        assertThat(printer.getFacturaComercial().getModalidad()).isEqualTo("VENTA");
+        assertThat(printer.getFacturaComercial().getEstadoCobro()).isEqualTo("PAGADO");
+
+        printer.setStatus(PrinterStatus.SIN_ASIGNAR);
+        printer.setDistributor(null);
+        printer.setFacturaComercial(null);
+        adminService.update(1L, assignmentRequest(false, List.of()));
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(printer.getFacturaComercial().getModalidad()).isEqualTo("CONSIGNACION");
+        assertThat(printer.getFacturaComercial().getEstadoCobro()).isEqualTo("PENDIENTE_PAGO");
+
+        printer.setStatus(PrinterStatus.SIN_ASIGNAR);
+        printer.setDistributor(null);
+        printer.setFacturaComercial(null);
+        adminService.update(1L, assignmentRequest(false, List.of(new AssignmentPaymentRequest(
+                "zelle",
+                "REF-1",
+                new BigDecimal("25.00"),
+                null,
+                LocalDate.of(2026, 11, 27),
+                null))));
+        assertThat(printer.getStatus()).isEqualTo(PrinterStatus.EN_CONSIGNACION);
+        assertThat(printer.getPaid()).isFalse();
+        assertThat(printer.getFacturaComercial().getModalidad()).isEqualTo("VENTA");
+        assertThat(printer.getFacturaComercial().getEstadoCobro()).isEqualTo("PAGO_PARCIAL");
+        verify(pagoRepo, times(1)).save(any());
+    }
+
+    private static PrinterRequest assignmentRequest(
+            boolean paid,
+            List<AssignmentPaymentRequest> payments) {
+        return new PrinterRequest(
+                1L,
+                null,
+                null,
+                5L,
+                "ABC1234567",
+                null,
+                paid,
+                null,
+                null,
+                null,
+                null,
+                paid ? PrinterStatus.ASIGNADA : PrinterStatus.EN_CONSIGNACION,
+                null,
+                null,
+                null,
+                null,
+                payments);
     }
 
     @Test

@@ -42,7 +42,7 @@ public class UserRoleAssignmentService {
 		if (requestedRole == null) {
 			return RoleResolution.error(HttpStatus.BAD_REQUEST);
 		}
-		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT) {
+		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT || requestedRole == Role.FINANCE) {
 			if (request.getDistributorId() != null || request.getBranchId() != null) {
 				return RoleResolution.error(HttpStatus.BAD_REQUEST);
 			}
@@ -69,7 +69,7 @@ public class UserRoleAssignmentService {
 		if (requestedRole == null) {
 			return RoleResolution.error(HttpStatus.BAD_REQUEST);
 		}
-		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT) {
+		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT || requestedRole == Role.FINANCE) {
 			if (request.getDistributorId() != null || request.getBranchId() != null) {
 				return RoleResolution.error(HttpStatus.BAD_REQUEST);
 			}
@@ -94,7 +94,7 @@ public class UserRoleAssignmentService {
 	}
 
 	private RoleResolution resolveOperational(Role requestedRole, Long distributorId, Long branchId) {
-		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT) {
+		if (requestedRole == Role.ADMIN || requestedRole == Role.SENIAT || requestedRole == Role.FINANCE) {
 			if (distributorId != null || branchId != null) {
 				return RoleResolution.error(HttpStatus.BAD_REQUEST);
 			}

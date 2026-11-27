@@ -22,7 +22,7 @@ public class FacturaComercial {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "numero_factura", nullable = false, length = 30)
+    @Column(name = "numero_factura", length = 30)
     private String numeroFactura;
 
     @ManyToOne(fetch = FetchType.LAZY)

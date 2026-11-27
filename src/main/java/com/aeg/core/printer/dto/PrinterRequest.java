@@ -2,8 +2,10 @@ package com.aeg.core.printer.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -27,8 +29,31 @@ public record PrinterRequest(
         UUID creationBatchId,
         String encryptionKey,
         Long boxId,
-        Long facturaComercialId
+        Long facturaComercialId,
+        @Valid List<AssignmentPaymentRequest> assignmentPayments
 ) {
+    public PrinterRequest(
+            Long modelId,
+            Long softwareId,
+            Long clientId,
+            Long distributorId,
+            String fiscalSerial,
+            BigDecimal finalSalePrice,
+            Boolean paid,
+            OffsetDateTime installationDate,
+            Long firmwareId,
+            String versionFirmware,
+            String macAddress,
+            PrinterStatus status,
+            UUID creationBatchId,
+            String encryptionKey,
+            Long boxId,
+            Long facturaComercialId) {
+        this(modelId, softwareId, clientId, distributorId, fiscalSerial, finalSalePrice,
+                paid, installationDate, firmwareId, versionFirmware, macAddress, status,
+                creationBatchId, encryptionKey, boxId, facturaComercialId, null);
+    }
+
     public PrinterRequest(
             Long modelId,
             Long softwareId,

@@ -19,8 +19,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class CommercialInvoiceRequest {
 
-    @NotBlank(message = "El número de factura es obligatorio.")
-    @Size(max = 30, message = "El número de factura no puede superar los 30 caracteres.")
+    @Size(max = 30, message = "El número de orden no puede superar los 30 caracteres.")
     private String numeroFactura;
 
     @NotNull(message = "La empresa es obligatoria.")

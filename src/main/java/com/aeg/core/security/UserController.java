@@ -287,7 +287,7 @@ public class UserController {
             }
             return new ProfileAssignment(nationalId, null, null, null, null, null);
         }
-        if (role == Role.SENIAT) {
+        if (role == Role.SENIAT || role == Role.FINANCE) {
             return ProfileAssignment.global();
         }
         if (Role.isDistributorScoped(role)) {

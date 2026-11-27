@@ -61,6 +61,7 @@ class RoleTest {
     @Test
     void panelRolesExcludeServiceCenterTechnicians() {
         assertThat(Role.isPanelRole(Role.ADMIN)).isTrue();
+        assertThat(Role.isPanelRole(Role.FINANCE)).isTrue();
         assertThat(Role.isPanelRole(Role.DISTRIBUTOR)).isTrue();
         assertThat(Role.isPanelRole(Role.TECHNICIAN)).isFalse();
     }

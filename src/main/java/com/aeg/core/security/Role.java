@@ -10,7 +10,9 @@ public enum Role {
     @Deprecated
     SERVICE_CENTER,
     /** Auditor SENIAT: solo portal de libros fiscales, lectura global sin altas. */
-    SENIAT;
+    SENIAT,
+    /** Panel comercial: órdenes y pagos. Sin operación de impresoras ni libro fiscal. */
+    FINANCE;
 
     public static boolean isDistributorScoped(Role role) {
         return role == DISTRIBUTOR;
@@ -29,7 +31,7 @@ public enum Role {
     }
 
     public static boolean isPanelRole(Role role) {
-        return role == ADMIN || isDistributorScoped(role);
+        return role == ADMIN || role == FINANCE || isDistributorScoped(role);
     }
 
     public static boolean canWriteAnnualInspection(Role role) {

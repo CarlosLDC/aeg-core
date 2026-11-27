@@ -117,6 +117,7 @@ public class SecurityScopeService {
 				}
 				yield BranchScope.scoped(Set.of(user.getBranchId()));
 			}
+			case FINANCE -> BranchScope.none();
 		};
 	}
 

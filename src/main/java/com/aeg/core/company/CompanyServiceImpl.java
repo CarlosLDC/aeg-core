@@ -44,7 +44,7 @@ public class CompanyServiceImpl implements CompanyService {
     @Transactional(readOnly = true)
     public List<CompanyResponse> findAll() {
         User currentUser = securityScope.currentUser();
-        if (currentUser.getRole() == Role.ADMIN) {
+        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.FINANCE) {
             return repository.findAll().stream().map(this::toResponse).toList();
         }
         BranchScope scope = securityScope.resolveBranchScope();
@@ -137,7 +137,7 @@ public class CompanyServiceImpl implements CompanyService {
 
     private void assertCompanyReadable(Long companyId) {
         User currentUser = securityScope.currentUser();
-        if (currentUser.getRole() == Role.ADMIN) {
+        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.FINANCE) {
             return;
         }
         BranchScope scope = securityScope.resolveBranchScope();
