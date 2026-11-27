@@ -201,11 +201,21 @@ class ToolsMqttServiceTest {
         assertTrue(reprintResponse.success());
         assertTrue(reprintResponse.escPosContent().contains("FACTURA #1"));
 
+        when(awaiter.register(eq(MAC), eq(ToolsMqttConstants.CMD_WIFI_FORGET)))
+                .thenReturn(new CompletableFuture<>());
+        when(legacyClient.publishAndAwaitItem(
+                eq(MAC), anyString(), eq(ToolsMqttConstants.CMD_WIFI_FORGET), anyInt()))
+                .thenReturn(new FiscalMqttResponseItem("wifiForget", 0, 0, "Wi-Fi desconectado"));
+
         doThrow(new RuntimeException("main broker down"))
                 .when(mqttService).publish(anyString(), anyString());
 
         ToolsMqttSimpleResponse resetResponse = service.resetWifi(1L);
         assertTrue(resetResponse.success());
+        assertEquals("Wi-Fi desconectado.", resetResponse.message());
+
+        ToolsMqttSimpleResponse rebootResponse = service.rebootPrinter(1L);
+        assertTrue(rebootResponse.success());
         verify(legacyClient).publishFireAndForget(eq(MAC), anyString());
 
         when(awaiter.register(eq(MAC), eq(ToolsMqttConstants.CMD_END_FAC)))

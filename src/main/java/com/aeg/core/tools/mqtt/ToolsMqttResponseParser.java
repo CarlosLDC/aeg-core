@@ -104,7 +104,7 @@ public class ToolsMqttResponseParser {
     }
 
     public void parseWifiConnect(FiscalMqttResponseItem response) {
-        if (response.code() != null && response.code() == 0 && (response.dataS() == null || response.dataS().isBlank())) {
+        if (response.code() != null && response.code() == 0) {
             return;
         }
         String message = response.dataS() != null && !response.dataS().isBlank()

@@ -90,22 +90,41 @@ public class ToolsMqttService {
     }
 
     public ToolsMqttSimpleResponse connectWifi(Long printerId, String ssid, String password) {
+        String trimmedSsid = ssid == null ? "" : ssid.trim();
+        if (trimmedSsid.isEmpty()) {
+            return ToolsMqttSimpleResponse.error("Seleccione o escriba el SSID de la red Wi-Fi.");
+        }
         try {
             FiscalMqttResponseItem response = publishAndAwait(
                     printerId,
-                    payloadBuilder.wifiConnectPayload(ssid, password),
+                    payloadBuilder.wifiConnectPayload(trimmedSsid, password == null ? "" : password),
                     ToolsMqttConstants.CMD_WIFI_CONF,
                     settings.wifiTimeoutSeconds());
             responseParser.parseWifiConnect(response);
-            return ToolsMqttSimpleResponse.ok("Conexión WiFi enviada correctamente.");
+            return ToolsMqttSimpleResponse.ok(
+                    "Credenciales Wi-Fi guardadas. La impresora se está conectando.");
         } catch (ToolsMqttOperationException ex) {
             return ToolsMqttSimpleResponse.error(ex.getMessage());
         }
     }
 
     public ToolsMqttSimpleResponse resetWifi(Long printerId) {
+        try {
+            FiscalMqttResponseItem response = publishAndAwait(
+                    printerId,
+                    payloadBuilder.wifiResetPayload(),
+                    ToolsMqttConstants.CMD_WIFI_FORGET,
+                    settings.wifiTimeoutSeconds());
+            responseParser.parseWifiConnect(response);
+            return ToolsMqttSimpleResponse.ok("Wi-Fi desconectado.");
+        } catch (ToolsMqttOperationException ex) {
+            return ToolsMqttSimpleResponse.error(ex.getMessage());
+        }
+    }
+
+    public ToolsMqttSimpleResponse rebootPrinter(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
-        publishFireAndForgetOnAnyBroker(ctx, payloadBuilder.wifiResetPayload());
+        publishFireAndForgetOnAnyBroker(ctx, payloadBuilder.rebootPrinterPayload());
         return ToolsMqttSimpleResponse.ok("Comando de reinicio enviado a la impresora.");
     }
 

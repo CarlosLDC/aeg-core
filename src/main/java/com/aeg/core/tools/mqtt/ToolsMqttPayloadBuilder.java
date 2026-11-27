@@ -51,10 +51,16 @@ public class ToolsMqttPayloadBuilder {
     public String wifiConnectPayload(String ssid, String password) {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_WIFI_CONF,
-                "data", java.util.Map.of("ssid", ssid, "pass", password)));
+                "data", java.util.Map.of("ssid", ssid, "pass", password == null ? "" : password)));
     }
 
     public String wifiResetPayload() {
+        return writeJson(java.util.Map.of(
+                "cmd", ToolsMqttConstants.CMD_WIFI_FORGET,
+                "data", 0));
+    }
+
+    public String rebootPrinterPayload() {
         return writeJson(java.util.Map.of(
                 "cmd", ToolsMqttConstants.CMD_RESET_MF,
                 "data", ToolsMqttConstants.RESET_MF_DATA));

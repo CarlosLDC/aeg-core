@@ -6,4 +6,4 @@ import jakarta.validation.constraints.NotNull;
 public record ToolsWifiConnectRequest(
         @NotNull Long printerId,
         @NotBlank String ssid,
-        @NotBlank String password) {}
+        String password) {}

@@ -114,6 +114,21 @@ class ToolsMqttResponseParserTest {
     }
 
     @Test
+    void parseWifiConnectAcceptsCodeZeroWithStatusMessage() {
+        parser.parseWifiConnect(new FiscalMqttResponseItem(
+                "wifiConf", 0, 0, "Configuracion Wi-Fi guardada"));
+    }
+
+    @Test
+    void parseWifiConnectRejectsNonZeroCode() {
+        ToolsMqttOperationException ex = assertThrows(
+                ToolsMqttOperationException.class,
+                () -> parser.parseWifiConnect(new FiscalMqttResponseItem(
+                        "wifiConf", 20, 0, "SSID no puede estar vacio")));
+        assertEquals("SSID no puede estar vacio", ex.getMessage());
+    }
+
+    @Test
     void parseWifiScanDeduplicatesSsidKeepingBestSignal() {
         FiscalMqttResponseItem item = new FiscalMqttResponseItem(
                 "StaInf",

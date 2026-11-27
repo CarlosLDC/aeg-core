@@ -64,6 +64,11 @@ public class ToolsMqttController {
         return ResponseEntity.ok(toolsMqttService.resetWifi(request.printerId()));
     }
 
+    @PostMapping("/reboot")
+    public ResponseEntity<ToolsMqttSimpleResponse> reboot(@Valid @RequestBody ToolsPrinterRequest request) {
+        return ResponseEntity.ok(toolsMqttService.rebootPrinter(request.printerId()));
+    }
+
     @PostMapping("/reports-z/list")
     public ResponseEntity<ToolsReportZResponse> reportsZList(@Valid @RequestBody ToolsPrinterRequest request) {
         return ResponseEntity.ok(toolsMqttService.listReportZ(request.printerId()));
