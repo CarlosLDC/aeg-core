@@ -59,11 +59,6 @@ public class ToolsMqttController {
                 request.printerId(), request.ssid(), request.password()));
     }
 
-    @PostMapping("/wifi/reset")
-    public ResponseEntity<ToolsMqttSimpleResponse> wifiReset(@Valid @RequestBody ToolsPrinterRequest request) {
-        return ResponseEntity.ok(toolsMqttService.resetWifi(request.printerId()));
-    }
-
     @PostMapping("/reboot")
     public ResponseEntity<ToolsMqttSimpleResponse> reboot(@Valid @RequestBody ToolsPrinterRequest request) {
         return ResponseEntity.ok(toolsMqttService.rebootPrinter(request.printerId()));

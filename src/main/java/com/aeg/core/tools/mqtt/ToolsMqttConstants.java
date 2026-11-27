@@ -4,7 +4,6 @@ public final class ToolsMqttConstants {
 
     public static final String CMD_STA_INF = "StaInf";
     public static final String CMD_WIFI_CONF = "wifiConf";
-    public static final String CMD_WIFI_FORGET = "wifiForget";
     public static final String CMD_RESET_MF = "resetMF";
     public static final String CMD_GET_REP_Z = "getRepZ";
     public static final String CMD_REP_Z = "RepZ";

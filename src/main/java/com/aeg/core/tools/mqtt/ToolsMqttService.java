@@ -108,20 +108,6 @@ public class ToolsMqttService {
         }
     }
 
-    public ToolsMqttSimpleResponse resetWifi(Long printerId) {
-        try {
-            FiscalMqttResponseItem response = publishAndAwait(
-                    printerId,
-                    payloadBuilder.wifiResetPayload(),
-                    ToolsMqttConstants.CMD_WIFI_FORGET,
-                    settings.wifiTimeoutSeconds());
-            responseParser.parseWifiConnect(response);
-            return ToolsMqttSimpleResponse.ok("Wi-Fi desconectado.");
-        } catch (ToolsMqttOperationException ex) {
-            return ToolsMqttSimpleResponse.error(ex.getMessage());
-        }
-    }
-
     public ToolsMqttSimpleResponse rebootPrinter(Long printerId) {
         PrinterContext ctx = resolvePrinter(printerId);
         publishFireAndForgetOnAnyBroker(ctx, payloadBuilder.rebootPrinterPayload());
